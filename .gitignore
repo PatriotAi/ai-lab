@@ -1,0 +1,26 @@
+# Залежності / Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Секрети / Secrets — НІКОЛИ не комітити
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Збірки та артефакти / Build & artifacts
+dist/
+build/
+.next/
+out/
+*.log
+
+# Системне / OS & editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
