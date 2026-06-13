@@ -1,0 +1,12 @@
+# Залежності / Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Секрети / Secrets
+.env
+.env.*
+
+# Збірки / Build
+dist/
+build/

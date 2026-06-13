@@ -1,5 +1,5 @@
-# Trivy — конфігурація для CI та локальних сканувань.
-# Локально: trivy fs --config security/trivy.yaml .
+# Trivy — конфіг для CI та локальних сканувань / config for CI and local scans.
+# Локально / locally: trivy fs --config security/trivy.yaml .
 severity: HIGH,CRITICAL
 scan:
   scanners:
