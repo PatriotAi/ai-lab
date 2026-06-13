@@ -1,6 +1,6 @@
-# Локальні перевірки перед комітом.
-# Встанови один раз: pip install pre-commit && pre-commit install
-# Прогнати все: pre-commit run --all-files
+# Локальні перевірки перед комітом / local pre-commit checks.
+# Встанови / install once: bash scripts/setup.sh
+# Прогнати все / run all: pre-commit run --all-files
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

@@ -11,7 +11,7 @@
 - Артефакти для публікації — двомовні UA/EN, якщо не вказано інше.
 
 ## Структура репозиторію
-- `docs/` — методологія, дорожня карта (roadmap), журнал висновків (learnings), глосарій
+- `docs/` — методологія, дорожня карта, план (PLAN), журнал висновків, глосарій; білінгвальний онбординг у `docs/ua` + `docs/en`
 - `projects/` — самостійні проєкти-зразки (шаблон: `projects/project-template/`)
 - `experiments/` — маленькі експерименти-гіпотези (кожен: тека з README)
 - `skills/` — навички (каталог-джерело; активна — в `.claude/skills/<name>/SKILL.md`)
@@ -19,7 +19,7 @@
 - `scripts/` — допоміжні утиліти
 - `templates/` — шаблони
 - `security/` — конфіги безпеки (Trivy); політика — `SECURITY.md`
-- `.github/` — CI (security, lint), CODEOWNERS, Dependabot, шаблони Issue/PR
+- `.github/` — CI (security, code-quality, dependencies), CODEOWNERS, Dependabot, шаблони Issue/PR
 
 ## Методологія
 Експеримент-орієнтована: **гіпотеза → дизайн → запуск → вимір → лиши/прибери → висновок**.

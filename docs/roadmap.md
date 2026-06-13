@@ -55,6 +55,9 @@
 > **✅ Зроблено (червень 2026):** довершено план із Copilot-сесії — CI безпеки
 > (gitleaks, Trivy, Semgrep), `pre-commit`, Dependabot, CODEOWNERS, `.env.example`,
 > `CONTRIBUTING.md`, шаблони Issue/PR, `projects/` + `project-template/`, `scripts/`, `security/`.
+> Далі (Фази 1–3): білінгвальний шар (README/SECURITY/CONTRIBUTING/CoC + `docs/ua`+`docs/en`),
+> `code-quality.yml`, `dependencies.yml`, `scripts/setup.sh`+`security-check.sh`,
+> і перша навичка-двигун **`skill-new`**.
 > Лишилось (поза файлами): увімкнути branch protection у налаштуваннях репозиторію.
 
 ## 6. Додаткові рекомендації
