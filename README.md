@@ -1,50 +1,89 @@
-# ai-lab · ШІ-Лабораторія
+# ai-lab · ШІ-лаб
+
+**🇺🇦 Українською** · [🇬🇧 English](#-english)
 
 > Центральне сховище для опрацювання багатомовних проєктів з AI-допомогою.
-> Central repository for multilingual, AI-assisted productivity work.
+> Особиста **лабораторія продуктивності**: створюємо, покращуємо, спрощуємо й винаходимо
+> автоматизації, навички (skills) і робочі процеси. Напрацювання зберігаються як зразки
+> в `projects/` і згодом можуть виноситися в самостійні репозиторії.
 
-Особиста лабораторія продуктивності: місце, де ми **створюємо, покращуємо,
-спрощуємо та винаходимо** автоматизації, навички (skills) і робочі процеси.
-Окремі напрацювання зберігаються як зразки в `projects/` і згодом можуть
-виноситися в самостійні репозиторії.
-
-## Принципи / Principles
+## Принципи
 1. **Експеримент понад усе** — гіпотеза → запуск → вимір → висновок.
-2. **Двомовність за замовчуванням** (UA/EN).
+2. **Українська завжди присутня** — UA-канон, EN — дзеркало з перемиканням.
 3. **Автоматизації як код** — версіонуються, рев'юяться, тестуються.
 4. **Одна автоматизація — одна задача** (без шуму).
 5. **Безпека за замовчуванням** — жодних секретів у репо, автоматичні перевірки.
 6. **Знання накопичуються** — журнал висновків компаундиться.
 
-## Структура / Structure
+## Структура
 | Шлях | Призначення |
 |------|-------------|
-| `docs/` | Методологія, дорожня карта, журнал висновків, глосарій |
+| `docs/` | Методологія, дорожня карта, план, журнал висновків, глосарій |
+| `docs/ua/`, `docs/en/` | Білінгвальний онбординг (setup, guidelines, ai-integration) |
 | `projects/` | Самостійні проєкти-зразки (з `project-template/`) |
-| `experiments/` | Маленькі експерименти-гіпотези (кожен = тека) |
-| `skills/` | Навички Claude Code (версіонований каталог-джерело) |
-| `automations/` | Хуки, скрипти, пайплайни |
-| `scripts/` | Допоміжні утиліти |
-| `templates/` | Шаблони для швидкого старту |
-| `security/` | Конфіги безпеки (Trivy) і політика |
-| `.github/` | CI (security, lint), CODEOWNERS, Dependabot, шаблони Issue/PR |
+| `experiments/` | Маленькі експерименти-гіпотези |
+| `skills/`, `.claude/skills/` | Навички Claude Code (каталог-джерело / активні) |
+| `automations/`, `scripts/` | Хуки, пайплайни, утиліти |
+| `security/`, `.github/` | Конфіги безпеки, CI/CD, CODEOWNERS, шаблони |
 
-## Швидкий старт / Quick start
-1. Прочитай [`docs/methodology.md`](docs/methodology.md) — як ми працюємо.
-2. Глянь беклог у [`docs/roadmap.md`](docs/roadmap.md) — що робимо далі.
-3. Встанови перевірки: `pip install pre-commit && pre-commit install`.
-4. Створи експеримент із [`templates/experiment.md`](templates/experiment.md)
-   або проєкт із [`projects/project-template/`](projects/project-template/).
+## Швидкий старт
+1. `bash scripts/setup.sh` — встановити `pre-commit` і хуки.
+2. Прочитай [`docs/ua/setup.md`](docs/ua/setup.md) і [`docs/ua/guidelines.md`](docs/ua/guidelines.md).
+3. Глянь план [`docs/PLAN.md`](docs/PLAN.md) і беклог [`docs/roadmap.md`](docs/roadmap.md).
+4. Створи навичку (`/skill-new`), експеримент ([`templates/experiment.md`](templates/experiment.md))
+   або проєкт ([`projects/project-template/`](projects/project-template/)).
 
-## Безпека та якість / Security & quality
-- Жодних секретів у репо — лише `.env` (ігнорується) і `.env.example` без значень.
-- Автоматичні перевірки в CI: **gitleaks** (секрети), **Trivy** (вразливості/
-  місконфіги), **Semgrep** (SAST); локально — **pre-commit**; залежності — **Dependabot**.
-- Деталі — [`SECURITY.md`](SECURITY.md) і [`CONTRIBUTING.md`](CONTRIBUTING.md).
+## Безпека та якість
+Жодних секретів у репо. CI: **gitleaks** (секрети), **Trivy** (вразливості/місконфіги),
+**Semgrep** (SAST), **dependency-review**; локально — **pre-commit**; залежності — **Dependabot**.
+Деталі — [`SECURITY.md`](SECURITY.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-## Інструменти / Tooling
+## Інструменти
 Claude Code (навички, субагенти, хуки, slash-команди, plan mode) + MCP:
-**GitHub** (код/PR), **Vercel** (деплой/прев'ю), **Canva** (дизайн-ассети).
+**GitHub**, **Vercel**, **Canva**. AI-помічники: Claude / Claude Code, Codex, інші.
 
-## Ліцензія / License
+## Ліцензія
 Apache License 2.0 — див. [`LICENSE`](LICENSE).
+
+---
+
+<a id="-english"></a>
+## 🇬🇧 English
+
+[🇺🇦 Українською](#ai-lab--ші-лаб) · **English**
+
+> Central repository for multilingual, AI-assisted work. A personal **productivity lab**:
+> we create, improve, simplify and invent automations, skills and workflows. Work is stored
+> as samples in `projects/` and may later be spun out into standalone repositories.
+
+### Principles
+1. **Experiment first** — hypothesis → run → measure → conclusion.
+2. **Ukrainian always present** — UA is canonical, EN mirrors it with switching.
+3. **Automations as code** — versioned, reviewed, tested.
+4. **One automation — one job** (no noise).
+5. **Secure by default** — no secrets in the repo, automated checks.
+6. **Knowledge compounds** — the learnings log grows over time.
+
+### Structure
+| Path | Purpose |
+|------|---------|
+| `docs/` | Methodology, roadmap, plan, learnings, glossary |
+| `docs/ua/`, `docs/en/` | Bilingual onboarding (setup, guidelines, ai-integration) |
+| `projects/` | Standalone sample projects (with `project-template/`) |
+| `experiments/` | Small hypothesis experiments |
+| `skills/`, `.claude/skills/` | Claude Code skills (source catalog / active) |
+| `automations/`, `scripts/` | Hooks, pipelines, utilities |
+| `security/`, `.github/` | Security configs, CI/CD, CODEOWNERS, templates |
+
+### Quick start
+1. `bash scripts/setup.sh` — install `pre-commit` and hooks.
+2. Read [`docs/en/setup.md`](docs/en/setup.md) and [`docs/en/guidelines.md`](docs/en/guidelines.md).
+3. See the plan [`docs/PLAN.md`](docs/PLAN.md) and backlog [`docs/roadmap.md`](docs/roadmap.md).
+4. Create a skill (`/skill-new`), an experiment, or a project from the template.
+
+### Security & quality
+No secrets in the repo. CI: **gitleaks**, **Trivy**, **Semgrep** (SAST), **dependency-review**;
+locally — **pre-commit**; dependencies — **Dependabot**. See [`SECURITY.md`](SECURITY.md).
+
+### License
+Apache License 2.0 — see [`LICENSE`](LICENSE).
