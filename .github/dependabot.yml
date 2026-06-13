@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Тримаємо GitHub Actions у воркфлоу актуальними й безпечними.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+  # Додавай екосистеми (npm, pip, тощо) у міру появи коду в projects/.

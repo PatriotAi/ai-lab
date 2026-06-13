@@ -13,6 +13,16 @@
 5. **Мережева політика.** Зважай на політику Claude Code on the web (вихідний трафік
    обмежений конфігурацією середовища).
 
+## Автоматичні перевірки
+- **pre-commit** (локально): гігієна файлів + `detect-private-key` + `gitleaks`.
+  Встанови один раз: `pip install pre-commit && pre-commit install`.
+- **CI / GitHub Actions** (`.github/workflows/security.yml`):
+  - **gitleaks** — секрети в коді та історії
+  - **Trivy** — вразливості, місконфіги, секрети (конфіг: `security/trivy.yaml`)
+  - **Semgrep** — статичний аналіз коду (SAST)
+- **Dependabot** (`.github/dependabot.yml`) — оновлення залежностей.
+- **CODEOWNERS** — рев'ю змін власником.
+
 ## Якщо секрет таки потрапив у git
 1. Відкликати/ротувати токен негайно.
 2. Видалити з історії (`git filter-repo` / BFG) і force-push.
