@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SessionStart-хуки Claude Code — ai-lab · ШІ-лаб</title>
+<style>
+  :root { color-scheme: light dark; --acc:#6467f2; --mut:#6b7280; }
+  body { margin:0; font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif;
+         max-width:44rem; padding:2rem 1.25rem 4rem; margin-inline:auto; }
+  h1 { font-size:1.7rem; line-height:1.25; margin:.2rem 0 1rem; }
+  h2 { font-size:1.15rem; margin-top:2rem; }
+  blockquote { border-left:4px solid var(--acc); margin:1rem 0; padding:.4rem 1rem;
+               background:color-mix(in srgb, var(--acc) 8%, transparent); }
+  code { font-family:ui-monospace,Menlo,monospace; font-size:.92em;
+         background:color-mix(in srgb, currentColor 10%, transparent);
+         padding:.1em .35em; border-radius:4px; }
+  .lang { font-size:.85rem; color:var(--mut); margin-bottom:1.5rem; }
+  .lang a { color:var(--acc); text-decoration:none; }
+  hr { border:none; border-top:1px solid color-mix(in srgb, currentColor 20%, transparent);
+       margin:3rem 0; }
+  footer { margin-top:3rem; font-size:.85rem; color:var(--mut); }
+  a { color:var(--acc); }
+</style>
+</head>
+<body>
+
+<section id="ua">
+<p class="lang">🇺🇦 Українською (канон) · <a href="#en">🇬🇧 English ▸</a></p>
+<h1>SessionStart-хуки Claude Code: робочий контекст щосесії</h1>
+<blockquote><strong>Теза:</strong> хук (hook) — це детермінований контроль:
+потрібний контекст підвантажується <strong>щосесії гарантовано</strong>,
+а не «якщо модель згадає».</blockquote>
+
+<h2>Що це</h2>
+<p><code>SessionStart</code> — подія життєвого циклу Claude Code. Хук на неї
+спрацьовує на <code>startup</code> (нова сесія), <code>resume</code>
+(продовження), <code>clear</code> (<code>/clear</code>) і <code>compact</code>
+(стискання контексту). Тобто контекст повертається навіть після очищення чи
+компакції — саме тоді він і губиться найчастіше.</p>
+
+<h2>Як віддати контекст</h2>
+<p>Два способи: <strong>plain stdout</strong> — увесь вивід додається в контекст
+сесії; або <strong>JSON</strong> — <code>hookSpecificOutput.additionalContext</code>:
+текст обгортається системним нагадуванням і потрапляє в розмову перед першим
+промптом.</p>
+
+<h2>Конфігурація і межі</h2>
+<p>Реєстрація в <code>.claude/settings.json</code> (проєктний) або
+<code>~/.claude/settings.json</code> (користувацький); тип <code>command</code>.
+Хук <strong>синхронний</strong> — блокує старт сесії; таймаут за замовчуванням
+600&nbsp;с. Рекомендація з документації: «SessionStart runs on every session,
+so keep these hooks fast».</p>
+
+<h2>Кейс ai-lab</h2>
+<p><code>automations/session-start/</code> — ~50 рядків bash: дайджест (мова
+UA-канон, правила безпеки, активні навички, статус фаз <code>PLAN</code>,
+останній запис журналу висновків) + best-effort <code>pre-commit install</code>.
+Результат: кожна сесія стартує вже «в темі», без ручного переказування контексту.</p>
+
+<h2>Висновок</h2>
+<p>Один маленький хук закриває «холодний старт»: конвенції, стан плану і
+пам'ять лабораторії присутні з першої секунди сесії. Мінімум коду — максимум
+детермінованості.</p>
+</section>
+
+<hr>
+
+<section id="en">
+<p class="lang"><a href="#ua">🇺🇦 Українською ▸</a> · 🇬🇧 English</p>
+<h1>Claude Code SessionStart hooks: working context in every session</h1>
+<blockquote><strong>Thesis:</strong> a hook is deterministic control: the
+context you need is loaded <strong>reliably in every session</strong>, not
+"if the model remembers to".</blockquote>
+
+<h2>What it is</h2>
+<p><code>SessionStart</code> is a Claude Code lifecycle event. A hook on it
+fires on <code>startup</code> (new session), <code>resume</code>,
+<code>clear</code> (<code>/clear</code>), and <code>compact</code> (context
+compaction). So the context comes back even after clearing or compaction —
+exactly when it usually gets lost.</p>
+
+<h2>Returning context</h2>
+<p>Two ways: <strong>plain stdout</strong> — everything printed is added to the
+session context; or <strong>JSON</strong> —
+<code>hookSpecificOutput.additionalContext</code>: the text is wrapped in a
+system reminder and injected into the conversation before the first prompt.</p>
+
+<h2>Configuration and limits</h2>
+<p>Registered in <code>.claude/settings.json</code> (project) or
+<code>~/.claude/settings.json</code> (user); type <code>command</code>. The
+hook is <strong>synchronous</strong> — it blocks session start; default timeout
+is 600&nbsp;s. The docs advise: "SessionStart runs on every session, so keep
+these hooks fast."</p>
+
+<h2>The ai-lab case</h2>
+<p><code>automations/session-start/</code> — ~50 lines of bash: a digest
+(UA-canon language rule, security rules, active skills, <code>PLAN</code> phase
+statuses, the latest learnings log entry) plus a best-effort
+<code>pre-commit install</code>. Result: every session starts already
+"in context", with no manual recap.</p>
+
+<h2>Takeaway</h2>
+<p>One small hook closes the "cold start": conventions, plan state, and the
+lab's memory are present from the first second of a session. Minimal code —
+maximal determinism.</p>
+</section>
+
+<footer>
+Джерела / Sources:
+<a href="https://code.claude.com/docs/en/hooks">Hooks reference</a> ·
+<a href="https://code.claude.com/docs/en/hooks-guide">Hooks guide</a> ·
+<code>automations/session-start/</code> (ai-lab).<br>
+ai-lab · ШІ-лаб — experiments/e2e-content-pipeline
+</footer>
+
+</body>
+</html>
