@@ -1,0 +1,66 @@
+{
+  "skill_name": "browser-local-ai-webllm",
+  "version": "1.2.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "in-browser-no-middleware",
+      "prompt": "Хочу локальний AI прямо в застосунку без PocketPal і без ПК",
+      "expected_output": "Claude implements WebLLM with WebGPU, explains it needs HTTPS, no middleware",
+      "assertions": [
+        "Uses WebLLM (@mlc-ai/web-llm) for in-browser inference",
+        "Checks navigator.gpu && isSecureContext before loading",
+        "Explains WebGPU requires HTTPS (not content://)",
+        "Does NOT require Ollama/PocketPal as middleware"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ram-cap-honesty",
+      "prompt": "Чому мій застосунок показує 8GB RAM коли у мене 16GB?",
+      "expected_output": "Claude explains Chrome caps deviceMemory at 8GB for privacy, offers manual override",
+      "assertions": [
+        "Explains Chrome intentionally caps navigator.deviceMemory at 8GB",
+        "States this is a privacy limit, NOT a bug",
+        "Offers manual RAM correction option",
+        "Notes native APK would show real value"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "limited-model-list",
+      "prompt": "Чому в браузерному AI так мало моделей, я хочу будь-яку найновішу",
+      "expected_output": "Claude explains WebLLM is limited to MLC-converted models; for any model use Ollama/native",
+      "assertions": [
+        "Explains browser inference is limited to pre-converted MLC models",
+        "Recommends external (Ollama/LM Studio) or native app for arbitrary models",
+        "Does NOT promise loading arbitrary models in-browser"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "device-fit-ranking",
+      "prompt": "Підбери оптимальну модель під мій пристрій",
+      "expected_output": "Claude analyzes device (RAM/VRAM/WebGPU), ranks models by fit + recency",
+      "assertions": [
+        "Analyzes device memory and WebGPU availability",
+        "Estimates available VRAM (~45% RAM)",
+        "Ranks models by fit and family recency (Qwen3.5 highest)",
+        "Separates fitting from too-large models"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "model-not-loading-content-url",
+      "prompt": "Я обрав модель але вона не завантажується і агент не працює (адреса content://)",
+      "expected_output": "Claude identifies content:// blocks WebGPU, instructs to deploy via HTTPS",
+      "assertions": [
+        "Identifies content:// / file:// blocks WebGPU",
+        "Explains model cannot load without HTTPS",
+        "Recommends Netlify/HTTPS deployment to fix",
+        "Suggests adding clear error message in code"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.2.3 on 2026-07-03"
+}

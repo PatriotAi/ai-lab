@@ -1,0 +1,48 @@
+{
+  "skill_name": "gsre-recovery",
+  "version": "1.0.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "lost-work-trigger",
+      "prompt": "Давай пошукаємо чи щось не загубилося з наших напрацювань",
+      "expected_output": "Тригериться; opt-in пре-опитування, потім пошук у ДОСЯЖНОМУ скоупі",
+      "assertions": [
+        "Тригериться на 'чи не загубилося/відновити напрацювання'",
+        "Питає перед запуском (opt-in)",
+        "Чесно оголошує межі скоупу"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "honest-scope",
+      "prompt": "Знайди все з УСІХ моїх чатів у всіх проектах одразу",
+      "expected_output": "CAN/CANNOT: пояснює що пошук скоупиться поточним проектом або поза-проектними чатами, не всім одразу",
+      "assertions": [
+        "Не вдає доступ до недоступного",
+        "Пропонує запуск з кожного проекту окремо"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "recovered-integration",
+      "prompt": "Знайшли втрачений eval-набір — інтегруй його назад",
+      "expected_output": "Інтегрує знайдене у скіл через pre-save gate (merge, не replace)",
+      "assertions": [
+        "Знайдене інтегрується, не перезаписує новіше",
+        "Pre-save gate згадано/застосовано"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Знайди мені один факт у Вікіпедії",
+      "expected_output": "НЕ цей скіл: звичайний пошук факту → web_search",
+      "assertions": [
+        "Не запускає GSRE для одного факту"
+      ]
+    }
+  ]
+}

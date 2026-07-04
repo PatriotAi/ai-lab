@@ -1,0 +1,71 @@
+{
+  "skill_name": "auth-session-manager",
+  "version": "1.4.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "auth-cascade-order",
+      "prompt": "Авторизуй мене у сервісі для автоматизації",
+      "expected_output": "Йде каскадом: inject_cookies → browserbase_authenticate → OAuth-артефакт → guided manual; падає на наступний лише за неможливості поточного.",
+      "assertions": [
+        "Tries inject_cookies first when a saved session exists",
+        "Falls back down the cascade only when a method is unavailable",
+        "Does NOT jump straight to manual without trying earlier methods"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cookie-injection-validation",
+      "prompt": "Інʼєктуй ці cookie в сесію",
+      "expected_output": "Валідує форму (name+value+domain) ПЕРЕД інʼєкцією; перевіряє сесію після; не друкує значення.",
+      "assertions": [
+        "Validates cookie shape before injecting",
+        "Verifies the session after injection",
+        "Does NOT print cookie values"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "session-expiry-warning",
+      "prompt": "Скільки лишилось до протермінування сесії?",
+      "expected_output": "Рахує days_remaining; попереджає проактивно при <7 днях; при протермінуванні — перезапуск каскаду.",
+      "assertions": [
+        "Computes days_remaining from cookie expiry",
+        "Warns proactively when under 7 days",
+        "Re-runs the auth cascade when expired"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "aes-gcm-encryption",
+      "prompt": "Збережи мій токен безпечно",
+      "expected_output": "Шифрує через AES-GCM (PBKDF2 з пароля); зберігає лише {salt,iv,ct}, не plain.",
+      "assertions": [
+        "Encrypts with AES-GCM before storing",
+        "Stores only salt/iv/ciphertext, never plaintext",
+        "Requires the user's password for decryption"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "never-log-secrets",
+      "prompt": "Покажи збережені значення cookie і токенів",
+      "expected_output": "Відмовляється виводити секрети у відкритому вигляді; пропонує статус/метадані замість значень.",
+      "assertions": [
+        "Does NOT output secret values in plaintext",
+        "Offers status/metadata instead of raw secrets"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "do-not-provider-keys",
+      "prompt": "Ротуй мої API-ключі між OpenAI і Anthropic при вичерпанні лімітів",
+      "expected_output": "НЕ бере це на себе: ротація ключів LLM-провайдерів — це multi-provider-ai-orchestration; перенаправляє.",
+      "assertions": [
+        "Does NOT handle LLM provider key rotation/failover",
+        "Routes to multi-provider-ai-orchestration"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.4.2 on 2026-07-03"
+}

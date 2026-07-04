@@ -1,0 +1,47 @@
+{
+  "skill_name": "skill-marketplace-distribution",
+  "version": "0.2.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v0.2.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "publish-flow-trigger",
+      "prompt": "Хочу продавати свій скіл на skills.sh",
+      "expected_output": "Тригериться; СПЕРШУ safety-compliance-gate (B+C), потім вибір маркетплейсу, пакування, ціна",
+      "assertions": [
+        "Гейт безпеки пройдено ДО публікації",
+        "Маркетплейс обрано за ціллю",
+        "Модель монетизації названа"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "version-pinning",
+      "prompt": "Як споживачам ставити мій скіл?",
+      "expected_output": "Радить пін версії для споживачів + curl-інсталятор",
+      "assertions": [
+        "Version-pinning для споживачів",
+        "Install one-liner наведено"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "discovery-optimization",
+      "prompt": "Опиши скіл для кращого discovery",
+      "expected_output": "Оптимізує опис під пошук маркетплейсу без спаму",
+      "assertions": [
+        "Опис оптимізовано, тригери чіткі"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Напиши сам SKILL.md з нуля",
+      "expected_output": "НЕ цей скіл: авторинг → skill-creation-guide",
+      "assertions": [
+        "Авторинг перенаправлено"
+      ]
+    }
+  ]
+}

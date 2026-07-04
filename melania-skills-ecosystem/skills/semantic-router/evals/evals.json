@@ -1,0 +1,46 @@
+{
+  "skill_name": "semantic-router",
+  "version": "1.13.2",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.13.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "routing-trigger",
+      "prompt": "Складний запит: зроби аудит, онови скіли і запакуй",
+      "expected_output": "Тригериться як entry point; класифікує, обирає МІНІМАЛЬНИЙ набір скілів, координує",
+      "assertions": [
+        "Роутер = точка входу",
+        "Активовано мінімальний достатній набір, не всі",
+        "Показано Routing Decl при неочевидному виборі"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "simple-passthrough",
+      "prompt": "Скільки буде 2+2?",
+      "expected_output": "simple → 0 скілів, пряма відповідь",
+      "assertions": [
+        "Нуль скілів активовано для тривіального"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ambiguous-one-question",
+      "prompt": "Зроби щось із цим",
+      "expected_output": "ambig → рівно 1 уточнювальне питання, не більше",
+      "assertions": [
+        "Одне питання, не допит"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "dynamic-discovery",
+      "prompt": "(у бібліотеці з'явився новий скіл)",
+      "expected_output": "Роутер бачить нові скіли динамічно, без хардкод-списку",
+      "assertions": [
+        "Новий скіл підхоплено без зміни роутера"
+      ]
+    }
+  ]
+}

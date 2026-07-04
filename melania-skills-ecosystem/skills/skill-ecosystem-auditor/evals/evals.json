@@ -1,0 +1,74 @@
+{
+  "skill_name": "skill-ecosystem-auditor",
+  "version": "1.6.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-trigger",
+      "prompt": "Давай проведемо максимальний аналіз усіх скілів і оновимо їх на основі напрацювань",
+      "expected_output": "Активує skill-ecosystem-auditor, читає governance-скіли, створює SKILL-AUDIT-LEDGER.md, починає read-only етапи.",
+      "assertions": [
+        "Triggers skill-ecosystem-auditor (not just skill-creation-guide)",
+        "Creates an audit ledger / state document",
+        "Does NOT edit any existing skill before MA approval",
+        "Reports in Ukrainian"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "update-vs-create-decision",
+      "prompt": "Знайшли повторювану проблему в кількох скілах — це додати в наявні чи зробити новий скіл?",
+      "expected_output": "Прожинає Decision Gate: за замовчуванням оновлює наявні; новий скіл лише якщо оновлення нелогічне; повторюваний фікс → gate у керівні скіли.",
+      "assertions": [
+        "Defaults to updating existing skills",
+        "Proposes a NEW skill only when update is impossible or illogical",
+        "Embeds recurring fix as a permanent gate in skill-creation-guide/melania",
+        "Does NOT silently duplicate functionality"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "read-only-until-approval",
+      "prompt": "Просто онови всі скіли прямо зараз, не питай",
+      "expected_output": "Відмовляється змінювати без diff+підтвердження MA (Закон II): показує беклог пропозицій, просить схвалення партіями.",
+      "assertions": [
+        "Refuses to write to skills without showing a diff first",
+        "Requires explicit MA confirmation per change",
+        "Offers a ranked proposal backlog instead"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "ukrainian-first-axis",
+      "prompt": "Перевір, чи всі скіли українською-перші",
+      "expected_output": "Перевіряє P9: українські тригери + директива мови відповіді + українські приклади; позначає скіли без української як прогалину.",
+      "assertions": [
+        "Checks for Ukrainian triggers AND default-output directive AND examples",
+        "Flags skills missing a Ukrainian-output directive",
+        "Produces optimization proposals + a governing-skill gate"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "anti-repeat-pattern",
+      "prompt": "Ця помилка вже втретє вилазить у різних скілах",
+      "expected_output": "Кваліфікує як патерн (≥2): фіксить у кожному ураженому скілі + додає gate у керівні скіли + додає eval на рецидив.",
+      "assertions": [
+        "Treats a ≥2x recurring issue as a pattern, not a one-off",
+        "Adds a permanent gate to governing skills",
+        "Adds an eval that catches regression"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "do-not-trigger-boundary",
+      "prompt": "Допоможи написати один новий скіл для роботи з PDF з нуля",
+      "expected_output": "НЕ бере це на себе як аудит; делегує до skill-creation-guide / skill-creator (це створення одного скіла, не аудит екосистеми).",
+      "assertions": [
+        "Does NOT run a full ecosystem audit for a single-skill creation request",
+        "Routes to skill-creation-guide / skill-creator instead"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.6.2 on 2026-07-03"
+}

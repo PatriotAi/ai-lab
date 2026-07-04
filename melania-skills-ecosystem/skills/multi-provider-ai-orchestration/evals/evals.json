@@ -1,0 +1,54 @@
+{
+  "skill_name": "multi-provider-ai-orchestration",
+  "version": "1.4.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "multi-key-rotation",
+      "prompt": "Хочу щоб мій застосунок переключався на наступний API ключ коли токени закінчуються",
+      "expected_output": "Claude implements key rotation: parse multiple keys, expand to chain nodes, failover on rate-limit",
+      "assertions": [
+        "Parses multiple keys from one field (comma/newline)",
+        "Each key becomes a separate failover node",
+        "Detects rate-limit (429/quota) to trigger rotation",
+        "Continues to next node automatically, does not stop on error"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "group-orchestration",
+      "prompt": "Зроби щоб кілька AI моделей працювали разом над запитом, кожна свою частину",
+      "expected_output": "Claude implements group orchestration with parallel/pipeline/synthesis modes and roles",
+      "assertions": [
+        "Offers parallel, pipeline, and synthesis modes",
+        "Uses Promise.allSettled for parallel execution",
+        "Assigns roles (researcher, critic, synthesizer) with distinct system prompts",
+        "Synthesis combines outputs via a synthesizer node"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "free-continuous-use",
+      "prompt": "Як зробити безперервне безкоштовне використання AI через ланцюг провайдерів?",
+      "expected_output": "Claude designs a provider chain with free providers, failover, and key rotation",
+      "assertions": [
+        "Chains multiple free providers by tier",
+        "Failover keeps working when one provider's limit is hit",
+        "Explains continuous operation via rotation"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "custom-provider-config",
+      "prompt": "Дай користувачам підключати власний AI API через конфіг",
+      "expected_output": "Claude builds a config-driven custom provider (not eval), with getByPath response extraction",
+      "assertions": [
+        "Config-driven provider, NOT eval of arbitrary code",
+        "Validates name + endpoint (http/https)",
+        "Uses path-based response extraction (responsePath)",
+        "Supports openai and raw formats"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.4.2 on 2026-07-03"
+}
