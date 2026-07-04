@@ -1,0 +1,65 @@
+{
+  "skill_name": "surgical-code-refactoring",
+  "version": "1.5.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "add-feature-large-file",
+      "prompt": "Додай нову функцію експорту в PDF до мого застосунку (це файл на 2000 рядків), не зламавши те що працює",
+      "expected_output": "Claude audits first, patches via str_replace, validates before integrating, regression-checks after",
+      "assertions": [
+        "Does grep/view to audit insertion points BEFORE editing",
+        "Uses str_replace for targeted patches, NOT full rewrite",
+        "Runs syntax/simulation validation BEFORE declaring done",
+        "Runs regression check that old features still present",
+        "Does NOT rewrite the whole file"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "explicit-surgical-request",
+      "prompt": "Виправ цей баг хірургічно, економ токени, не переписуй весь файл",
+      "expected_output": "Claude reads only relevant lines, patches precisely, validates",
+      "assertions": [
+        "Uses view_range to read only relevant section",
+        "Single targeted str_replace patch",
+        "Validates the change",
+        "Does NOT re-read or rewrite entire file"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "validate-before-integrate",
+      "prompt": "Вбудуй цю нову бібліотеку в застосунок",
+      "expected_output": "Claude tests the library works BEFORE integrating it into the app",
+      "assertions": [
+        "Tests/verifies library functionality BEFORE wiring into app",
+        "Does NOT integrate untested code and hope it works",
+        "Runs validation after integration"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "fullwidth-char-trap",
+      "prompt": "Встав цей React-компонент на 80 рядків у потрібне місце файлу",
+      "expected_output": "After heredoc insertion, Claude checks for fullwidth chars and validates JSX",
+      "assertions": [
+        "Inserts large block via python heredoc at anchor point",
+        "Checks for fullwidth punctuation after insertion",
+        "Runs Babel/JSX validation"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "sync-duplicate-files",
+      "prompt": "Я тримаю app.html та index.html ідентичними. Додай фічу X",
+      "expected_output": "Claude edits one then syncs the copy, keeping them identical",
+      "assertions": [
+        "After editing, syncs the duplicate file",
+        "Verifies files are identical (diff)",
+        "Does NOT let the two files diverge"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.5.2 on 2026-07-03"
+}

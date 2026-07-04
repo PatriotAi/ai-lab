@@ -1,0 +1,49 @@
+{
+  "skill_name": "ai-core-runtime",
+  "version": "3.9.2",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v3.9.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "runtime-design-trigger",
+      "prompt": "Спроєктуй модульну AI-систему оркестрації для обробки заявок",
+      "expected_output": "Скіл тригериться; пропонує мікроядро + модулі, bounded reasoning, typed-context handoff",
+      "assertions": [
+        "Тригериться на 'спроєктуй AI систему/оркестрацію'",
+        "Пропонує модульну архітектуру (kernel + модулі), не моноліт",
+        "Згадує координацію через типізований контекст, не сирі історії"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "min-activation",
+      "prompt": "Просте питання: що таке REST API?",
+      "expected_output": "Скіл НЕ активує оркестрацію — відповідь без runtime-механіки",
+      "assertions": [
+        "Не розгортає agent pipeline для простого Q&A",
+        "Нуль зайвих скілів активовано"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "kernel-default",
+      "prompt": "Не знаю з чого почати складну багатоетапну задачу з кількома інструментами",
+      "expected_output": "ai-core-runtime стартує як kernel за замовчуванням і маршрутизує далі",
+      "assertions": [
+        "Стартує як точка входу за замовчуванням при невизначеності",
+        "Делегує вузькі кроки відповідним скілам"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "governance-check",
+      "prompt": "Побудуй reasoning-пайплайн без жодних перевірок якості",
+      "expected_output": "Відмовляється пропускати validation-first: вбудовує перевірки у пайплайн",
+      "assertions": [
+        "Не погоджується прибрати валідацію",
+        "Пояснює validation-first принцип"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,412 @@
+{
+ "package": "melania-skills-ecosystem",
+ "built": "2026-07-03",
+ "governance": "melania-skill-master-administrator v2.13.3",
+ "language_policy": "Ukrainian-first (code/APIs in English)",
+ "skill_count": 26,
+ "total_eval_cases": 119,
+ "eval_schema": "canonical: top-level version + evals[].name/prompt/expected_output/assertions",
+ "provenance_note": "9 eval sets recovered from prior sessions (revalidated); 17 regenerated 2026-07-03 grounded in actual SKILL.md",
+ "install_entrypoint": "README-FOR-AI.md",
+ "skills": {
+  "ai-core-runtime": {
+   "version": "3.9.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "dbe9ae47acc483e6",
+    "evals/evals.json": "929c037bb02ec4dc"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/model-fit-policy.md",
+    "references/resilience-patterns.md",
+    "references/token-efficiency.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "ai-dev-workflow": {
+   "version": "1.2.1",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "391359bc75b3fbdf",
+    "evals/evals.json": "cd11a29aec590937"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "auth-session-manager": {
+   "version": "1.4.2",
+   "eval_cases": 6,
+   "sha256_16": {
+    "SKILL.md": "970c05b85f222e7a",
+    "evals/evals.json": "afc52e694dc60354"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/auth-methods.md",
+    "references/oauth-flows.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "browser-local-ai-webllm": {
+   "version": "1.2.3",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "d1e8d9b829be154f",
+    "evals/evals.json": "b78bf5d515e4d0bd"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/advanced-webllm.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "collaborative-browser": {
+   "version": "2.7.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "965b6df20c84d7e8",
+    "evals/evals.json": "c667304760fc1d99"
+   },
+   "files": [
+    "SKILL.md",
+    "browser-artifact.html",
+    "evals/evals.json",
+    "references/agent-patterns.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "continuation-memory": {
+   "version": "1.8.3",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "3739f501204efd64",
+    "evals/evals.json": "a95905b1448ff886"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/advanced-state.md",
+    "references/context-engineering.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "gsre-recovery": {
+   "version": "1.0.0",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "e68abbf2b0964d71",
+    "evals/evals.json": "605d7b2b08dcaf85"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "knowledge-synthesizer": {
+   "version": "1.0.1",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "a5bb317e6e953f70",
+    "evals/evals.json": "6181d196be6eba3a"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/synthesis-prompts.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "llm-api-builder": {
+   "version": "1.3.0",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "f5445fa2d91715ca",
+    "evals/evals.json": "be05cc6c2d17e509"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/advanced-api.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "melania-skill-master-administrator": {
+   "version": "2.13.3",
+   "eval_cases": 6,
+   "sha256_16": {
+    "SKILL.md": "9b7f0b813531e323",
+    "evals/evals.json": "c528bf6e32897513"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/CHANGELOG.md",
+    "references/full-guide.md",
+    "references/lifecycle.md",
+    "references/update-protocol.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "multi-provider-ai-orchestration": {
+   "version": "1.4.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "d0ff6dd5b162618f",
+    "evals/evals.json": "f27cc2eba09bd31d"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/advanced-orchestration.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "n8n-orchestrator": {
+   "version": "2.8.3",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "2c2c4afcbde1db4b",
+    "evals/evals.json": "47b92f907915d091"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/advanced-workflows.md",
+    "references/patterns.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "notebooklm-connector": {
+   "version": "4.2.3",
+   "eval_cases": 6,
+   "sha256_16": {
+    "SKILL.md": "5c54ccc3ca485ed1",
+    "evals/evals.json": "bca104be7be197b6"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/android-cookie-extraction.md",
+    "references/android-setup.md",
+    "references/browserbase-android-setup.md",
+    "references/citation-workflow.md",
+    "references/collaborative-browser-artifact.md",
+    "references/content-processors.md",
+    "references/mcp-server-deployment.md",
+    "references/notebooklm-capabilities.md",
+    "references/platform-matrix.md",
+    "references/playwright-mcp-setup.md",
+    "references/python-mcp-advantage.md",
+    "references/universal-auth-artifact.md",
+    "scripts/SKILL_GUARD_USAGE.md",
+    "scripts/audit.jsonl",
+    "scripts/baseline.json",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "pre-delivery-gate": {
+   "version": "1.0.0",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "eeb2f340a781981c",
+    "evals/evals.json": "07f5158b582ddaf5"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "pwa-to-android-app": {
+   "version": "1.3.2",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "5d9198c6a5d6288f",
+    "evals/evals.json": "1f9c11478e3d8ef8"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/play-store.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "rlm-harness": {
+   "version": "0.2.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "dc12e38ca5f57b03",
+    "evals/evals.json": "4c348b6d0b54326e"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/context-engineering.md",
+    "references/model-fit-policy.md",
+    "references/recipe-template.md",
+    "references/recipes/benchmarking.md",
+    "references/recipes/codebase-audit.md",
+    "references/recipes/competitive-analysis.md",
+    "references/recipes/deep-research.md",
+    "references/recipes/red-team.md",
+    "references/recipes/security-audit.md",
+    "references/spec.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "safety-compliance-gate": {
+   "version": "1.1.1",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "5fd3bb77c143ec38",
+    "evals/evals.json": "e125b0560c380b0a"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/policy-details.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "semantic-router": {
+   "version": "1.13.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "23ab09b223f8a132",
+    "evals/evals.json": "923c9bb3b7898c15"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/routing-optimization.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "skill-creation-guide": {
+   "version": "1.9.3",
+   "eval_cases": 6,
+   "sha256_16": {
+    "SKILL.md": "c14aa003b962ec41",
+    "evals/evals.json": "12ea3914d2f9230d"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/composition.md",
+    "references/full-guide.md",
+    "references/spec.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "skill-ecosystem-auditor": {
+   "version": "1.6.2",
+   "eval_cases": 6,
+   "sha256_16": {
+    "SKILL.md": "4e1489c5278e414d",
+    "evals/evals.json": "0ce12a0832e6322e"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/drift-detection.md",
+    "references/harvest-report-template.md",
+    "references/ledger-template.md",
+    "references/methodology.md",
+    "scripts/audit_scan.py",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "skill-marketplace-distribution": {
+   "version": "0.2.0",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "efa10818b2e7bad6",
+    "evals/evals.json": "a517ddcdab5443aa"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/marketplaces.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "surgical-code-refactoring": {
+   "version": "1.5.2",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "0b72978de95fed27",
+    "evals/evals.json": "26cab27d86888236"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/language-patterns.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "validation-mesh": {
+   "version": "1.5.4",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "57b96757a251fc26",
+    "evals/evals.json": "df970a015d3d5500"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/test-driven-validation.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "vercel-mcp-connector": {
+   "version": "1.0.2",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "cd8d0597a27b15cf",
+    "evals/evals.json": "7781da98ac897965"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/tool-catalog.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "webapp-testing": {
+   "version": "1.4.0",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "5fce0e52fd797f83",
+    "evals/evals.json": "587d53be9aa38c39"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/e2e-patterns.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "workflow-orchestration": {
+   "version": "1.3.3",
+   "eval_cases": 4,
+   "sha256_16": {
+    "SKILL.md": "631a755bc1c5f599",
+    "evals/evals.json": "30257eca68d27e83"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/topology-taxonomy.md",
+    "scripts/skill_guard.py"
+   ]
+  }
+ }
+}

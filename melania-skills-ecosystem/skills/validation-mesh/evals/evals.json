@@ -1,0 +1,46 @@
+{
+  "skill_name": "validation-mesh",
+  "version": "1.5.4",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.5.4",
+  "evals": [
+    {
+      "id": 1,
+      "name": "validate-trigger",
+      "prompt": "Перевір цю архітектуру перед деплоєм",
+      "expected_output": "Тригериться; багатошарова перевірка → вердикт VALID/INVALID/UNKNOWN з reasoning",
+      "assertions": [
+        "Вердикт одного з трьох типів",
+        "Кожен шар з поясненням",
+        "Confidence вказано"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "hallucination-check",
+      "prompt": "Перевір цей текст на вигадані факти",
+      "expected_output": "Ловить неверифіковані твердження, позначає UNKNOWN замість вгадування",
+      "assertions": [
+        "Неперевірене → UNKNOWN, не VALID"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "no-generation",
+      "prompt": "Заодно перепиши і покращ документ",
+      "expected_output": "Відмова: mesh лише валідує, не генерує контент",
+      "assertions": [
+        "Генерацію відхилено, лише перевірка"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "dependency-validation",
+      "prompt": "Перевір чи всі залежності workflow узгоджені",
+      "expected_output": "Перевіряє dependency-графи, ловить розриви",
+      "assertions": [
+        "Розриви залежностей знайдено/підтверджено відсутність"
+      ]
+    }
+  ]
+}

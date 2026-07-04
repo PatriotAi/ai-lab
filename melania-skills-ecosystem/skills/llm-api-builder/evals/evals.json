@@ -1,0 +1,57 @@
+{
+  "skill_name": "llm-api-builder",
+  "version": "1.3.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.3.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "sdk-trigger",
+      "prompt": "Побудуй застосунок на Claude API з tool use і streaming",
+      "expected_output": "Тригериться; обирає поверхню, детектить мову проєкту, читає відповідну доку",
+      "assertions": [
+        "Тригериться на Claude API/Anthropic SDK",
+        "Streaming і tool use реалізовано за докою",
+        "Проза українською, код/ідентифікатори англійською"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "model-freshness",
+      "prompt": "Яку модель захардкодити в конфіг?",
+      "expected_output": "За замовчуванням найновіша доступна + звірка через product-self-knowledge/docs, не сліпий пін застарілого ID",
+      "assertions": [
+        "Не пінить наосліп застарілу модель",
+        "Радить звірити актуальні моделі в docs"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "scope-exclusion",
+      "prompt": "Інтегруй OpenAI SDK у мій проєкт",
+      "expected_output": "НЕ тригериться: openai та інші не-Anthropic SDK поза скоупом",
+      "assertions": [
+        "Чітко відмовляє у не-Anthropic SDK в межах цього скіла"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "batch-structured",
+      "prompt": "Потрібні batch-запити і structured outputs",
+      "expected_output": "Використовує Batch API і output_config за актуальною документацією",
+      "assertions": [
+        "Batch API застосовано коректно",
+        "Structured outputs через output_config"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "agent-sdk",
+      "prompt": "Зроби агента на claude_agent_sdk",
+      "expected_output": "Тригериться на Agent SDK; будує агента за докою",
+      "assertions": [
+        "Agent SDK розпізнано як тригер"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "skill_name": "ai-dev-workflow",
+  "version": "1.2.1",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.2.1",
+  "evals": [
+    {
+      "id": 1,
+      "name": "phase-plan-trigger",
+      "prompt": "Я сам розробляю застосунок, допоможи розподілити задачі між кількома AI",
+      "expected_output": "Тригериться; дає 6-фазний план і ролі AI (Claude=код/архітектура, інші=за спеціалізацією)",
+      "assertions": [
+        "Тригериться на розподіл задач між AI",
+        "Claude призначено головним по коду й архітектурі",
+        "Фази від ідеї до релізу присутні"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "idea-protection",
+      "prompt": "Хочу обговорити свою унікальну ідею стартапу з ChatGPT і Gemini",
+      "expected_output": "Нагадує захист ідеї: кодова назва, не давати одному AI весь контекст, УТП локально",
+      "assertions": [
+        "Радить кодову назву",
+        "Застерігає не передавати повне УТП у публічні AI"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "scope-exclusion",
+      "prompt": "Налаштуй ротацію API-ключів між провайдерами в моєму застосунку",
+      "expected_output": "НЕ цей скіл: перенаправляє на multi-provider-ai-orchestration (runtime, не методологія)",
+      "assertions": [
+        "Не бере runtime-маршрутизацію собі",
+        "Вказує правильний скіл"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "kickoff-checklist",
+      "prompt": "З чого почати новий проєкт з AI-командою?",
+      "expected_output": "Дає чек-лист старту (репо приватний до релізу, ролі, фази)",
+      "assertions": [
+        "Чек-лист конкретний і дієвий",
+        "Приватний репозиторій до релізу згадано"
+      ]
+    }
+  ]
+}

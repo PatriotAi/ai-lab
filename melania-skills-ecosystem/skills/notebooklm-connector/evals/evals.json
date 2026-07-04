@@ -1,0 +1,80 @@
+{
+  "skill_name": "notebooklm-connector",
+  "version": "4.2.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "read-notebook-url",
+      "prompt": "Аналізуй дані із цього Notebook і поєднай всі джерела в один суцільний документ: https://notebooklm.google.com/notebook/ae68f3e3-91d9-46b4-baff-4f300ed482ad",
+      "expected_output": "Skill triggers. Attempts web_fetch → 403. Cascades to React Artifact with Google OAuth UI or MCP tools. Does NOT stop to explain API limitation. Produces merged document template or Artifact UI.",
+      "assertions": [
+        "Does NOT say 'NotebookLM has no API' and stop",
+        "Attempts web_fetch or MCP tool call before asking user",
+        "Either generates React Artifact OR calls notebooklm_* MCP tools",
+        "If manual needed: gives specific 1-2 step instruction, not open-ended question",
+        "Produces merged document structure if content obtained"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "add-multiple-sources",
+      "prompt": "Додай ці джерела до мого NotebookLM: https://en.wikipedia.org/wiki/Machine_learning і https://en.wikipedia.org/wiki/Neural_network і https://en.wikipedia.org/wiki/Deep_learning",
+      "expected_output": "Skill triggers. Fetches all 3 URLs in parallel (not sequential). Prepares content packages. Provides step-by-step import instructions AND recommends appropriate generation features based on content type.",
+      "assertions": [
+        "Fetches all URLs (parallel processing, not one-by-one with permission)",
+        "Provides clear import instructions for NotebookLM",
+        "Recommends at least one generation feature (Study Guide, Briefing Doc, etc.)",
+        "Does NOT ask 'which URL should I start with?'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "feature-generator-survey",
+      "prompt": "Згенеруй все що можливо з мого Notebook для підготовки до іспиту з машинного навчання",
+      "expected_output": "Skill triggers. Asks ALL survey questions in ONE message (goal/audience/time/outputs/language). Then autonomously builds generation plan with Study Guide, FAQ, Flashcards, Audio Overview. Provides exact UI click path for each feature.",
+      "assertions": [
+        "Asks survey in one message, not sequential questions",
+        "Plan includes Study Guide and Flashcards for exam prep context",
+        "Provides exact NotebookLM UI steps per feature",
+        "Ends with 5 targeted Chat query suggestions"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "mobile-friendly-instructions",
+      "prompt": "Привіт. Як мені подивитись що в моєму notebook? Я на телефоні",
+      "expected_output": "Skill triggers. Detects mobile context. Provides SHORT steps with emoji navigation. Does NOT suggest Ctrl+A or other desktop shortcuts. Offers React Artifact option that works on mobile.",
+      "assertions": [
+        "Uses emoji for navigation (tap ⋮, etc.)",
+        "Short steps (not technical paragraphs)",
+        "No Ctrl+A, Cmd+C or other desktop shortcuts",
+        "Offers Artifact or mobile-friendly manual option"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "deep-research-new-feature",
+      "prompt": "Запусти Deep Research в моєму Notebook про квантові обчислення",
+      "expected_output": "Skill triggers. Reads capabilities file. Identifies Deep Research as new Nov 2025 feature. Provides correct Studio navigation path. Explains agentic nature of this feature.",
+      "assertions": [
+        "References Deep Research as agentic / new 2025 feature",
+        "Gives correct Studio navigation path",
+        "Explains that NotebookLM will search web beyond existing sources",
+        "Does NOT confuse with regular Chat query"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "context-chat-export",
+      "prompt": "Перенеси нашу розмову про MCP сервери до мого NotebookLM як джерело",
+      "expected_output": "Skill triggers (MODE C: chat context). Structures conversation as annotated document. Provides ready-to-paste text. Gives copy instructions for Copied Text source type.",
+      "assertions": [
+        "Structures chat context into formatted document",
+        "Includes key decisions/facts/next steps sections",
+        "Provides ready-for-paste content",
+        "Specifies 'Copied text' source type in instructions"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v3.0.0, revalidated against skill v4.2.3 on 2026-07-03"
+}

@@ -1,0 +1,46 @@
+{
+  "skill_name": "n8n-orchestrator",
+  "version": "2.8.3",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v2.8.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "workflow-trigger",
+      "prompt": "Зроби автоматизацію в n8n: webhook → обробка → Telegram",
+      "expected_output": "Тригериться; видає валідний exportable JSON з нодами і схемою з'єднань",
+      "assertions": [
+        "Тригериться на n8n автоматизацію",
+        "JSON імпортується в n8n без правок",
+        "Ноди і connections узгоджені"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "validation-first",
+      "prompt": "Швидко накидай workflow, перевіряти не треба",
+      "expected_output": "Все одно валідує структуру перед видачею (node refs, required params)",
+      "assertions": [
+        "Не видає невалідований JSON"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "debug-guidance",
+      "prompt": "Мій n8n workflow падає на третій ноді",
+      "expected_output": "Дає діагностику: логи, типові причини, як ізолювати ноду",
+      "assertions": [
+        "Конкретні кроки дебагу, не загальні поради"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Напиши Python-скрипт автоматизації без n8n",
+      "expected_output": "НЕ цей скіл: перенаправляє на звичайний код",
+      "assertions": [
+        "Не тягне n8n туди, де його нема"
+      ]
+    }
+  ]
+}

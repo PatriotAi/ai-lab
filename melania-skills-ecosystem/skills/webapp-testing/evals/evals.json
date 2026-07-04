@@ -1,0 +1,55 @@
+{
+  "skill_name": "webapp-testing",
+  "version": "1.4.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.4.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "playwright-trigger",
+      "prompt": "Протестуй мій локальний веб-застосунок",
+      "expected_output": "Тригериться; пише нативні Python Playwright скрипти, керує сервером через with_server.py",
+      "assertions": [
+        "Playwright-скрипт створено",
+        "Життєвий цикл сервера через helper",
+        "Скріншоти/логи за потреби"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ui-debug",
+      "prompt": "Кнопка не клікається, розберись",
+      "expected_output": "Дебаг UI: селектори, стан, browser logs",
+      "assertions": [
+        "Конкретна діагностика, не загальні поради"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "visual-regression",
+      "prompt": "Зроби visual regression перевірку",
+      "expected_output": "Скріншоти до/після + порівняння",
+      "assertions": [
+        "Порівняння скріншотів виконано"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Юніт-тести бекенд-логіки без UI",
+      "expected_output": "НЕ цей скіл: не-браузерні тести поза скоупом",
+      "assertions": [
+        "Backend-юніт-тести перенаправлено"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "mobile-viewport",
+      "prompt": "Перевір як виглядає на мобільному",
+      "expected_output": "Тестує мобільні viewports через Playwright device emulation",
+      "assertions": [
+        "Мобільний viewport застосовано"
+      ]
+    }
+  ]
+}

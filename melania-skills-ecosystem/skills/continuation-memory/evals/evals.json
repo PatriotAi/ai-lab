@@ -1,0 +1,46 @@
+{
+  "skill_name": "continuation-memory",
+  "version": "1.8.3",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.8.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "resume-trigger",
+      "prompt": "Продовж де ми зупинились минулого разу",
+      "expected_output": "Тригериться; відновлює стан з continuation-пакета (архітектура, TODO, невирішене)",
+      "assertions": [
+        "Тригериться на 'продовж де зупинились'",
+        "Відновлює стан, не починає з нуля"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "compress-long-session",
+      "prompt": "Сесія вже дуже довга, збережи стан щоб не втратити",
+      "expected_output": "Створює компактний continuation-пакет: dependency map + unresolved + TODO + resume prompt",
+      "assertions": [
+        "Пакет містить залежності, невирішене, TODO",
+        "Є resume prompt для нової сесії"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "proactive-20-turns",
+      "prompt": "(понад 20 обмінів у складній задачі)",
+      "expected_output": "Проактивно пропонує зберегти стан без прохання",
+      "assertions": [
+        "Сам пропонує збереження стану після ~20 обмінів"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Одне коротке питання: конвертуй км у милі",
+      "expected_output": "НЕ активується для one-shot без стану",
+      "assertions": [
+        "Не створює пакет для тривіального питання"
+      ]
+    }
+  ]
+}

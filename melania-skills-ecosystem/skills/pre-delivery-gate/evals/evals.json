@@ -1,0 +1,45 @@
+{
+  "skill_name": "pre-delivery-gate",
+  "version": "1.0.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "auto-gate-trigger",
+      "prompt": "(будь-який готовий артефакт перед видачею користувачу)",
+      "expected_output": "Гейт запускається АВТОМАТИЧНО без нагадування: validation-mesh + safety + evals + guard + повнота + анти-втрата",
+      "assertions": [
+        "Запуск без прохання користувача",
+        "Усі 6 категорій перевірок пройдено або зафіксовано провал"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "incomplete-delivery-catch",
+      "prompt": "Віддай пакет (в якому бракує одного заявленого файлу)",
+      "expected_output": "Гейт ловить неповну доставку: маніфест не сходиться → блокує видачу",
+      "assertions": [
+        "Невідповідність маніфесту виявлено до видачі"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "orchestrates-not-duplicates",
+      "prompt": "Перевір артефакт повністю сам, без інших скілів",
+      "expected_output": "Гейт ВИКЛИКАЄ validation-mesh/safety-compliance-gate, не дублює їх логіку",
+      "assertions": [
+        "Делегування наявним гейтам, не копія їх правил"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "state-antiloss",
+      "prompt": "Довга сесія, видаємо великий пакет",
+      "expected_output": "Перед видачею — snapshot стану (анти-втрата)",
+      "assertions": [
+        "Snapshot створено перед доставкою"
+      ]
+    }
+  ]
+}

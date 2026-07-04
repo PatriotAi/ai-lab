@@ -1,0 +1,46 @@
+{
+  "skill_name": "vercel-mcp-connector",
+  "version": "1.0.2",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.0.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "deploy-status-trigger",
+      "prompt": "Чому впав мій білд на Vercel?",
+      "expected_output": "Тригериться; MCP-first: deployment logs через MCP-інструменти, депт-леддер глибини",
+      "assertions": [
+        "MCP-інструменти перед CLI",
+        "Мінімально достатня глибина логів",
+        "Причина білд-фейлу локалізована"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "docs-routing",
+      "prompt": "Як налаштувати кастомний домен на Vercel?",
+      "expected_output": "Фактичні питання → vercel docs search, не память",
+      "assertions": [
+        "Відповідь з docs, не з пам'яті"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "cli-fallback",
+      "prompt": "(MCP-інструмент повернув помилку)",
+      "expected_output": "Fallback на CLI лише при міс/помилці MCP",
+      "assertions": [
+        "CLI тільки після провалу MCP"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Задеплой на Netlify",
+      "expected_output": "НЕ цей скіл: не-Vercel деплой поза скоупом",
+      "assertions": [
+        "Netlify перенаправлено"
+      ]
+    }
+  ]
+}
