@@ -39,7 +39,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        # v0.36.0 — теги до 0.35.0 уражені supply-chain-інцидентом / tags before 0.35.0 affected by the supply-chain incident
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
