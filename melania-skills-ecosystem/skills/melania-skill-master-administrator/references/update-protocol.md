@@ -1,5 +1,5 @@
 # Update Protocol — skill-creation-guide
-> Детальний протокол для Master Administrator та Self-Development Engine  
+> Детальний протокол для Master Administrator та Self-Development Engine
 > Читати коли: виконується MA-директива або обробляється Self-Dev пропозиція
 
 ---
@@ -121,7 +121,7 @@ if new_claude_api_feature_detected:
 **Пропозиція:**
   Секція: Нова секція "## Migration" після "## Core Rules"
   Зараз: відсутня
-  Пропоную: 
+  Пропоную:
     ## Migration
     Копіювати skill-folder → новий проект
     Зберегти name у frontmatter незмінним

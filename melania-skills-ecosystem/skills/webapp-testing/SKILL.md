@@ -158,12 +158,12 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_page()
     page.goto("http://localhost:3000")
-    
+
     # Перевірка ARIA labels
     buttons = page.locator("button:not([aria-label]):not([aria-labelledby])")
     unlabeled = buttons.count()
     assert unlabeled == 0, f"{unlabeled} кнопок без aria-label"
-    
+
     # Tab order
     page.keyboard.press("Tab")
     focused = page.locator(":focus").get_attribute("data-testid")

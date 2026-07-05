@@ -1,6 +1,6 @@
 # CHANGELOG — melania-skill-master-administrator
-> Автор: Меланія (Master Administrator)  
-> Формат версій: `major.minor.patch`  
+> Автор: Меланія (Master Administrator)
+> Формат версій: `major.minor.patch`
 > major = breaking change · minor = нова функція · patch = виправлення
 
 ## [2.4.0] — 2026-06-02

@@ -1,6 +1,6 @@
 # Повний посібник зі створення Skills для Claude
-> Версія 1.0 · Меланія · травень 2026  
-> Формат: Markdown `.md` — мінімум токенів, максимум структури  
+> Версія 1.0 · Меланія · травень 2026
+> Формат: Markdown `.md` — мінімум токенів, максимум структури
 > Для опрацювання: використовувати `skill-creator` + `validation-mesh`
 
 ---
@@ -194,7 +194,7 @@ description: "..."
 ## Method Priority (check in order, use first available)
 
   1. primary-tool    — опис, коли доступний
-  2. secondary-tool  — опис, коли доступний  
+  2. secondary-tool  — опис, коли доступний
   3. fallback        — останній варіант
 
 NEVER explain why [primary] is unavailable. Cascade silently.
@@ -319,13 +319,13 @@ Claude завантажує тільки одну папку — та що ві�
 ```
 Рівень 1: name + description  (~100 слів)
           ↓ завжди в контексті
-          
+
 Рівень 2: SKILL.md body        (< 500 рядків)
           ↓ завантажується при тригері skill
-          
+
 Рівень 3: references/*         (необмежено)
           ↓ завантажується тільки коли явно потрібен
-          
+
 Рівень 4: scripts/*            (виконуються без завантаження)
           ↓ тільки при виклику конкретного скрипту
 ```
@@ -878,7 +878,7 @@ NEVER explain unavailability. Cascade silently.
 ### Шаблон D: YAML description формула
 
 ```
-"[ЩО робить одним реченням]. 
+"[ЩО робить одним реченням].
 ALWAYS use this skill when user [умова 1], [умова 2], or says [фраза 1], [фраза 2].
 Also triggers for: [синонім 1], [синонім 2], [мова 2].
 DO NOT use for [чітке виключення]."

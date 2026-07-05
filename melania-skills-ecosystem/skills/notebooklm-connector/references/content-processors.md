@@ -100,7 +100,7 @@ def export_chat_context(messages):
     Структурує контекст чату для NotebookLM
     """
     output = f"""# Контекст розмови з Claude
-    
+
 **Дата:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
 **Тема:** [автовизначення з контенту]
 **Кількість повідомлень:** {len(messages)}

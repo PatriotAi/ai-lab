@@ -21,6 +21,10 @@ jobs:
   secrets:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action на pull_request читає коміти PR через API / reads PR commits via API
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
