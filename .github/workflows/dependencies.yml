@@ -16,12 +16,12 @@ jobs:
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest
-    # Не блокує, поки в repo Settings → Security не ввімкнено Dependency graph
-    # (після ввімкнення — прибрати continue-on-error) / non-blocking until the
-    # Dependency graph is enabled in repo settings; remove afterwards.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      # Крок не блокує, поки в repo Settings → Security не ввімкнено Dependency
+      # graph (після ввімкнення — прибрати continue-on-error) / step-level
+      # non-blocking until the Dependency graph is enabled; remove afterwards.
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
