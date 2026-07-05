@@ -27,7 +27,8 @@
 ## Кейс ai-lab
 `automations/session-start/` — ~50 рядків bash: дайджест (мова UA-канон,
 правила безпеки, активні навички, статус фаз `PLAN`, останній запис журналу
-висновків) + best-effort `pre-commit install`. Результат: кожна сесія стартує
+висновків); якщо `pre-commit` відсутній — нагадує про `scripts/setup.sh`
+(єдина відповідальність — контекст). Результат: кожна сесія стартує
 вже «в темі», без ручного переказування контексту.
 
 ## Висновок
@@ -70,7 +71,8 @@ Two ways:
 ## The ai-lab case
 `automations/session-start/` — ~50 lines of bash: a digest (UA-canon language
 rule, security rules, active skills, `PLAN` phase statuses, the latest
-learnings log entry) plus a best-effort `pre-commit install`. Result: every
+learnings log entry); if `pre-commit` is missing it points to
+`scripts/setup.sh` (single responsibility — context only). Result: every
 session starts already "in context", with no manual recap.
 
 ## Takeaway

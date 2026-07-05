@@ -14,7 +14,7 @@
 - `docs/` — методологія, дорожня карта, план (PLAN), журнал висновків, глосарій; білінгвальний онбординг у `docs/ua` + `docs/en`
 - `projects/` — самостійні проєкти-зразки (шаблон: `projects/project-template/`)
 - `experiments/` — маленькі експерименти-гіпотези (кожен: тека з README)
-- `skills/` — навички (каталог-джерело; активна — в `.claude/skills/<name>/SKILL.md`)
+- `skills/` — індекс навичок (канонічні SKILL.md версіоновані в `.claude/skills/<name>/`)
 - `automations/` — хуки/скрипти/пайплайни (джерело; активуються через `.claude`/settings)
 - `scripts/` — допоміжні утиліти
 - `templates/` — шаблони

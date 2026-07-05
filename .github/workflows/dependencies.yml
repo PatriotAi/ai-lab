@@ -4,6 +4,11 @@ name: Dependencies
 on:
   pull_request:
 
+# Скасовуємо застарілі прогони того ж ref / cancel superseded runs of the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

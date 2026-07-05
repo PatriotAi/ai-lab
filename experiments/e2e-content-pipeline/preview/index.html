@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Згенерований знімок artifact.md (канон — там). Правиш artifact.md → онови цей файл.
+     Generated snapshot of artifact.md (the canon). Edit artifact.md → refresh this file. -->
 <html lang="uk">
 <head>
 <meta charset="utf-8">
@@ -55,7 +57,8 @@ so keep these hooks fast».</p>
 <h2>Кейс ai-lab</h2>
 <p><code>automations/session-start/</code> — ~50 рядків bash: дайджест (мова
 UA-канон, правила безпеки, активні навички, статус фаз <code>PLAN</code>,
-останній запис журналу висновків) + best-effort <code>pre-commit install</code>.
+останній запис журналу висновків); якщо <code>pre-commit</code> відсутній —
+нагадує про <code>scripts/setup.sh</code> (єдина відповідальність — контекст).
 Результат: кожна сесія стартує вже «в темі», без ручного переказування контексту.</p>
 
 <h2>Висновок</h2>
@@ -96,9 +99,10 @@ these hooks fast."</p>
 <h2>The ai-lab case</h2>
 <p><code>automations/session-start/</code> — ~50 lines of bash: a digest
 (UA-canon language rule, security rules, active skills, <code>PLAN</code> phase
-statuses, the latest learnings log entry) plus a best-effort
-<code>pre-commit install</code>. Result: every session starts already
-"in context", with no manual recap.</p>
+statuses, the latest learnings log entry); if <code>pre-commit</code> is
+missing it points to <code>scripts/setup.sh</code> (single responsibility —
+context only). Result: every session starts already "in context", with no
+manual recap.</p>
 
 <h2>Takeaway</h2>
 <p>One small hook closes the "cold start": conventions, plan state, and the

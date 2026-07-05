@@ -7,6 +7,7 @@ __pycache__/
 # Секрети / Secrets — НІКОЛИ не комітити
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 secrets/

@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Скасовуємо застарілі прогони того ж ref / cancel superseded runs of the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

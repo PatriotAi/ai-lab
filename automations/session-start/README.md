@@ -1,13 +1,12 @@
 # session-start — підвантаження контексту сесії
 
 SessionStart-хук: на старті кожної сесії додає в контекст робочий дайджест
-лабораторії й best-effort активує `pre-commit`.
+лабораторії. Єдина відповідальність — контекст; бутстрап — `scripts/setup.sh`.
 
 ## Що робить
 - Виводить дайджест: мова (UA-канон) + безпека, активні навички, статус
   `docs/PLAN.md` (фази), останній запис `docs/learnings.md`, нагадування про цикл.
-- Якщо `pre-commit` доступний — `pre-commit install` (тихо, best-effort).
-- Якщо `pre-commit` відсутній — нагадує запустити `scripts/setup.sh`.
+- Якщо `pre-commit` відсутній — нагадує запустити `scripts/setup.sh` (сам не встановлює).
 
 ## На що реагує
 - Подія `SessionStart` (start / resume / clear / compact).

@@ -6,6 +6,7 @@ __pycache__/
 # Секрети / Secrets
 .env
 .env.*
+!.env.example
 
 # Збірки / Build
 dist/

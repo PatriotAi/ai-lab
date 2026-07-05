@@ -36,7 +36,7 @@
 - `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.gitignore`, `.env.example`
 - CI безпеки `.github/workflows/security.yml` — **gitleaks** (секрети), **Trivy**
   (вразливості/місконфіги), **Semgrep** (SAST), вивантаження SARIF
-- CI якості `.github/workflows/lint.yml` — **pre-commit** + **actionlint**
+- CI якості `.github/workflows/code-quality.yml` (первинна назва `lint.yml`) — **pre-commit** + **actionlint**
 - `.pre-commit-config.yaml`, `security/trivy.yaml`, `.github/dependabot.yml`, `CODEOWNERS`
 - Шаблони `ISSUE_TEMPLATE` (bug/feature/experiment) і `PULL_REQUEST_TEMPLATE`
 
@@ -54,7 +54,7 @@
 6. **Конвенція:** UA — джерело правди; EN оновлюємо в тому ж PR (не розходяться).
 
 ## Фаза 2 — Довершення безпеки та CI 🟡 (код ✅; branch protection ⛔)
-1. `.github/workflows/code-quality.yml` — розширити поточний `lint.yml`: pre-commit +
+1. `.github/workflows/code-quality.yml` (розширений із первинного `lint.yml`): pre-commit +
    actionlint + форматування за мовами (коли з'явиться код).
 2. `.github/workflows/dependencies.yml` — `dependency-review-action` (рев'ю залежностей у PR).
    *Виправлення чернетки Copilot:* `dependabot.yml` лишається в `.github/`, **не** в `security/`.
