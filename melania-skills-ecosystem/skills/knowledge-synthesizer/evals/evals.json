@@ -1,0 +1,47 @@
+{
+  "skill_name": "knowledge-synthesizer",
+  "version": "1.0.1",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.0.1",
+  "evals": [
+    {
+      "id": 1,
+      "name": "synthesis-trigger",
+      "prompt": "Знайди неочевидні зв'язки між моїми нотатками про X та Y",
+      "expected_output": "Тригериться; generator→critic→фільтр за порогом→insight-нотатки",
+      "assertions": [
+        "Тригериться на 'знайди зв'язки/синтезуй'",
+        "Є критик-оцінка і поріг якості",
+        "Слабкі інсайти відкинуто"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "quality-over-quantity",
+      "prompt": "Дай мені якомога більше інсайтів, хоч 50",
+      "expected_output": "Відмовляється від кількості заради якості: лише інсайти вище порога",
+      "assertions": [
+        "Не роздуває список слабкими зв'язками",
+        "Пояснює поріг якості"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "new-not-search",
+      "prompt": "Просто знайди де в нотатках згадується слово 'бюджет'",
+      "expected_output": "НЕ цей скіл: це пошук, не синтез — перенаправляє",
+      "assertions": [
+        "Розрізняє синтез від пошуку"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "digest-output",
+      "prompt": "Зроби дайджест інсайтів з бази знань за місяць",
+      "expected_output": "Видає структурований дайджест insight-нотаток",
+      "assertions": [
+        "Дайджест структурований, з джерелами пар"
+      ]
+    }
+  ]
+}

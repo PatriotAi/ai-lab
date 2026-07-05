@@ -1,0 +1,46 @@
+{
+  "skill_name": "workflow-orchestration",
+  "version": "1.3.3",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v1.3.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "topology-choice-trigger",
+      "prompt": "Розбий задачу на агентів: що краще — субагенти чи команда?",
+      "expected_output": "Тригериться; обирає топологію (orchestrator-worker vs Team Lead+shared list) за критеріями",
+      "assertions": [
+        "Вибір топології обґрунтовано",
+        "Критерії: ізоляція контексту vs peer-to-peer"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "plan-first",
+      "prompt": "Одразу запусти 5 агентів паралельно",
+      "expected_output": "Спершу E0 master-plan декомпозиція, потім fan-out",
+      "assertions": [
+        "План перед запуском",
+        "Fan-out лише після декомпозиції"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "typed-handoff",
+      "prompt": "Передай контекст між агентами",
+      "expected_output": "Typed-context handoff (~200-500 tok), не сира історія",
+      "assertions": [
+        "Типізований контекст, не raw history"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Просте одношагове питання",
+      "expected_output": "НЕ цей скіл: без оркестрації",
+      "assertions": [
+        "Не розгортає агентів для one-shot"
+      ]
+    }
+  ]
+}

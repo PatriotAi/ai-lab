@@ -22,7 +22,8 @@
 | `docs/ua/`, `docs/en/` | Білінгвальний онбординг (setup, guidelines, ai-integration) |
 | `projects/` | Самостійні проєкти-зразки (з `project-template/`) |
 | `experiments/` | Маленькі експерименти-гіпотези |
-| `skills/`, `.claude/skills/` | Навички Claude Code (каталог-джерело / активні) |
+| `skills/`, `.claude/skills/` | Навички Claude Code (індекс / канонічні активні) |
+| `melania-skills-ecosystem/` | Бібліотека 26 AI-навичок (активні через симлінки в `.claude/skills/`) |
 | `automations/`, `scripts/` | Хуки, пайплайни, утиліти |
 | `security/`, `.github/` | Конфіги безпеки, CI/CD, CODEOWNERS, шаблони |
 
@@ -37,6 +38,15 @@
 Жодних секретів у репо. CI: **gitleaks** (секрети), **Trivy** (вразливості/місконфіги),
 **Semgrep** (SAST), **dependency-review**; локально — **pre-commit**; залежності — **Dependabot**.
 Деталі — [`SECURITY.md`](SECURITY.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+## Melania Skills Ecosystem
+Бібліотека [`melania-skills-ecosystem/`](melania-skills-ecosystem/README-FOR-HUMANS.md) —
+26 AI-навичок (керування навичками, валідація, оркестрація, браузерна автоматизація,
+деплой, тестування, пам'ять між сесіями тощо) під master-протоколом
+`melania-skill-master-administrator`. Підключені як активні проєктні навички через
+симлінки в `.claude/skills/`, тож підхоплюються в цьому проєкті автоматично.
+Деталі: [README-FOR-HUMANS](melania-skills-ecosystem/README-FOR-HUMANS.md) (для людей) ·
+[README-FOR-AI](melania-skills-ecosystem/README-FOR-AI.md) (для AI-асистентів).
 
 ## Інструменти
 Claude Code (навички, субагенти, хуки, slash-команди, plan mode) + MCP:
@@ -71,7 +81,8 @@ Apache License 2.0 — див. [`LICENSE`](LICENSE).
 | `docs/ua/`, `docs/en/` | Bilingual onboarding (setup, guidelines, ai-integration) |
 | `projects/` | Standalone sample projects (with `project-template/`) |
 | `experiments/` | Small hypothesis experiments |
-| `skills/`, `.claude/skills/` | Claude Code skills (source catalog / active) |
+| `skills/`, `.claude/skills/` | Claude Code skills (index / canonical active) |
+| `melania-skills-ecosystem/` | Library of 26 AI skills (active via symlinks in `.claude/skills/`) |
 | `automations/`, `scripts/` | Hooks, pipelines, utilities |
 | `security/`, `.github/` | Security configs, CI/CD, CODEOWNERS, templates |
 
@@ -84,6 +95,15 @@ Apache License 2.0 — див. [`LICENSE`](LICENSE).
 ### Security & quality
 No secrets in the repo. CI: **gitleaks**, **Trivy**, **Semgrep** (SAST), **dependency-review**;
 locally — **pre-commit**; dependencies — **Dependabot**. See [`SECURITY.md`](SECURITY.md).
+
+### Melania Skills Ecosystem
+The [`melania-skills-ecosystem/`](melania-skills-ecosystem/README-FOR-HUMANS.md) library —
+26 AI skills (skill management, validation, orchestration, browser automation, deployment,
+testing, cross-session memory, etc.) governed by the `melania-skill-master-administrator`
+protocol. Wired as active project skills via symlinks in `.claude/skills/`, so they are
+picked up automatically in this project.
+Details: [README-FOR-HUMANS](melania-skills-ecosystem/README-FOR-HUMANS.md) (for humans) ·
+[README-FOR-AI](melania-skills-ecosystem/README-FOR-AI.md) (for AI assistants).
 
 ### License
 Apache License 2.0 — see [`LICENSE`](LICENSE).

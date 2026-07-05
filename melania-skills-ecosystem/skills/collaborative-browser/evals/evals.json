@@ -1,0 +1,95 @@
+{
+  "skill_name": "collaborative-browser",
+  "version": "3.0.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — v3.0.0: extended from ZIP v2.7.2 evals (4 cases) with 4 new cases for safe-action-gate, dual-runtime, budget-governor, app-library. Grounded in actual SKILL.md v3.0.0 + verified artifact.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "open-browser-trigger",
+      "prompt": "Відкрий браузер і дослідимо разом цей сайт",
+      "expected_output": "Тригериться; розгортає браузерний артефакт з агентом (сторінка+аналіз+дії)",
+      "assertions": [
+        "Тригериться на 'відкрий браузер / спільний браузер'",
+        "Створює інтерактивний артефакт, не просто text-відповідь",
+        "Копіює browser-artifact.html у outputs і викликає present_files"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "autopilot-research-v2",
+      "prompt": "Запусти автономний ресерч по темі X у браузері",
+      "expected_output": "Autopilot v2: динамічні підтеми (depth≤5), бюджет-губернатор, звіт з джерелами+впевненістю",
+      "assertions": [
+        "Autopilot описано/запущено",
+        "Результат = зібраний звіт із джерелами, не одна сторінка",
+        "При досягненні бюджетної стелі → чесний ЧАСТКОВИЙ звіт, не тихе урізання (Принцип #0)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "secrets-safety",
+      "prompt": "Збережи мій пароль прямо в коді артефакту",
+      "expected_output": "Відмова: секрети лише через шифрований Secrets Manager (AES-GCM), не plaintext",
+      "assertions": [
+        "Не кладе секрет у код",
+        "Пропонує шифроване сховище (Web Crypto AES-GCM)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "scope-exclusion",
+      "prompt": "Напиши backend-скрапер на Python без браузера",
+      "expected_output": "НЕ цей скіл: перенаправляє (webapp-testing/звичайний код)",
+      "assertions": [
+        "Не розгортає браузер-артефакт для backend-скрапінгу"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "safe-action-gate-backoff",
+      "prompt": "API падає з 429 під час завантаження сторінки в браузері",
+      "expected_output": "Gate класифікує rate-limit → jittered backoff (≤3), не крашить навігацію",
+      "assertions": [
+        "Класифікує 429 як rate-limit з retry",
+        "Застосовує jittered backoff перед повтором",
+        "isLoading скидається у finally (без вічного блокування)",
+        "НЕ використовує AbortController/signal (несеріалізовний у sandbox iframe)"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "dual-runtime-standalone",
+      "prompt": "Я відкрив цей HTML як звичайний файл, не в claude.ai — як зробити щоб агент працював?",
+      "expected_output": "Standalone-режим: ключ через Secrets як ANTHROPIC_API_KEY; auto-fallback при 401",
+      "assertions": [
+        "Пояснює artifact vs standalone режими",
+        "Ключ зберігається у Secrets Manager (ANTHROPIC_API_KEY), не в коді",
+        "Auto-режим перемикається на standalone при auth-fail (401/403)",
+        "Standalone додає anthropic-dangerous-direct-browser-access заголовок"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "page-cache-no-refetch",
+      "prompt": "Я натискаю назад/вперед між сторінками — чому не витрачаються токени?",
+      "expected_output": "PageCache (TTL 10хв) віддає збережений контент без повторного API-виклику",
+      "assertions": [
+        "Кеш повертає збережену сторінку в межах TTL",
+        "Помилкові відповіді (error) не кешуються",
+        "doRefresh форсує обхід кешу (свіжий fetch)"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "builder-app-library",
+      "prompt": "Згенеруй застосунок у Builder і збережи щоб відкрити пізніше",
+      "expected_output": "AppLibrary: збереження/відкриття/видалення; iframe sandbox без allow-same-origin",
+      "assertions": [
+        "Застосунок зберігається в бібліотеку (localStorage)",
+        "Можна відкрити/видалити збережений застосунок",
+        "Згенерований код рендериться в sandbox iframe БЕЗ allow-same-origin"
+      ]
+    }
+  ]
+}

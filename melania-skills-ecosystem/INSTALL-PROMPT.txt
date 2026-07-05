@@ -1,0 +1,19 @@
+Я передаю тобі пакет "melania-skills-ecosystem" (бібліотека з 26 AI-скілів).
+
+Зроби наступне:
+1. Прочитай файл README-FOR-AI.md у корені пакета і виконай його інструкції.
+2. Збережи скіли там, де ТВОЯ платформа зберігає постійні інструкції/знання (щоб мені не довелося завантажувати їх у кожен новий чат). Якщо постійного сховища немає — скажи прямо і поясни, як мені користуватися пакетом вручну.
+3. Підтверди одним коротким повідомленням: що це за пакет, куди ти його зберіг, і що тепер я можу просто писати запити природно — ти сам викликатимеш потрібний скіл за тригерами з його description.
+
+Мова відповідей — українська за замовчуванням.
+
+---
+
+I am handing you the "melania-skills-ecosystem" package (a library of 26 AI skills).
+
+Do the following:
+1. Read README-FOR-AI.md in the package root and follow its instructions.
+2. Store the skills wherever YOUR platform keeps persistent instructions/knowledge (so I don't have to re-upload them in every new chat). If you have no persistent store, say so plainly and explain how I should use the package manually.
+3. Confirm in one short message: what this package is, where you stored it, and that from now on I can just make requests naturally — you will invoke the right skill based on its description triggers.
+
+Default response language: Ukrainian.

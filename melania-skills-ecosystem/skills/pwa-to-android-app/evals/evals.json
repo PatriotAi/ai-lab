@@ -1,0 +1,67 @@
+{
+  "skill_name": "pwa-to-android-app",
+  "version": "1.3.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "mic-not-working-content-url",
+      "prompt": "Мікрофон не працює в моєму застосунку, адреса content://media/...",
+      "expected_output": "Claude explains secure-context requirement, directs to Netlify Drop, not Termux first",
+      "assertions": [
+        "Explains mic needs HTTPS/secure-context",
+        "Identifies content:// as the blocker",
+        "Recommends Netlify Drop as simplest fix",
+        "Does NOT recommend Termux local server as the primary solution"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "apk-on-phone-only",
+      "prompt": "Готовий ставити інструменти, але збираємо APK тільки на Android смартфоні без ПК",
+      "expected_output": "Claude explains Android Studio isn't on phone, recommends GitHub Actions cloud build",
+      "assertions": [
+        "States Android Studio does not exist for Android",
+        "Recommends GitHub Actions cloud build as realistic phone-only path",
+        "Mentions Termux build as the harder all-local alternative",
+        "Does NOT promise Android Studio on the phone"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "single-file-distribution",
+      "prompt": "Зроби щоб я міг роздавати застосунок одним файлом",
+      "expected_output": "Claude inlines manifest (data URI), SW (Blob), icons (base64) into one HTML",
+      "assertions": [
+        "Inlines manifest as data URI",
+        "Inlines service worker as Blob",
+        "Inlines icons as base64",
+        "Result is a single self-contained HTML"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "one-button-update",
+      "prompt": "Хочу авто-оновлення як у професійних застосунків, однією кнопкою",
+      "expected_output": "Claude implements version.json check + banner + one-button apply (clear cache + reload)",
+      "assertions": [
+        "Checks a remote version.json on startup",
+        "Shows update banner when newer version exists",
+        "One button clears SW caches and hard-reloads",
+        "Explains update workflow: change file + bump version.json"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "code-protection-honesty",
+      "prompt": "Як захистити мою ідею щоб ніхто не вкрав код застосунку?",
+      "expected_output": "Claude is honest that client JS is always visible; real protection is server-side + speed/legal",
+      "assertions": [
+        "States browser JS is always viewable (View Source)",
+        "Recommends keeping secrets server-side, not in client",
+        "Notes minification obscures but does not hide",
+        "Does NOT promise full code protection via client-side means"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.0.0, revalidated against skill v1.3.2 on 2026-07-03"
+}

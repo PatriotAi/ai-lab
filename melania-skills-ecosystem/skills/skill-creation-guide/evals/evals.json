@@ -1,0 +1,72 @@
+{
+  "skill_name": "skill-creation-guide",
+  "version": "1.9.3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-create",
+      "prompt": "Допоможи створити новий скіл і написати SKILL.md",
+      "expected_output": "Активує гайд: повний YAML frontmatter (з metadata/version), тіло в наказовому способі, 4–6 evals, координація через skill-creator/validation-mesh.",
+      "assertions": [
+        "Produces full YAML frontmatter including metadata.version and category",
+        "Requires 4–6 evals.json cases",
+        "Mentions skill-creator and validation-mesh in workflow"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "decision-gate-update-first",
+      "prompt": "Треба додати нову функцію — створити новий скіл чи оновити наявний?",
+      "expected_output": "Прожинає Decision Gate: за замовчуванням оновлює наявний; новий лише якщо оновлення неможливе/нелогічне; повторюваний фікс підіймає в gate.",
+      "assertions": [
+        "Defaults to updating an existing skill",
+        "Creates a new skill only when update is impossible or illogical",
+        "Recurring (>=2x) fix is raised into a gate + eval"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ukrainian-first-rule",
+      "prompt": "Зроби скіл для роботи з рахунками",
+      "expected_output": "Новий скіл українською-перший: українські тригери в description, поведінка й приклади українською за замовчуванням.",
+      "assertions": [
+        "New skill has Ukrainian triggers in description",
+        "Default behaviour and examples are Ukrainian",
+        "Language switches only following the user"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "frontmatter-completeness",
+      "prompt": "Який мінімальний YAML frontmatter має бути в скілі?",
+      "expected_output": "name + description (ALWAYS/Also/DO NOT) обовʼязково; для повноти — license + metadata(version, author, category).",
+      "assertions": [
+        "Lists name and a pushy description as mandatory",
+        "Description must include ALWAYS use when, synonyms, and DO NOT use for",
+        "Recommends metadata block with version and category"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "do-not-ecosystem-audit",
+      "prompt": "Проаналізуй усі мої скіли й онови їх на основі напрацювань",
+      "expected_output": "НЕ бере це на себе як створення одного скіла; маршрутизує до skill-ecosystem-auditor (це аудит екосистеми).",
+      "assertions": [
+        "Does NOT treat an ecosystem-wide audit as single-skill creation",
+        "Routes to skill-ecosystem-auditor"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "version-sync-gate",
+      "prompt": "Підніми версію скіла з 1.1.0 на 1.2.0",
+      "expected_output": "Синхронно оновлює всі місця версії: frontmatter version, заголовок vX.Y, рядок File-Structure (якщо є) і запис у CHANGELOG/«Зміни» — в одному diff.",
+      "assertions": [
+        "Updates frontmatter version AND header version together",
+        "Adds a matching CHANGELOG/Зміни entry in the same change",
+        "Flags any mismatch between version locations as drift"
+      ]
+    }
+  ],
+  "version_note": "evals authored at v1.2.0, revalidated against skill v1.9.3 on 2026-07-03"
+}

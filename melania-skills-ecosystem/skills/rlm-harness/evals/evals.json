@@ -1,0 +1,47 @@
+{
+  "skill_name": "rlm-harness",
+  "version": "0.2.2",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-03 — regenerated (source copies lost between sessions); grounded in actual SKILL.md v0.2.2",
+  "evals": [
+    {
+      "id": 1,
+      "name": "heavy-task-trigger",
+      "prompt": "Проведи глибокий security audit кодової бази",
+      "expected_output": "Тригериться; RLM-диригент планує, дешеві моделі виконують, цикл Plan-Execute-Verify-Replan",
+      "assertions": [
+        "Тригериться на важкий багатокроковий процес",
+        "Модель-за-роллю: сильна лише там де змінює результат",
+        "Є цикл верифікації і перепланування"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "budget-governor",
+      "prompt": "Бюджет обмежений, але задача велика",
+      "expected_output": "Бюджетний губернатор: розподіл за вартістю/користю, дешеві суб-агенти",
+      "assertions": [
+        "Витрати найсильнішої моделі мінімізовано",
+        "Явний розподіл ролей за вартістю"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "scope-exclusion",
+      "prompt": "Просте питання одним викликом",
+      "expected_output": "НЕ цей скіл: один крок = без оркестрації",
+      "assertions": [
+        "Не розгортає harness для one-shot"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "recipe-library",
+      "prompt": "Запусти deep research за рецептом",
+      "expected_output": "Використовує бібліотеку рецептів важких процесів",
+      "assertions": [
+        "Рецепт застосовано, не імпровізація з нуля"
+      ]
+    }
+  ]
+}
