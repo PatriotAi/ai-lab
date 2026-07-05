@@ -3,6 +3,6 @@
 
 ## Melania Skills Ecosystem
 
-Ця репозиторія містить бібліотеку `melania-skills-ecosystem/` — 26 AI-скілів (керування скілами, валідація, оркестрація, браузерна автоматизація, деплой, тестування, пам'ять між сесіями тощо), керовану master-протоколом `melania-skill-master-administrator`. Деталі: [`melania-skills-ecosystem/README-FOR-HUMANS.md`](melania-skills-ecosystem/README-FOR-HUMANS.md) (для людей) та [`melania-skills-ecosystem/README-FOR-AI.md`](melania-skills-ecosystem/README-FOR-AI.md) (для AI-асистентів).
+Ця репозиторія містить бібліотеку `melania-skills-ecosystem/` — 27 AI-скілів (керування скілами, валідація, оркестрація, браузерна автоматизація, деплой, тестування, пам'ять між сесіями тощо), керовану master-протоколом `melania-skill-master-administrator`. Деталі: [`melania-skills-ecosystem/README-FOR-HUMANS.md`](melania-skills-ecosystem/README-FOR-HUMANS.md) (для людей) та [`melania-skills-ecosystem/README-FOR-AI.md`](melania-skills-ecosystem/README-FOR-AI.md) (для AI-асистентів).
 
 Скіли також підключені як активні проєктні скіли Claude Code через симлінки в `.claude/skills/`, тож вони підхоплюються автоматично в цьому проєкті.

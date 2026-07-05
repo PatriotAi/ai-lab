@@ -3,7 +3,7 @@
 
 ## What you are looking at
 
-This is a **portable AI skills library**: 26 self-contained skill modules ("skills") in the `skills/` directory. Each skill is a folder of plain Markdown + JSON + Python files that teaches an AI assistant a specific, reusable capability (governance, validation, orchestration, browser automation, deployment, testing, memory, and more). The library is **Ukrainian-first**: instructions and triggers are primarily in Ukrainian, with code, APIs, and identifiers in English. It is governed by a master protocol skill called `melania-skill-master-administrator`.
+This is a **portable AI skills library**: 27 self-contained skill modules ("skills") in the `skills/` directory. Each skill is a folder of plain Markdown + JSON + Python files that teaches an AI assistant a specific, reusable capability (governance, validation, orchestration, browser automation, deployment, testing, memory, and more). The library is **Ukrainian-first**: instructions and triggers are primarily in Ukrainian, with code, APIs, and identifiers in English. It is governed by a master protocol skill called `melania-skill-master-administrator`.
 
 **This package is platform-agnostic.** It was authored in the Anthropic Claude ecosystem but uses only open formats (Markdown, JSON, Python). Any AI system that can read files can use it — including systems that do not have a native "skills" feature.
 
@@ -16,7 +16,7 @@ Follow this decision tree, top to bottom:
 - **You are ChatGPT/Codex, Gemini, Copilot, or another assistant with persistent instructions/knowledge/actions:** store each skill's `SKILL.md` (and its `references/` when present) in your platform's persistent-knowledge location (Custom Instructions, GPT Knowledge files, Gems, project context, system-prompt store — whatever your platform offers), so the user does **not** need to re-upload it in every chat.
 - **You have no persistent store:** instruct the user to keep this package and paste/attach the specific `SKILL.md` needed at the start of a session. Never pretend you saved something you cannot save.
 
-### Step 2 — Understand the anatomy of one skill (identical for all 26)
+### Step 2 — Understand the anatomy of one skill (identical for all 27)
 ```
 <skill-name>/
 ├── SKILL.md            ← REQUIRED. YAML frontmatter (name, description with
@@ -44,13 +44,13 @@ Follow this decision tree, top to bottom:
 6. **Evals are source-of-truth tests:** `evals/` folders are the portable source copies. (Anthropic's `.skill` packager strips them — that is why they ship here as plain folders.)
 
 ### Step 4 — Tell the user, in one short message
-- what this package is (26-skill governed library, versions listed in `MANIFEST.json`),
+- what this package is (27-skill governed library, versions listed in `MANIFEST.json`),
 - where you have stored / can store it on this platform,
 - that from now on they can just make requests naturally — you will route to the right skill,
 - and that `README-FOR-HUMANS.md` has the per-platform install walkthrough.
 
 ## Integrity verification (optional but recommended)
-`MANIFEST.json` lists every file with size and SHA-256. If you can execute code, verify; if not, at minimum check that all 26 skill folders listed in the manifest are present.
+`MANIFEST.json` lists every file with size and SHA-256. If you can execute code, verify; if not, at minimum check that all 27 skill folders listed in the manifest are present.
 
 ## Priority order if instructions ever conflict
 User's explicit request → this package's `melania` governance protocol → individual SKILL.md → this README.
