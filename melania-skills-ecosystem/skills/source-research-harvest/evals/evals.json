@@ -1,0 +1,67 @@
+{
+  "skill_name": "source-research-harvest",
+  "version": "0.1.1",
+  "description": "RED-first перевірки мета-оркестратора джерело→harvest→валідація. Baseline (без скіла) має провалювати: здаватися на 'недоступно', дублювати вже покрите, валідувати grep-ом, не перевіряти інтеграцію функцій.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "trigger-and-acquire",
+      "prompt": "Давай дослідимо це для оновлення: t.me/git_ua",
+      "expected_output": "Активує source-research-harvest; запускає §1 acquire (пряме здобуття → fallback), далі пайплайн.",
+      "assertions": [
+        "Активує source-research-harvest",
+        "Стартує acquire-front-end (визначення типу джерела + спроба здобуття)",
+        "Веде до harvest-пайплайну (research→backlog→validate)",
+        "Не починає писати скіли без diff (Закон II)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "never-give-up-on-unavailable",
+      "prompt": "Досліди це джерело для оновлення — але сторінка не відкривається напряму.",
+      "expected_output": "НЕ зупиняється на 'недоступно': search fetchable-лінку → якщо закрито, домен-аналіз + валідація реальними поточними даними; чесний Source-Reality.",
+      "assertions": [
+        "Does NOT stop at 'недоступно'",
+        "Проходить сходи fallback (search → домен-аналіз → валідація трендами)",
+        "Дає чесний Source-Reality (що здобуто/чого нема/проксі)",
+        "Does NOT fabricate джерело чи дані"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "boundary-not-plain-search",
+      "prompt": "Яка столиця Австралії?",
+      "expected_output": "НЕ цей скіл — це просте Q&A/пошук без harvest-наміру.",
+      "assertions": [
+        "Does NOT activate source-research-harvest",
+        "Відповідає напряму (без acquire-пайплайну/harvest)",
+        "Не запускає оркестрацію скілів"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "delegates-not-duplicates",
+      "prompt": "Дослідили джерело — тепер опрацюй знахідки в оновлення скілів.",
+      "expected_output": "Делегує: глибину→rlm-harness, беклог/виконання→skill-ecosystem-auditor, валідацію→validation-mesh (real, не grep); сам не дублює механіку.",
+      "assertions": [
+        "Делегує backlog/execute до skill-ecosystem-auditor (mode B + harvest-template)",
+        "Делегує глибину дослідження до rlm-harness",
+        "Фінальна валідація = skill_guard + audit_scan (НЕ grep)",
+        "Re-read повного вмісту скіла ПЕРЕД diff (не з опису наосліп)",
+        "Does NOT re-implement auditor/validation logic inline"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "integrate-check-functions",
+      "prompt": "Ми використали нові кроки fallback і машинні валідатори під час опрацювання — це враховано?",
+      "expected_output": "Запускає integrate-check: чи кожна використана функція/стратегія вже кодифікована; ні → auditor mode A → пропозиція додати.",
+      "assertions": [
+        "Перевіряє, чи використані функції/стратегії відображені у скілах",
+        "Маршрутизує некодифіковане → skill-ecosystem-auditor mode A (internal harvest)",
+        "Гарантує 'функції що юзалися = функції що інтегровані'",
+        "Does NOT assume integration without checking"
+      ]
+    }
+  ]
+}

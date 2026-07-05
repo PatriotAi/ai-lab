@@ -1,12 +1,12 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-07-03",
+ "built": "2026-07-05",
  "governance": "melania-skill-master-administrator v2.13.3",
  "language_policy": "Ukrainian-first (code/APIs in English)",
- "skill_count": 26,
- "total_eval_cases": 123,
+ "skill_count": 27,
+ "total_eval_cases": 128,
  "eval_schema": "canonical: top-level version + evals[].name/prompt/expected_output/assertions",
- "provenance_note": "9 eval sets recovered from prior sessions (revalidated); 17 regenerated 2026-07-03 grounded in actual SKILL.md",
+ "provenance_note": "v4 rebuilt from live disk 2026-07-05. source-research-harvest recovered via GSRE (lost in parallel sessions). All 27 eval sets restored from v3 zip + regenerated where missing. collaborative-browser upgraded 2.7.2->3.0.0.",
  "install_entrypoint": "README-FOR-AI.md",
  "skills": {
   "ai-core-runtime": {
@@ -335,6 +335,20 @@
     "SKILL.md",
     "evals/evals.json",
     "references/marketplaces.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "source-research-harvest": {
+   "version": "0.1.1",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "0318e90e92443df3",
+    "evals/evals.json": "743b2a904107efce"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/acquire-playbook.md",
     "scripts/skill_guard.py"
    ]
   },

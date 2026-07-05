@@ -1,4 +1,4 @@
-Я передаю тобі пакет "melania-skills-ecosystem" (бібліотека з 26 AI-скілів).
+Я передаю тобі пакет "melania-skills-ecosystem" (бібліотека з 27 AI-скілів).
 
 Зроби наступне:
 1. Прочитай файл README-FOR-AI.md у корені пакета і виконай його інструкції.
@@ -9,7 +9,7 @@
 
 ---
 
-I am handing you the "melania-skills-ecosystem" package (a library of 26 AI skills).
+I am handing you the "melania-skills-ecosystem" package (a library of 27 AI skills).
 
 Do the following:
 1. Read README-FOR-AI.md in the package root and follow its instructions.
