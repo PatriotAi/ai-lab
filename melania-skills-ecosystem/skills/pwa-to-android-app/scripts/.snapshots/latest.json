@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-07-06T08:33:33.726122+00:00",
+  "md5": "dc0f8df44e03d6bff9dbf62596cb07e6",
+  "total_lines": 219,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Core Rule",
+    "## Critical Facts (часта плутанина)",
+    "## Pattern 1 — Self-contained single file (для роздачі)",
+    "## Pattern 2 — One-button auto-update (як професійні сервіси)",
+    "## Pattern 3 — Шлях до APK (вибір за можливостями)",
+    "## Behavior",
+    "## Генерація UI (дизайн)",
+    "## Deployment quickstart (для користувача)",
+    "## Coordinates with",
+    "## Share Target API — Отримання файлів з Android Share",
+    "## Web Push Notifications",
+    "## Background Sync — Офлайн Черга",
+    "## 📎 Advanced Patterns (v4)",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "Background Sync",
+    "Behavior",
+    "Coordinates with",
+    "Core Rule",
+    "Critical Facts",
+    "Deployment quickstart",
+    "Pattern 1",
+    "Pattern 2",
+    "Pattern 3",
+    "Share Target API",
+    "Web Push Notifications",
+    "Генерація UI",
+    "Зміни",
+    "📎 Advanced Patterns",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

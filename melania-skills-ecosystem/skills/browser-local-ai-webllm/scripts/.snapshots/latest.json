@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-07-06T08:33:33.328694+00:00",
+  "md5": "0c9a0dc74de590db501f849b45f3bc50",
+  "total_lines": 229,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Core Rule",
+    "## Critical Facts (підтверджено, не припущення)",
+    "## Pattern 1 — Engine wrapper (ізольований для майбутньої заміни)",
+    "## Pattern 2 — Device Analysis (за замовчуванням, для підбору моделі)",
+    "## Pattern 3 — Model ranking (найновіші + придатні вгорі)",
+    "## Behavior",
+    "## Verify before integrating (завжди)",
+    "## Coordinates with",
+    "## Рекомендовані Моделі 2026",
+    "## Streaming з Progress",
+    "## Service Worker — Кешування Ваг",
+    "## 📎 Advanced Patterns (v4)",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "Behavior",
+    "Coordinates with",
+    "Core Rule",
+    "Critical Facts",
+    "Pattern 1",
+    "Pattern 2",
+    "Pattern 3",
+    "Service Worker",
+    "Streaming з Progress",
+    "Verify before integrating",
+    "Зміни",
+    "Рекомендовані Моделі 2026",
+    "📎 Advanced Patterns",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

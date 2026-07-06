@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-07-06T08:33:34.020883+00:00",
+  "md5": "a5699457e6416a40c69238e194391eb4",
+  "total_lines": 233,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Core Principle",
+    "## Validation Types",
+    "## Validation Flow",
+    "## Output Format",
+    "### Validation Report",
+    "## Confidence Scoring Guide",
+    "## Hallucination Detection Checklist",
+    "## Architecture Validation Checklist",
+    "## Security Validation Layer",
+    "## API Contract Validation",
+    "## Prompt Quality Validation",
+    "## Related Skills",
+    "## 📎 Advanced Patterns (v4)",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "API Contract Validation",
+    "Architecture Validation Checklist",
+    "Confidence Scoring Guide",
+    "Core Principle",
+    "Hallucination Detection Checklist",
+    "Output Format",
+    "Prompt Quality Validation",
+    "Related Skills",
+    "Security Validation Layer",
+    "Validation Flow",
+    "Validation Report",
+    "Validation Types",
+    "Зміни",
+    "📎 Advanced Patterns",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

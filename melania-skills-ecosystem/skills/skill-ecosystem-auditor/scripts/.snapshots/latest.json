@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-07-06T08:33:33.890198+00:00",
+  "md5": "91c3e37732a98b5a629efbbc6a6225d7",
+  "total_lines": 202,
+  "terms": {
+    "Decision Gate": true,
+    "Anti-repeat Engine": true,
+    "read-only": true,
+    "validation-mesh": true,
+    "continuation-memory": true,
+    "semantic-router": true,
+    "skill-creation-guide": true,
+    "melania-skill-master-administrator": true,
+    "Self-Dev Proposal": true,
+    "українською-перш": true,
+    "deprecation": true,
+    "Master Administrator": true,
+    "diff": true
+  },
+  "behavior_rows": 5
+}
