@@ -1,6 +1,6 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-07-05",
+ "built": "2026-07-06",
  "governance": "melania-skill-master-administrator v2.13.3",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 27,
@@ -240,10 +240,10 @@
    ]
   },
   "rlm-harness": {
-   "version": "0.2.2",
+   "version": "0.3.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "dc12e38ca5f57b03",
+    "SKILL.md": "eb71697f94582a22",
     "evals/evals.json": "4c348b6d0b54326e"
    },
    "files": [
