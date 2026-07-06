@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-07-06T08:33:33.295990+00:00",
+  "md5": "5b5da70194ac17262af65789989eba04",
+  "total_lines": 188,
+  "terms": {
+    "AES-GCM": true,
+    "inject_cookies": true,
+    "browserbase_authenticate": true,
+    "days_remaining": true,
+    "Каскад авторизації": true,
+    "Secrets Manager": true,
+    "НІКОЛИ": true,
+    "security gates": true,
+    "PBKDF2": true,
+    "українською за замовчуванням": true,
+    "multi-provider-ai-orchestration": true
+  },
+  "gate_rows": 7
+}

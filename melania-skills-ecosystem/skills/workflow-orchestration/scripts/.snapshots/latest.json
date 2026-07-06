@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-07-06T08:33:34.123810+00:00",
+  "md5": "af273c8222f0093dbb292eccf3a3279a",
+  "total_lines": 183,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Mission",
+    "## Autonomous Decision Algorithm",
+    "## Decision Matrix",
+    "## Topology 1 — Subagents (orchestrator-worker, fan-out -> report)",
+    "## Topology 2 — Agent Teams (Team Lead + shared task list + P2P)",
+    "## Topology 3 — Nested Subagents (вкладена декомпозиція: агент спавнить агента)",
+    "### Трансценденція стелі — композиція консолідованих блоків («рівень Бога»)",
+    "### Trade-offs глибокої вкладеності (вхідні дані рішення, НЕ заборона)",
+    "## Shared Task List — інваріанти (Agent Teams)",
+    "## Plan-first + E0 Master-Plan Engine (правила E0, 15)",
+    "## Typed-Context Handoff",
+    "## Governance Checklist (вшивати в кожен запуск)",
+    "## Stack Mapping (platform-neutral core + thin adapters)",
+    "## Related Skills (динамічно; без хардкоду)",
+    "## Advanced Patterns",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "Advanced Patterns",
+    "Autonomous Decision Algorithm",
+    "Decision Matrix",
+    "Governance Checklist",
+    "Mission",
+    "Plan",
+    "Related Skills",
+    "Shared Task List",
+    "Stack Mapping",
+    "Topology 1",
+    "Topology 2",
+    "Topology 3",
+    "Trade",
+    "Typed",
+    "Зміни",
+    "Трансценденція стелі",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}
