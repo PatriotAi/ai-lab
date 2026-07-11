@@ -27,15 +27,15 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 2.13.3
+  version: 2.15.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-05-27
-  last_updated: 2026-06-15
+  last_updated: 2026-07-11
 ---
 
 # Melania — Skill Master Administrator
-> **v2.13.3** · Master Administrator: Меланія · `references/CHANGELOG.md`
+> **v2.15.0** · Master Administrator: Меланія · `references/CHANGELOG.md`
 > Працює українською за замовчуванням (українською-перша); технічні поля/команди — як є.
 > Claude Code hooks: `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`
 
@@ -232,11 +232,24 @@ Action: [затвердити / відхилити]
 | SKILL.md > 450 lines | `refactor → references/` |
 | New Claude API feature detected | `documentation update` |
 | Pattern used 3+ times unchanged | `move to references/` |
+| Позаскіловий підхід успішний 3+ разів | `new-pattern` (через Rule 7 Gate) |
 
 **Rules:**
 - Proposal ≠ change — only applied after `затвердити #N` from MA
 - Max 3 open proposals at once (oldest replaced after approval)
 - Rejected proposals → `CHANGELOG.md ## Rejected` with reason
+
+### Pattern Lifecycle (success-rate; узгоджено з 4-м шаром playbooks)
+
+Понад разові спостереження — тихий рахунок долі КОЖНОГО повторно вживаного патерну:
+- **strengthen** — патерн спрацював → закріпити (приклад/чіткіше правило у скілі);
+- **correct** — патерн підвів → Proposal `optimization` з причиною провалу;
+- **deprecate-кандидат** — success-rate < 0.5 при n ≥ 4 застосувань → Proposal `deprecation`;
+- **capture** — успішний ПОЗАскіловий підхід ужито 3+ разів → Proposal `new-pattern`
+  (маршрут через Rule 7 Gate: спершу оновлення наявного скіла, новий — лише як виняток);
+- **scheduled-консолідація** — на межі сесії або за командою MA: batch-рев'ю накопичених
+  Post-Use записів → консолідовані proposals (замість розсипу разових). Агностично до платформи:
+  якщо середовище надає керований scheduled-рев'ю пам'яті/сесій — та сама дисципліна, делегована.
 
 ---
 
@@ -247,7 +260,7 @@ Action: [затвердити / відхилити]
 2.  Size      SKILL.md < 500 lines; overflow → references/
 3.  Trigger   description: ALWAYS use when + synonyms + DO NOT use for
 4.  Tests     4–6 evals.json with concrete, checkable assertions
-5.  Guard     snapshot before every update; validate before every package
+5.  Guard     snapshot before every update; validate before every package; guard = SELF-BOUND: запускай ВЛАСНУ копію з папки цільового скіла (аргумент-ім'я ігнорується)
 6.  UA-first  Ukrainian triggers + Ukrainian default behaviour + Ukrainian examples
 7.  Gate      update an EXISTING skill first; create new only if update is impossible/illogical
 8.  Limits    description ≤ 1024 chars, NO angle brackets (< >); package via skill-creator/package_skill.py → folder-at-root .skill (<name>/SKILL.md), NOT SKILL.md-at-root
@@ -312,7 +325,7 @@ discovery-рівні; описи **вузькі, тригер-специфічн
 ```
 melania-skill-master-administrator/
 │
-├── SKILL.md                       ←  this file  (v2.4)
+├── SKILL.md                       ←  this file
 │
 ├── evals/
 │   └── evals.json                 ←  6 test cases (MA + Self-Dev coverage)
@@ -324,73 +337,17 @@ melania-skill-master-administrator/
 └── references/
     ├── full-guide.md              ←  patterns, templates, anti-patterns
     ├── CHANGELOG.md               ←  version history + pending proposals
-    └── update-protocol.md        ←  MA workflow detail + guard script
+    ├── update-protocol.md        ←  MA workflow detail + guard script
+    └── templates.md               ←  YAML frontmatter + body templates
 ```
 
 ---
 
-## 🧩 YAML Frontmatter — Template
+## 🧩 Шаблони — Frontmatter + Body
 
-```yaml
----
-name: my-skill                     # kebab-case · max 64 chars
-description: >                     # multiline with > · max 1024 chars
-  What the skill does.
-  ALWAYS use when [condition].
-  Also trigger for: [synonyms].
-  DO NOT use for [exclusions].
-compatibility: "Claude.ai · Claude Code · [platform notes]"
-allowed-tools:                     # Claude Code: declare required tools
-  - Bash(python:*)
-  - Read
-  - Write
-license: MIT                       # or Proprietary
-metadata:
-  version: 1.0.0
-  author: Melania
-  category: [category]
-  created: YYYY-MM-DD
-  last_updated: YYYY-MM-DD
----
-```
-
----
-
-## 📋 SKILL.md Body — Template
-
-```markdown
-# Skill Name — vX.Y
-> One-line mission. Author. Key references.
-
----
-
-## ⚖️ Core Ethics  (include if ethical layer needed)
-[Link to Three Laws or define own immutable rules]
-
----
-
-## Mission
-[What this skill does — imperative, specific, no filler]
-
----
-
-## Step 1 — [Primary Action]
-[Imperative instructions: "Read", "Check", "Never", "Always"]
-
----
-
-## Behavior
-
-| Situation | ✓ Do | ✗ Never |
-|-----------|------|---------|
-| [edge case] | [correct action] | [forbidden action] |
-
----
-
-## References
-Read `references/[file].md` WHEN: [specific condition].
-Never load references proactively — only on demand.
-```
+Повні шаблони YAML frontmatter (compatibility, allowed-tools, metadata) і тіла SKILL.md —
+у `references/templates.md`. Читай ТІЛЬКИ при створенні нового скіла або перевірці
+структури наявного (крок валідації формату в Update Workflow).
 
 ---
 
@@ -426,6 +383,7 @@ semantic-router
 | File | Load when |
 |------|-----------|
 | `references/full-guide.md` | Need full templates, patterns, or anti-patterns |
+| `references/templates.md` | Creating a new skill: YAML frontmatter + body templates |
 | `references/CHANGELOG.md` | Reviewing version history or pending proposals |
 | `references/update-protocol.md` | Detailed MA workflow, guard script, packaging |
 
@@ -442,6 +400,8 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v2.15.0** (2026-07-11) — Auto-Trigger виконано: SKILL.md 471→<450 рядків. Шаблони YAML frontmatter + body винесено в `references/templates.md` (новий файл; рядок у References-таблиці та File Structure), у тілі — компактний покажчик. Синхронізовано банер (був v2.13.3 при frontmatter 2.14.0 — дрейф закрито). Інваріанти guard збережено: всі 15 canonical terms у SKILL.md, скорочення −12% < порогу 18%. Зміст шаблонів не змінювався — перенесення 1:1.
+- **v2.14.0** (2026-07-11) — SDE: Pattern Lifecycle (frontier-research harvest P2): success-rate цикл strengthen/correct/deprecate(<0.5, n≥4)/capture(3+→Rule 7 Gate)/scheduled-консолідація — узгоджено з 4-м шаром playbooks knowledge base; агностично до платформ (керований scheduled-рев'ю = та сама дисципліна, делегована). +Auto-Trigger «позаскіловий підхід 3+». Core Rule 5: зафіксовано guard-контракт SELF-BOUND (здобуто болем: виклик чужої копії з аргументом валідує ЧУЖИЙ скіл — виявлено й закрито в цій сесії). Нотатка: SKILL.md перетнув 450-поріг ЩЕ ДО цієї правки (457) — Auto-Trigger refactor→references/ активний, кандидат наступного циклу. Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v2.13.3** (2026-06-26) — Вшито обов'язковий `pre-delivery-gate` у Packaging & Delivery: будь-який готовий артефакт проходить автоматичний гейт перевірок (validation/safety/evals/guard/повнота/анти-втрата) перед видачею. Лише додавання.
 - **v2.13.2** (2026-06-26) — GSRE-інтеграція: +структурне правило «evals НЕ потрапляють у .skill (пакувальник виключає) → тримати source окремо» (першопричина історичних claimed-but-missing) + канон-нота схеми evals у Packaging & Delivery. Банер синхронізовано. Лише додавання.
 - **v2.13.1** (2026-06-26) — `evals/` реконструйовано (6 кейсів: Three Laws, Pre-save gate, semver, packaging, Self-Dev triage, delivery). Форензик-аудит: File-Structure декларувала evals/evals.json (6 cases), артефакт відсутній у всіх джерелах → відтворено, claim НЕ видалено. Банер синхронізовано. Лише додавання.

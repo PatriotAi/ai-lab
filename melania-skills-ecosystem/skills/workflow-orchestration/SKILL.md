@@ -14,10 +14,10 @@ compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Co
 license: MIT
 metadata:
   author: Melania (Master Administrator)
-  version: 1.3.3
+  version: 1.4.0
   category: orchestration
   created: 2026-06-13
-  last_updated: 2026-06-26
+  last_updated: 2026-07-11
 ---
 
 # Workflow Orchestration
@@ -47,6 +47,8 @@ Playbook, як самостійно структурувати багатоаг�
 Калібрування (Anthropic): факти 1 агент/3–10 calls; порівняння 2–4 subagents/10–15; складне 10+ з чітким поділом. Cap concurrency 4–6.
 Auto-agent (правило 16): складність/ризик/багатокроковість -> авто agent-chain або tool-orchestration. Дозволу на декомпозицію не питай; лише на side-effect-дії.
 
+- Якість критична + перевірна планка (тести/rubric) → додай EVALUATOR-OPTIMIZER контур (Topology 4) поверх обраної топології.
+
 ## Decision Matrix
 | Критерій | Single | Sequential | Subagents | Hierarchical | Agent Teams |
 |---|---|---|---|---|---|
@@ -75,6 +77,8 @@ Team Lead спавнить команду -> усі читають/пишуть 
 - Обмеження: coordination complexity; race conditions; duplicate work; токени × тіммейти.
 - Anthropic-застереження: погано, де всі ділять один контекст / сильно взаємозалежні (більшість coding) -> supervisor або один агент.
 
+**Емпірика масштабу:** паралельні команди повних агент-інстансів із git-координацією доведено тягнуть проєкти рівня 100K+ рядків (кейс: 16 паралельних агентів → робочий C-компілятор за ~2 тижні автономно).
+
 ## Topology 3 — Nested Subagents (вкладена декомпозиція: агент спавнить агента)
 Саб-агент спавнить власних саб-агентів — ієрархічний ланцюг, де вивід рівня = вхід наступного. Кожен рівень — свіже ізольоване контекстне вікно; нагору повертається ЛИШЕ резюме верхнього саб-агента → головний контекст не забивається шумом проміжних кроків.
 - **Коли:** генуінно ієрархічна декомпозиція (spec→design→api→impl→test), де кожен шар потребує власної ізоляції від батьківського контексту. НЕ для паралелізму (це fan-out, Topology 1) і НЕ для спільного стану (teams, Topology 2).
@@ -101,6 +105,17 @@ MAIN (рівень 0): спавн Блок A (вниз ≤5) → VERIFY+конс
 | Кермо | після запуску ланцюг некерований, не втрутишся всередині | вузька чітка задача кожному рівню (objective/output/tools/межі) ПЕРЕД спавном |
 
 Дефолт вибору глибини: «настільки глибоко, наскільки задача варта» — НЕ «мілко про всяк випадок», НЕ «глибоко бо можна».
+
+## Topology 4 — Evaluator-Optimizer (Outcomes-патерн)
+Produce→grade→revise цикл із grader-ом в ІЗОЛЬОВАНОМУ контексті:
+1. **Producer** виконує задачу.
+2. **Grader** (окремий агент, ЧИСТИЙ контекст — не заражений reasoning-ом продюсера) оцінює за
+   явним rubric → verdict + конкретні дефекти.
+3. Не пройшло планку → producer ревізує з фідбеком; цикл до планки АБО стелі ітерацій (bounded).
+**Коли:** якість критична + є перевірна планка (тести/rubric/схема). **Емпірика:** до +10 п. task
+success проти простого prompting-циклу, найбільший виграш на найважчих задачах; file-generation
++8-10%. **Анти-патерн:** grader = producer (self-grade у тому самому контексті — сліпий до власних
+помилок). Судова роль → клас моделі з `rlm-harness` model-fit; resilience-стеля → `ai-core-runtime`.
 
 ## Shared Task List — інваріанти (Agent Teams)
 Статус-машина: `todo -> claimed -> in-progress -> done`; бічні `blocked`, `failed -> todo`.
@@ -172,6 +187,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
+- **v1.4.0** (2026-07-11) — Topology 4: Evaluator-Optimizer / Outcomes-патерн (frontier-research harvest): produce→grade→revise з grader-ом в ізольованому чистому контексті, rubric-verdict, bounded-цикл; емпірика (+10 п. success, file-gen +8-10%); анти-патерн self-grade; крос-лінки rlm-harness (клас judge-моделі) + ai-core-runtime (resilience-стеля). Підключено до Autonomous Decision Algorithm (анти-орфан, урок v1.3.1). +1 рядок емпірики масштабу в Topology 2 (16 паралельних агентів → 100K+ рядків, агностично). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v1.3.3** (2026-06-26) — +`references/topology-taxonomy.md` (повна таксономія 10+ топологій swarm/handoff/blackboard/contract-net/group-chat; framework-мапінг LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock; деталі shared-task; observability-стек). Відновлює обіцяний-але-відсутній `references/` (форензик-аудит: артефакт не існував у git/транскриптах/FS → реконструйовано, проміс НЕ видалено). Лише додавання.
 - **v1.3.2** (2026-06-26) — +evals/ (5 кейсів Topology 3: адаптивна глибина SDLC; стеля-5 / відносна до підкладки; композиція блоків «рівень Бога»; fan-out-vs-nest анти-патерн; .md-handoff). Закриває claimed-but-missing-evals для цього скіла (артефакт тепер існує). evals/ виключається з .skill (тест-артефакт). Лише додавання.
 - **v1.3.1** (2026-06-26) — Coherence-патч: Topology 3 підключено до точок входу рішення — рядок у Autonomous Decision Algorithm (ієрархічна декомпозиція з ізоляцією шарів → NESTED) + покажчик біля Decision Matrix (вісь ГЛИБИНИ vs паралелізм/роутинг). Закриває орфан-секцію (раніше Topology 3 недосяжна з алгоритму вибору). Лише додавання. _(аудит-пас після 1.3.0.)_
