@@ -38,9 +38,9 @@
 | semantic-router | 1.13.2 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація |
 | melania-skill-master-administrator | 2.15.0 | GOVERNANCE: створити/оновити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
 | ai-core-runtime | 3.10.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools |
-| rlm-harness | 0.3.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; диригент-модель + дешеві суб-агенти; safe-action-gate для side-effect дій |
+| rlm-harness | 0.4.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.4.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
-| multi-provider-ai-orchestration | 1.4.2 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover, group orchestration |
+| multi-provider-ai-orchestration | 1.5.0 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.2.1 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
 | skill-creation-guide | 1.9.3 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура |
 | skill-ecosystem-auditor | 1.6.2 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
@@ -52,7 +52,7 @@
 | continuation-memory | 1.9.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.0.0 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
 | knowledge-synthesizer | 1.0.1 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
-| llm-api-builder | 1.3.0 | код з Claude API / Anthropic SDK: tool use, streaming, batch, caching (НЕ для openai) |
+| llm-api-builder | 1.4.0 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
 | auth-session-manager | 1.4.2 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
 | collaborative-browser | 3.0.0 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
 | notebooklm-connector | 4.2.3 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |

@@ -44,3 +44,27 @@ reasoning-глибина · чутливість до латентності · 
 - Сильна модель «про всяк випадок» на простих кроках — марнування (Принцип #0 не виправдовує переплату).
 - Дешева модель на незворотному/судовому кроці без гейта — тихе зниження якості.
 - Хардкод назв моделей у логіці — застаріє; тримай клас+матрицю.
+
+---
+
+## Per-role: роль → клас → компенсуючі техніки (КАНОН, вічне)
+
+| Роль | Клас моделі | Компенсуючі техніки для дешевих воркерів |
+|---|---|---|
+| Диригент / planner | топовий reasoning | high/max effort; план у стабільному кеш-префіксі |
+| Код-генерація | сильний код-клас | few-shot code-conventions; structured output; cache-hit на system |
+| Код-рев'ю / judge | дешевий reasoning | grader в ІЗОЛЬОВАНОМУ контексті (Outcomes); rubric; adversarial verify |
+| Research / synthesis | long-context клас | context caching; decomposition; cross-reference verify |
+| Extraction / classify | швидкий дешевий | structured JSON; few-shot; Batch API (−50%) |
+| Validation | дешевий reasoning | ансамбль спеціалізованих промптів; self-consistency ЛИШЕ high-variance |
+| Creative writing | сильний генеративний | без over-scaffolding; висока температура |
+| Translation UA | multilingual клас | few-shot доменна термінологія; back-translation verify |
+
+**Мапінг клас → конкретна модель** — у датованому замінному снапшоті
+`multi-provider-ai-orchestration/references/model-snapshot-YYYY-MM.md` (джерело істини рантайму; DRY).
+
+**Паритет-емпірика (чому дешеві воркери працюють):** ансамбль спеціалізованих промптів виводить малі
+open-моделі на frontier-рівень у верифікації (+9.1% acc, +15.9% consistency — arXiv 2604.02450);
+self-scaffolding доводить 9B-модель до 69.4% SWE-bench Verified. ⚠️ Self-consistency на сильних
+моделях дає спадну віддачу (arXiv 2511.00751) — вибірково, не всюди.
+**Економіка:** диригент 5-15% токенів (план+синтез), воркери 85-95% на дешевих.

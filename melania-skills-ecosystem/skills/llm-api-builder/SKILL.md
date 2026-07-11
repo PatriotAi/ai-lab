@@ -3,11 +3,11 @@ name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
 license: Complete terms in LICENSE.txt
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-06-26
+  last_updated: 2026-07-11
 ---
 
 # Building LLM-Powered Applications with Claude
@@ -125,38 +125,40 @@ metadata:
 
 ---
 
-## Поточні моделі (кешований знімок — ЗВІРИТИ перед використанням)
+## Поточні моделі (агностично)
 
-> ⚠️ Чутливе до часу. Нові моделі виходять регулярно; ця таблиця застаріває. Підтверди поточні model ID, контекст і ціни через скіл `product-self-knowledge` або https://docs.claude.com. Не вважай рядки нижче авторитетними.
-
-| Модель | Model ID | Контекст | Input $/1M | Output $/1M |
-|--------|----------|----------|------------|-------------|
-| Claude Opus 4.8 | `claude-opus-4-8` | 200K (1M beta) | звірити | звірити |
-| Claude Sonnet 4.6 | `claude-sonnet-4-6` | 200K (1M beta) | $3.00 | $15.00 |
-| Claude Haiku 4.5 | `claude-haiku-4-5` | 200K | $1.00 | $5.00 |
-
-> Ціни Opus 4.8 та свіжість усіх рядків — звіряти в docs (знімок міг застаріти).
-
-**За замовчуванням — найновіша доступна модель** (спершу звір рядок); пінь конкретну старішу модель лише коли користувач явно її називає.
-
----
+> **Конкретні model ID/ціни/ctx НЕ живуть тут.** Датований знімок — у спільному замінному файлі
+> `multi-provider-ai-orchestration/references/model-snapshot-YYYY-MM.md` (DRY, поточний: 2026-07).
+> Авторитет — `product-self-knowledge` / https://docs.claude.com. **За замовчуванням — найновіша
+> доступна модель**; пінь конкретну старішу лише коли користувач явно її називає.
 
 ## Thinking & Effort (швидка довідка)
 
-**Поточні флагмани (Opus/Sonnet 4.x) — adaptive thinking (рекомендовано):** `thinking: {type: "adaptive"}`. На поточних флагманах `budget_tokens` deprecated.
+**Поточні флагмани — adaptive thinking (рекомендовано):** `thinking: {type: "adaptive"}`. На поточних флагманах `budget_tokens` deprecated.
 
 **Effort-параметр (GA):** `output_config: {effort: "low"|"medium"|"high"|"max"}`. Замовчування — `high`. `max` — лише для топ-Opus.
 
 **Adaptive thinking** підтримується поточними Sonnet/Opus; `budget_tokens` на них deprecated.
 
 **Старіші моделі (лише за явним запитом):** `thinking: {type: "enabled", budget_tokens: N}`. `budget_tokens` має бути менший за `max_tokens` (мінімум 1024).
-> ⚠️ `budget_tokens` валідний **лише для старіших моделей** (Sonnet 4.5 і нижче). Не використовуй із поточними флагманами — звір актуальну поведінку в docs.
+> ⚠️ `budget_tokens` валідний **лише для старіших поколінь** (межу звір у docs). Не використовуй із поточними флагманами — звір актуальну поведінку в docs.
 
 ---
 
 ## Compaction (швидка довідка)
 
-**Beta, лише топ-Opus.** Потребує beta-хедер `compact-2026-01-12`. API автоматично підсумовує ранній контекст при наближенні до ~150K токенів. Додавай `response.content` (не лише текст) назад у messages щоходу. (Звір поточну доступність/умови в docs.)
+**Beta, поточні топ-моделі (звір docs, які саме).** Потребує beta-хедер `compact-2026-01-12`. API автоматично підсумовує ранній контекст при наближенні до порога. Ключі: `context_management.edits` (конфігурація), trigger threshold конфігурується (від ~50K), `pause_after_compaction` — зупинка після компакції для інспекції. Додавай `response.content` (не лише текст) назад у messages щоходу. Компакція, що переписує префікс щотурну, ВБИВАЄ prompt-cache — тримай стабільний кеш-префікс. (Звір поточну доступність/умови в docs.)
+
+## Memory Tool (швидка довідка)
+
+**GA на поточних поколіннях (звір docs).** Client-side tool `memory_20250818`: модель читає/пише файли в sandbox-директорії `/memories` через твій handler. ОБОВ'ЯЗКОВО: path-traversal захист у handler (валідація що шлях лишається в `/memories`). Емпірика Anthropic: context editing + memory tool = **+39% якості проти baseline, −84% токенів** на 100-turn агентних задачах; context editing сам = +29%. Патерн: pre-compaction memory flush (важливе → у memory ПЕРЕД компакцією). Деталі — docs memory-tool.
+
+## Advanced Tool Use (швидка довідка)
+
+Три beta-можливості для агентів з великими наборами інструментів (звір хедери в docs):
+- **Programmatic Tool Calling** — модель викликає інструменти з code-execution середовища, фільтруючи проміжні дані: **−37% токенів** на складних research-задачах (43.6K→27.3K).
+- **Tool Search Tool** — інструменти підвантажуються пошуком замість усіх визначень у контексті: **−85% контексту** (77K→8.7K) для великих tool-бібліотек.
+- **Tool Use Examples** — приклади викликів у визначенні інструмента: parameter accuracy **72%→90%**.
 
 ---
 
@@ -181,6 +183,7 @@ metadata:
 * **Thinking на поточних флагманах:** `thinking: {type: "adaptive"}` — НЕ використовуй `budget_tokens`.
 * **Prefill:** на найновіших Opus assistant-prefill може повертати 400 — звір у docs перед використанням prefill.
 * **128K output tokens:** `.stream()` з `.get_final_message()` / `.finalMessage()`.
+* **Batch API до 300K output:** beta-хедер `output-300k-2026-03-24` (звір docs) — для довгих batch-генерацій.
 * **Structured outputs:** `output_config: {format: {...}}` замість deprecated `output_format`.
 * **Не визначай власні типи для структур даних SDK:** використовуй `Anthropic.MessageParam`, `Anthropic.Tool` тощо.
 * **Звіти й документи на виході:** code-execution sandbox має передвстановлені `python-docx`, `python-pptx`, `matplotlib`, `pillow`, `pypdf`.
@@ -195,6 +198,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.4.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** Секцію «Поточні моделі» де-піновано: таблиця конкретних ID/цін → покажчик на спільний датований снапшот у `multi-provider` (DRY) + правило «найновіша доступна». **(B)** Compaction розширено (агностично): `context_management.edits`, конфігурований поріг, `pause_after_compaction`, попередження про кеш-префікс. **(C)** НОВА секція Memory Tool: sandbox-патерн, path-traversal захист, емпірика +39%/−84%, pre-compaction flush — без прив'язки до поколінь. **(D)** НОВА секція Advanced Tool Use: Programmatic Tool Calling (−37% токенів), Tool Search Tool (−85% контексту), Tool Use Examples (72→90%). **(E)** Pitfalls: +Batch довгий output (beta, звір хедер у docs). Лише додавання/де-пін; API-ідентифікатори (tool-типи, beta-хедери) збережені — це документація API, не пін моделей. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 - **v1.3.0** (2026-06-26) — Повна UA-локалізація (Task 1): технічну прозу (Defaults, Language Detection, Architecture, Reading Guide, Pitfalls, таблиці) перекладено українською; код / API / ідентифікатори лишаються англійською. +власні `evals/` (5, канон-схема). **S-1:** знімок моделей оновлено (Opus 4.6→4.8, `claude-opus-4-8`); version-tied claims генералізовано на «поточні флагмани» + verify-нота (без вигадування цін 4.8). **S-2:** дубльовану секцію «Зміни» + дубль v1.2.0 консолідовано (вміст збережено). Переклад + додавання; функціонал не змінено.
 - **v1.2.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна.
 - **v1.2.0** (2026-06-02) — `metadata`-блок, директива «українською-перша», власні `evals/` (5); де-хардкод моделей (найновіша + звірка з product-self-knowledge/docs); Pre-Update Preservation Protocol; `advanced-api` reference (prompt caching, citations, vision, PDF, Files API). _(аудит Кластер 3: P5 + P9 + Core Rule 4)_
