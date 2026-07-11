@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-07-06T08:33:34.123810+00:00",
-  "md5": "af273c8222f0093dbb292eccf3a3279a",
-  "total_lines": 183,
+  "timestamp": "2026-07-11T16:19:10.391446+00:00",
+  "md5": "001f09ccbb4e0b2374727dc716483049",
+  "total_lines": 199,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Mission",
@@ -12,6 +12,7 @@
     "## Topology 3 — Nested Subagents (вкладена декомпозиція: агент спавнить агента)",
     "### Трансценденція стелі — композиція консолідованих блоків («рівень Бога»)",
     "### Trade-offs глибокої вкладеності (вхідні дані рішення, НЕ заборона)",
+    "## Topology 4 — Evaluator-Optimizer (Outcomes-патерн)",
     "## Shared Task List — інваріанти (Agent Teams)",
     "## Plan-first + E0 Master-Plan Engine (правила E0, 15)",
     "## Typed-Context Handoff",
@@ -34,6 +35,7 @@
     "Topology 1",
     "Topology 2",
     "Topology 3",
+    "Topology 4",
     "Trade",
     "Typed",
     "Зміни",
