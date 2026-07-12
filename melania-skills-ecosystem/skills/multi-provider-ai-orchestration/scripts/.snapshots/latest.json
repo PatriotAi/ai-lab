@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-07-11T19:16:57.214657+00:00",
+  "md5": "b1cf30e0d2ddeda45b0527dbaf6d8883",
+  "total_lines": 226,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Core Rule",
+    "## Pattern 1 — Provider Chain з мульти-ключем",
+    "## Pattern 2 — Failover з rate-limit детекцією",
+    "## Pattern 3 — Task-based routing",
+    "## Pattern 4 — Group Orchestration (кілька моделей разом)",
+    "## Pattern 5 — User-Extensible Providers (як \"знання\" в GPT)",
+    "## Provider Matrix (модельно-агностична)",
+    "### Anthropic-сумісні endpoints (3-рядкова інтеграція)",
+    "## Reasoning / Thinking Cross-Provider (агностично)",
+    "## Cost Estimation",
+    "## Behavior",
+    "## Tier convention (порядок у ланцюгу)",
+    "## Coordinates with",
+    "## Конектори дій vs LLM-провайдери (failover-принцип)",
+    "## 📎 Advanced Patterns (v4)",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "Anthropic",
+    "Behavior",
+    "Coordinates with",
+    "Core Rule",
+    "Cost Estimation",
+    "Pattern 1",
+    "Pattern 2",
+    "Pattern 3",
+    "Pattern 4",
+    "Pattern 5",
+    "Provider Matrix",
+    "Reasoning / Thinking Cross",
+    "Tier convention",
+    "Зміни",
+    "Конектори дій vs LLM",
+    "📎 Advanced Patterns",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

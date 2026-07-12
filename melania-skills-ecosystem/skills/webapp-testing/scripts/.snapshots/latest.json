@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-07-06T08:33:34.088790+00:00",
+  "md5": "2ab1d592bc5f37f4c74fe2b473662067",
+  "total_lines": 216,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Дерево рішень: вибір підходу",
+    "## Приклад: використання with_server.py",
+    "## Патерн Reconnaissance-Then-Action",
+    "## Часта пастка",
+    "## Найкращі практики",
+    "## Reference-файли",
+    "## Visual Regression Testing",
+    "## API Testing (через Playwright)",
+    "## Accessibility Testing",
+    "## Mobile Viewport Testing",
+    "## Pairwise-тести + статичний аналіз",
+    "## 📎 Advanced Patterns (v4)",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "API Testing",
+    "Accessibility Testing",
+    "Mobile Viewport Testing",
+    "Pairwise",
+    "Reference",
+    "Visual Regression Testing",
+    "Дерево рішень",
+    "Зміни",
+    "Найкращі практики",
+    "Патерн Reconnaissance",
+    "Приклад",
+    "Часта пастка",
+    "📎 Advanced Patterns",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

@@ -164,7 +164,7 @@ const Dashboard = () => { const state = useDashboardData(); return <DashboardVie
 
 **Сигнали що компонент треба розбити:**
 - > 150 рядків JSX
-- > 3 `useState` в одному компоненті
+- > 3 `useState` в одному компоненті  
 - > 2 `useEffect` — кожен має своя логіку
 
 ---

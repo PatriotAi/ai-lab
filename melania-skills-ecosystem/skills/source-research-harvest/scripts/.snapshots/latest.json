@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-07-06T08:33:33.954948+00:00",
+  "md5": "5a6406f49774763d1cf145082a5a5e29",
+  "total_lines": 121,
+  "headings": [
+    "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Core Rule",
+    "## Decision Gate — чому окремий скіл",
+    "## §1. INFORMATION MAXIMIZATION (acquire-front-end — ГОЛОВНЕ, нове)",
+    "### Сходи здобуття (graceful fallback)",
+    "## §2–7. Пайплайн (ДЕЛЕГУЄ механіку)",
+    "## Behavior",
+    "## Delegation Map (динамічно через semantic-router)",
+    "## Related Skills (динамічно)",
+    "## References",
+    "## Зміни"
+  ],
+  "key_terms": [
+    "Behavior",
+    "Core Rule",
+    "Decision Gate",
+    "Delegation Map",
+    "References",
+    "Related Skills",
+    "§1. INFORMATION MAXIMIZATION",
+    "§2–7. Пайплайн",
+    "Зміни",
+    "Сходи здобуття",
+    "🛡️ Протокол Збереження Перед Оновленням"
+  ]
+}

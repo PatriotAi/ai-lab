@@ -37,7 +37,7 @@ Drop resolved steps; keep active TODOs and unresolved dependencies.
 
 ## Estimation Guide
 - Simple response: ~100–500 tokens
-- Architecture diagram (text): ~200–800 tokens
+- Architecture diagram (text): ~200–800 tokens  
 - Code module: ~300–1000 tokens
 - Full continuation package: ~500–1500 tokens
 - Full file rewrite (avoid): ~2000–10000 tokens

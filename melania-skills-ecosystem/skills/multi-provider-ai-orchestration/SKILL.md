@@ -3,14 +3,14 @@ name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
 license: Proprietary
 metadata:
-  version: 1.4.2
+  version: 1.5.0
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-06-02
+  last_updated: 2026-07-11
 ---
 
-# Multi-Provider AI Orchestration — v1.0
+# Multi-Provider AI Orchestration — v1.5.0
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -125,54 +125,48 @@ function validateCustomCfg(raw){ /* JSON parse + name + endpoint http(s) пер�
 
 ---
 
-## Provider Matrix (2026)
+## Provider Matrix (модельно-агностична)
 
-| Provider | Free tier | Strengths | Extended Thinking |
-|---|---|---|---|
-| **Anthropic Claude claude-opus-4-8** | — | best reasoning, 200k ctx | ✅ (budget_tokens) |
-| **Anthropic Claude Sonnet 4.6** | — | fast + smart, 200k ctx | — |
-| **Google Gemini 2.5 Flash** | ✅ 1M tok/day | fast, multimodal, 1M ctx | ✅ (thinking_budget) |
-| **Google Gemini 2.5 Pro** | limited | best multimodal | ✅ |
-| **Groq Llama 3.3 70B** | ✅ 14k req/day | ultra-fast inference | — |
-| **Groq Mixtral 8x7B** | ✅ | fast MoE | — |
-| **DeepSeek V3** | ✅ generous | coding, math | — |
-| **Mistral Large** | — | European compliance | — |
-| **Ollama (local)** | free | privacy, offline | model-dependent |
+> **Конкретні моделі/ціни/ctx НЕ живуть тут** — вони в датованому замінному файлі
+> `references/model-snapshot-YYYY-MM.md` (поточний: `model-snapshot-2026-07.md`). Снапшот застарів →
+> заміни файл, SKILL.md не чіпай. Це гарантує роботу скіла з будь-якими майбутніми/невідомими моделями.
 
-**Tier order (default):** Anthropic(0) → Gemini(1) → DeepSeek(2) → Groq(3) → local(10)
+Структура рядка матриці: **провайдер/модель · ціна I/O $/1M · ctx · сильні сторони · reasoning-тип**.
+Класи вузлів у ланцюгу (стабільні, незалежні від конкретних моделей):
+frontier-reasoning · балансний флагман-tier · дешевий флагман-tier · frontier-adjacent дешевий ·
+open-weight сильний · high-volume воркер · локальний (privacy/offline).
+
+**Tier order (default):** frontier(0) → балансні(1) → open-weight сильні(2) → дешеві воркери(3) → custom(5) → local(9-12)
+
+### Anthropic-сумісні endpoints (3-рядкова інтеграція)
+Низка провайдерів приймає **Anthropic-формат** запитів — існуючий Anthropic-клієнт працює зі зміною `base_url` + ключа:
+```javascript
+const client = new Anthropic({ baseURL: PROVIDER_ANTHROPIC_URL, apiKey: KEY });
+```
+Це робить сумісні воркери drop-in замінюваними у ланцюгу без адаптера. Хто саме сумісний + URL —
+у `references/model-snapshot-YYYY-MM.md` (звір docs провайдера).
 
 ---
 
-## Extended Thinking Cross-Provider
+## Reasoning / Thinking Cross-Provider (агностично)
+
+Провайдери експонують reasoning різними полями (adaptive / effort-рівні / thinking-budget). Конкретні
+поля по провайдерах — у `references/model-snapshot-YYYY-MM.md` (звіряй docs: поля мігрують).
+Механізм автовибору стабільний:
 
 ```javascript
-// Anthropic
-body = { thinking: { type: "enabled", budget_tokens: 8000 }, max_tokens: 16000 }
-
-// Gemini 2.5
-body = { generationConfig: { thinkingConfig: { thinkingBudget: 8000 } } }
-
-// Автовибір провайдера з thinking підтримкою:
-const THINKING_PROVIDERS = ["anthropic", "gemini"];
+// reasoning-capability — атрибут вузла зі снапшоту, не хардкод назв провайдерів
 function selectThinkingProvider(chain) {
-  return chain.find(n => THINKING_PROVIDERS.includes(n.pid)) ?? chain[0];
+  return chain.find(n => n.caps?.reasoning) ?? chain[0];
 }
 ```
-
----
 
 ## Cost Estimation
 
 ```javascript
-// Приблизна вартість ($/1M tokens, вхід/вихід)
-const COSTS = {
-  "claude-opus-4-8":       { in: 15,  out: 75  },
-  "claude-sonnet-4-6":   { in: 3,   out: 15  },
-  "gemini-2.5-flash":      { in: 0.15,out: 0.60 },
-  "gemini-2.5-pro":        { in: 1.25,out: 10  },
-  "deepseek-chat":         { in: 0.27,out: 1.10 },
-  "llama-3.3-70b-groq":   { in: 0.59,out: 0.79 },
-};
+// COSTS заповнюється з датованого снапшоту references/model-snapshot-YYYY-MM.md —
+// НЕ хардкодь тут: конкретні моделі/ціни змінюються, механізм — ні.
+const COSTS = loadFromSnapshot(); // { "model-id": { in: $/1M, out: $/1M }, ... }
 function estimateCost(model, inTokens, outTokens) {
   const c = COSTS[model]; if(!c) return null;
   return (inTokens/1e6)*c.in + (outTokens/1e6)*c.out;
@@ -218,6 +212,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.5.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** НОВИЙ замінний файл `references/model-snapshot-2026-07.md` — ЄДИНЕ місце конкретики (матриця 15 моделей із верифікованими цінами, COSTS-конфіг з фіксом Opus 4.8 15/75→5/25, reasoning-поля по провайдерах, Anthropic-сумісні endpoints, per-role приклади для rlm-harness). **(B)** SKILL.md де-пінований: матриця→структура+класи вузлів, COSTS→loadFromSnapshot(), reasoning→capability-атрибут вузла, endpoints→патерн без URL. Скіл працює з будь-якими майбутніми моделями; застарівання = заміна снапшот-файлу. **(C)** Фікс розсинхрону заголовка (v1.0→актуальна). Знання старої матриці збережені в CHANGELOG-історії; merge-not-replace. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
 - **v1.4.2** (2026-06-26) — Stage 3: **S-1** застарілу модель оновлено (`claude-opus-4-5`→`claude-opus-4-8`, ×2; ціни звіряти в docs). **S-2** примітка про дубль v1.2.0 (вміст збережено). Корекція + примітка.
 - **v1.4.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

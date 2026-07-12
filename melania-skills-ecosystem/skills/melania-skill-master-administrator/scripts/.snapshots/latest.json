@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-07-11T16:22:33.871045+00:00",
+  "md5": "1e9c4031f950e605845526f40f8a1b3a",
+  "total_lines": 417,
+  "terms": {
+    "Master Administrator": true,
+    "Self-Development Engine": true,
+    "Update Workflow": true,
+    "Post-Use Assessment": true,
+    "GAP CHECK": true,
+    "PATTERN CHECK": true,
+    "validation-mesh": true,
+    "CHANGELOG": true,
+    "Core Rules": true,
+    "skill-creator": true,
+    "continuation-memory": true,
+    "compatibility": true,
+    "ai-core-runtime": true,
+    "n8n-orchestrator": true,
+    "semantic-router": true
+  },
+  "behavior_rows": 0
+}
