@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Бутстрап лабораторії / Lab bootstrap: pre-commit + git-хуки.
+set -euo pipefail
+
+echo "→ Встановлюю pre-commit / Installing pre-commit"
+if ! python3 -m pip install --user --upgrade pre-commit 2>/dev/null; then
+  # PEP 668 (externally-managed environment): пробуємо pipx / try pipx
+  if command -v pipx >/dev/null 2>&1; then
+    pipx install --force pre-commit
+  else
+    echo "✗ pip заблоковано (PEP 668) / pip is blocked. Використай pipx або venv:" >&2
+    echo "  python3 -m venv .venv && . .venv/bin/activate && pip install pre-commit" >&2
+    exit 1
+  fi
+fi
+# pip --user кладе бінарники сюди; у свіжих шелах цього шляху нема в PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "→ Активую git-хуки / Installing git hooks"
+pre-commit install
+
+echo "✓ Готово / Done."
+echo "  За потреби: cp .env.example .env  (та заповни локально / fill in locally)"
