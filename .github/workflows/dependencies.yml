@@ -21,7 +21,7 @@ jobs:
       # Крок не блокує, поки в repo Settings → Security не ввімкнено Dependency
       # graph (після ввімкнення — прибрати continue-on-error) / step-level
       # non-blocking until the Dependency graph is enabled; remove afterwards.
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         continue-on-error: true
         with:
           fail-on-severity: high
