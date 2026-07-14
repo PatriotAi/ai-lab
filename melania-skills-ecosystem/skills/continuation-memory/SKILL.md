@@ -299,7 +299,8 @@ so the user can always see current position at a glance.
   (cold-сесія може не мати доступу до інших файлів).
 - **Recovery-checklist ДО тесту:** зафіксуй перелік критичних пунктів (рішення / відкриті нитки /
   точний наступний крок) **ПЕРЕД** тестом → об'єктивний вимір % відновлення; ціль **100% критичних без повтору**.
-- Повнота пакета — через `gmi-audit` (інваріант G5) + `validation-mesh`.
+- Повнота пакета — базово через **`validation-mesh`** (у Melania-пакеті); **опційно** `gmi-audit`
+  (інваріант G5) як розширення, **якщо доступне** (лаб-скіл поза Melania-пакетом — не hard-dep).
 _(Валідовано: `experiments/gmi-g5-memory` — recovery 9/9 після застосування self-contained refs.)_
 
 ---
@@ -309,7 +310,7 @@ _(Валідовано: `experiments/gmi-g5-memory` — recovery 9/9 після 
 - **ai-core-runtime** — uses continuation-memory for session continuity
 - **semantic-router** — can trigger continuation-memory on intent detection
 - **validation-mesh** — validate continuation package completeness
-- **gmi-audit** — інваріант **G5**: перевір, чи має система зовнішній цикл пам'яті з cold-start recovery.
+- **gmi-audit** *(опційно; лаб-скіл поза Melania-пакетом)* — інваріант **G5**: перевір, чи має система зовнішній цикл пам'яті з cold-start recovery.
 
 ---
 
