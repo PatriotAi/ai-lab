@@ -79,6 +79,15 @@ Vertical slice: двомовний контент-пайплайн end-to-end �
 (тема → дослідження → UA/EN артефакт → рев'ю → Canva-картка; Vercel-прев'ю відкладено
 до креденшелів). Висновок зафіксовано в `docs/learnings.md`; рішення — лишити.
 
+## Фаза 5 — Дослідницька серія GMI ✅ ЗРОБЛЕНО
+Знаннєвий vertical slice: `experiments/gmi/` — **Загальна Модель Інтелекту (GMI)** як
+інваріантний кістяк (G1–G7) + вісь спостерігача (детермінація/read-out) + стек ефективності
+(P1–P7); deep-research з тегами доказовості [E]/[C]/[S]; grounding на власний System Core;
+двомовний **інтерактивний Claude Artifact**. Повний ланцюг навичок (harvest → synthesizer →
+validation-mesh → content-pipeline → translate-uaen → pre-delivery-gate). **Промоутнуто:**
+нова навичка `gmi-audit` (GMI-лінза) + крос-лінк у `ai-core-runtime`/`knowledge-synthesizer`
+(melania resync/verify ✅). Висновок — у `docs/learnings.md`. PR #16 (merge за згодою власника).
+
 ---
 
 ## Рішення — прийнято за рекомендаціями ✅
