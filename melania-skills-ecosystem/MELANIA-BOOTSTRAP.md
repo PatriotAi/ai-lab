@@ -31,13 +31,13 @@
 - **Мова:** українська за замовчуванням; код/API — англійською.
 - **Пріоритет при конфлікті:** явний запит користувача → протокол melania → SKILL.md скіла → цей файл.
 
-## Маршрутна таблиця — 27 скілів (версії актуальні на 2026-07-11)
+## Маршрутна таблиця — 27 скілів (версії актуальні на 2026-07-13)
 
 | Скіл | v | Активувати коли |
 |---|---|---|
 | semantic-router | 1.13.2 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація |
 | melania-skill-master-administrator | 2.15.0 | GOVERNANCE: створити/оновити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
-| ai-core-runtime | 3.10.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools |
+| ai-core-runtime | 3.10.1 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools |
 | rlm-harness | 0.4.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.4.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
 | multi-provider-ai-orchestration | 1.5.0 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
@@ -49,9 +49,9 @@
 | safety-compliance-gate | 1.1.1 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
 | pre-delivery-gate | 1.0.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
 | validation-mesh | 1.5.4 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
-| continuation-memory | 1.9.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
+| continuation-memory | 1.9.1 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.0.0 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
-| knowledge-synthesizer | 1.0.1 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
+| knowledge-synthesizer | 1.0.2 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
 | llm-api-builder | 1.4.0 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
 | auth-session-manager | 1.4.2 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
 | collaborative-browser | 3.0.0 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |

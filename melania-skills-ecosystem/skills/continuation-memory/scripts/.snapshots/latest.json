@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-07-11T16:19:10.296799+00:00",
-  "md5": "6aa0a51457f15f3a43126e71d4fe8c86",
-  "total_lines": 325,
+  "timestamp": "2026-07-14T08:58:03.993098+00:00",
+  "md5": "3bd750697a874ac291b441a1608a5cd3",
+  "total_lines": 340,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Purpose",
@@ -28,6 +28,7 @@
     "## Typed-Context Handoff Object (для P-28)",
     "## Idempotent Sync Tracker (механіка P-27)",
     "## Скафолд памʼяті проєкту (reusable)",
+    "## G5 cold-start recovery gate (валідований патерн)",
     "## Related Skills",
     "## 📎 Advanced Patterns (v4)",
     "## Зміни"
@@ -39,6 +40,7 @@
     "Continuation Package Format",
     "Current Architecture",
     "Dependency Map",
+    "G5 cold",
     "Idempotent Sync Tracker",
     "Known Risks / Blockers",
     "Memory Persistence Strategies",

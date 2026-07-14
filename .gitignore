@@ -25,3 +25,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# G5 авто-консолідований стан (регенерується scripts/g5-consolidate.py)
+experiments/**/AUTO-STATE.md
