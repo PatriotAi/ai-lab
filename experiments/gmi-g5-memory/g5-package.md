@@ -39,8 +39,9 @@ Cold-сесія вважається такою, що відновилась, я
 6. [ ] Промоут ітерації 1: `gmi-audit` + крос-лінки (D5).
 7. [ ] Governance: merge лише за згодою власника; melania verify exit 0 (D6).
 8. [ ] Точний наступний крок (§4) + відкриті нитки T1–T4.
-9. [ ] Де артефакти: `experiments/gmi/` (ітерація 1), `experiments/gmi-g5-memory/` (ітерація 2), артефакт live-URL у NEXT-ITERATION.md.
+9. [ ] Де артефакти: `experiments/gmi/` (ітерація 1), `experiments/gmi-g5-memory/` (ітерація 2); live-URL артефакту (inline, self-contained): https://claude.ai/code/artifact/80eb66b9-a378-4a21-9a6b-67e5e6fb9d13
 > **Ціль:** 9/9 критичних. <9 = провал гіпотези (пакет неповний).
 
 ## 6. UPDATE-LOG (append-only — «оновлення» циклу)
 - 2026-07-13 · v1 · створено пакет на кроці 2 (base 3682389); recovery-checklist зафіксовано (9 пунктів) ДО тесту.
+- 2026-07-13 · v2 · крок 3 виявив pointer-only URL (п.9) → правило **self-contained critical refs**: inline live-URL артефакту. Recovery 8.5→9/9.
