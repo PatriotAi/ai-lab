@@ -14,6 +14,10 @@
 - **Не вигадано:** жодного джерела/числа поза наведеними результатами пошуку.
 - **Обережно з датами:** частина arXiv- id має 2025–2026 дати (сьогодні 2026-07); екзотичні
   препринти не беру як опору — спираюся на рецензовані Tier-1.
+- **Корекції після рев'ю PR #16 (Codex-бот, 2026-07-13):** прибрано мертвий DOI Nature Materials
+  (C3) → верифіковані Nature Electronics + Wiley; критику декогеренції підперто першоджерелом
+  Tegmark 2000 (C5); GPT-4-енергію перекваліфіковано [E]→[C] як сторонню оцінку (C6);
+  C5/C6 доповнено до ≥3 незалежних джерел.
 
 ---
 
@@ -79,9 +83,11 @@
   [SpiNNaker2 SNN inference (arXiv 2406.17049)](https://arxiv.org/pdf/2406.17049)
 - **[E] Аналогові in-memory / мемристори:** пам'ять і обчислення в одному місці (як синапс),
   аналогова матрично-векторна множина в crossbar, **одиниці fJ/спайк**; знімає
-  von-Neumann-вузол. Огляди Nature.
+  von-Neumann-вузол. *(верифіковані джерела; мертвий DOI Nature Materials s41563-026-02600-y
+  прибрано після рев'ю PR #16.)*
   [Nature Rev. Electrical Eng. (memristor accelerators)](https://www.nature.com/articles/s44287-024-00037-6) ·
-  [Nature Materials: high-accuracy analog CIM](https://www.nature.com/articles/s41563-026-02600-y)
+  [Nature Electronics: design of analogue in-memory computing tiles](https://www.nature.com/articles/s41928-025-01537-5) ·
+  [Wiley Adv. Intelligent Systems: memristors for in-memory computing & SNN (review)](https://advanced.onlinelibrary.wiley.com/doi/10.1002/aisy.202500806)
 
 ---
 
@@ -111,11 +117,13 @@
 - **[C]/[S] Orch-OR (Penrose–Hameroff):** свідомість із квантових процесів у мікротрубочках.
   2024 — теоретична superradiance у мікротрубочках; 2023 — міграція енергії ~6.6 нм,
   чутлива до анестетиків.
-- **[E]-критика (вирішальна):** будь-який квантовий стан у «теплому, вологому, шумному»
-  мозку **декогерує за фемтосекунди** — на порядки швидше за нейронні часи; **немає
-  унікальних фальсифікованих передбачень**.
-  [Orch-OR quantum-classical complexity (Frontiers 2025)](https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2025.1630906/full) ·
-  [ScienceDaily: microtubule quantum vibrations](https://www.sciencedaily.com/releases/2014/01/140116085105.htm)
+- **[E]-критика (вирішальна) — першоджерело:** **Tegmark (2000), Phys. Rev. E 61, 4194–4206**:
+  час декогеренції в мікротрубочках ~10⁻¹³–10⁻²⁰ с проти нейронних динамічних ~10⁻³–10⁻¹ с →
+  мозок треба вважати **класичною**, а не квантовою системою. Ребатл Hagan–Hameroff–Tuszyński
+  (2002) наводить довші оцінки — дискусія триває, але тягар доказу на квантовій стороні.
+  [Tegmark 2000 (ADS)](https://ui.adsabs.harvard.edu/abs/2000PhRvE..61.4194T/abstract) ·
+  [Hagan–Hameroff–Tuszyński rebuttal (arXiv quant-ph/0005025)](https://arxiv.org/abs/quant-ph/0005025) ·
+  [Orch-OR complexity discussion (Frontiers 2025)](https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2025.1630906/full)
 
 > **Вердикт по лінзі:** буквальна «квантова заплутаність як субстрат розуму» — наразі
 > **не підтримана [S]**. Продуктивний перенос: «заплутаність» → *метафора* високо-вимірної
@@ -125,10 +133,13 @@
 
 ## C6 — Здійсненність: сучасний AI-compute vs мозок
 
-- **[E] 🔎 Енергія LLM:** тренування GPT-3 ~1 287 МВт·год; GPT-4 >50 ГВт·год; **інференс — >90%
-  енергії за час життя** моделі. Дата-центри: ~415 ТВт·год (2024) → ~945 ТВт·год (2030).
+- **Енергія LLM:** тренування GPT-3 **[E]** ~1 287 МВт·год (Patterson et al.); GPT-4 **[C]**
+  >50 ГВт·год — **сторонні оцінки** (OpenAI офіційно не публікувала → не в [E]-кошику);
+  інференс **[E]** — >90% енергії за час життя моделі. Дата-центри **[E]**: ~415 ТВт·год (2024)
+  → ~945 ТВт·год (2030, IEA-порядок).
   [Energy of generative models (2025)](https://techjury.net/industry-analysis/how-much-energy-do-generative-models-use/) ·
-  [LLM inference energy (arXiv 2504.17674)](https://arxiv.org/pdf/2504.17674)
+  [LLM inference energy (arXiv 2504.17674)](https://arxiv.org/pdf/2504.17674) ·
+  [Electricity demand & grid impacts of AI data centers (arXiv 2509.07218)](https://arxiv.org/html/2509.07218v3)
 - **Контраст:** людина-експерт «працює» на ~20 Вт — розрив із дата-центровим ШІ величезний,
   що й робить питання H-B практично вагомим.
 
@@ -180,7 +191,7 @@
 ## Статус критеріїв (§2 README)
 | Критерій | Статус | Нотатка |
 |---|---|---|
-| 1. Покриття C1–C6, ≥3 джерела/кластер | ✅ | всі 6 кластерів, Tier-1-атрибуція |
+| 1. Покриття C1–C6, ≥3 джерела/кластер | ✅ | всі 6 кластерів ≥3 (C5/C6 доповнено після рев'ю PR #16) |
 | 3. Gap-map ефективності | 🟡 | числа є; множник — чесно як діапазон; 🔎 звірити первинники |
 | 4. Теги [E]/[C]/[S] | ✅ | застосовано всюди |
 | 5. Фальсифікація | 🟡 | 4 нитки відкрито (F1–F4) — добити на кроці 3 |

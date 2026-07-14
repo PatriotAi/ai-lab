@@ -1,7 +1,7 @@
 # Експеримент: GMI — Загальна Модель Інтелекту (General Model of Intelligence)
 
 - **Дата:** 2026-07-13
-- **Статус:** v2 — інтегровано переосмислення власника (1c); deep-research **запущено** (крок 2)
+- **Статус:** v2 — кроки 1–4 **завершено** (артефакт опубліковано як Claude Artifact); лишається крок 5 (цикл: learnings/CONTEXT/glossary)
 - **Slug:** `gmi`
 - **Серія:** GMI-research-series (гілка `claude/gmi-research-series-70k60b`)
 
@@ -174,11 +174,12 @@ experiments/gmi/
 ## 5. Кроки (мапа на навички)
 
 1. ✅ **Крок 1 — гіпотеза+дизайн** (v1 → v2 після 1c).
-2. 🔄 **Крок 2 — deep-research** (`source-research-harvest`): кластери C1–C6 → `sources.md`;
-   **гейт після:** показую джерела + чернетку відсіяного набору інваріантів.
-3. ⏳ **Крок 3 — синтез+звірка** (`knowledge-synthesizer` → `validation-mesh`) → `invariants.md`,
-   `grounding-systemcore.md`.
-4. ⏳ **Крок 4 — двомовний артефакт** (`content-pipeline` + `translate-uaen`; публікація — рішення тут).
+2. ✅ **Крок 2 — deep-research** (`source-research-harvest`): кластери C1–C6 → `sources.md`
+   (C5/C6 доповнено після рев'ю PR #16).
+3. ✅ **Крок 3 — синтез+звірка** (`knowledge-synthesizer` → `validation-mesh`) → `invariants.md`,
+   `grounding-systemcore.md` (+ `systemcore-excerpt.md` для відтворюваності).
+4. ✅ **Крок 4 — двомовний артефакт** (`content-pipeline` + `translate-uaen`) → `artifact/index.html`;
+   опубліковано як **Claude Artifact** (живе посилання).
 5. ⏳ **Крок 5 — цикл**: `docs/learnings.md`; створити `docs/CONTEXT.md`; `docs/glossary.md`; `PLAN.md`.
 
 ---
@@ -187,13 +188,13 @@ experiments/gmi/
 
 | Критерій (§2) | Статус | Доказ / посилання |
 |---|---|---|
-| 1. Покриття C1–C6, ≥3 джерела/кластер | 🔄 | `sources.md` |
-| 2. Крос-валідація ≥2 рамки/інваріант | — | — |
-| 3. Gap-map ефективності (числа+принцип) | — | — |
-| 4. Теги [E]/[C]/[S] | 🔄 | `sources.md` |
-| 5. Чесна фальсифікація ≥1 | — | — |
-| 6. Конверт здійсненності + grounding | — | — |
-| 7. Двомовний артефакт | — | — |
+| 1. Покриття C1–C6, ≥3 джерела/кластер | ✅ | `sources.md` (C5/C6 доповнено після рев'ю) |
+| 2. Крос-валідація ≥2 рамки/інваріант | ✅ | `invariants.md` §5 (validation-mesh) |
+| 3. Gap-map ефективності (числа+принцип) | ✅ | `invariants.md` §4 (чесний діапазон) |
+| 4. Теги [E]/[C]/[S] | ✅ | `sources.md`, `invariants.md` |
+| 5. Чесна фальсифікація ≥1 | ✅ | `invariants.md` §6 (F1–F5) |
+| 6. Конверт здійсненності + grounding | ✅ | `grounding-systemcore.md` |
+| 7. Двомовний артефакт | ✅ | `artifact/index.html` + Claude Artifact |
 
 ---
 
