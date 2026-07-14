@@ -21,7 +21,7 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.9.0
+  version: 1.9.1
   category: memory
 ---
 
@@ -292,11 +292,24 @@ so the user can always see current position at a glance.
 
 ---
 
+## G5 cold-start recovery gate (валідований патерн)
+Щоб зовнішня пам'ять реально закривала прогалину **G5** (навчання/відновлення між сесіями),
+пакет має пройти **cold-start тест** (сесія відновлюється з ЛИШЕ пакета):
+- **Self-contained critical refs:** усі критичні URL/шляхи — **inline у пакеті**, НЕ pointer-only
+  (cold-сесія може не мати доступу до інших файлів).
+- **Recovery-checklist ДО тесту:** зафіксуй перелік критичних пунктів (рішення / відкриті нитки /
+  точний наступний крок) **ПЕРЕД** тестом → об'єктивний вимір % відновлення; ціль **100% критичних без повтору**.
+- Повнота пакета — через `gmi-audit` (інваріант G5) + `validation-mesh`.
+_(Валідовано: `experiments/gmi-g5-memory` — recovery 9/9 після застосування self-contained refs.)_
+
+---
+
 ## Related Skills
 
 - **ai-core-runtime** — uses continuation-memory for session continuity
 - **semantic-router** — can trigger continuation-memory on intent detection
 - **validation-mesh** — validate continuation package completeness
+- **gmi-audit** — інваріант **G5**: перевір, чи має система зовнішній цикл пам'яті з cold-start recovery.
 
 ---
 
@@ -308,6 +321,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.9.1** (2026-07-13) — G5 cold-start recovery gate: валідований патерн зовнішньої пам'яті проти прогалини G5 — self-contained critical refs (критичні URL/шляхи inline, не pointer-only) + recovery-checklist ДО тесту (об'єктивний вимір 100% критичних без повтору); крос-лінк `gmi-audit`. Лише додавання. _(Джерело: experiments/gmi-g5-memory — recovery 9/9.)_
 - **v1.9.0** (2026-07-11) — Compaction-дисципліна (frontier-research harvest): **(A)** 4-кроковий порядок навколо server-side стиснення: pre-compaction flush (durable ПЕРЕД стисненням; recall-first тюнінг проти poisoned summary), стабільний кеш-префікс (edits щотурну вбивають prompt-cache), context editing як другий важіль (емпірика +29% / +39% і −84% з memory), provider-agnostic fallback (STENO+hot/warm/cold = та сама дисципліна для будь-якої моделі). API-механіка — покажчик на `llm-api-builder` (DRY). **(B)** De-pin: згадка конкретних моделей у Compaction → «поточні топ-моделі (звір docs)» (правило агностичності MA). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено навмисно; нумерацію НЕ переписано без верифікації джерел (принцип: не вгадувати/не видаляти неперевірене)._
 - **v1.8.3** (2026-06-26) — Анти-застарілість (F3): hardcoded-значення в Idempotent-Sync-Tracker (version/md5/дати) → нейтральні плейсхолдери (узгоджено з v1.5.1). Changelog-гігієна (F2): додано примітку про історичні дублі-номери — записи збережено, нумерацію не переписано без верифікації. Корекція прикладу + додавання; жодного запису НЕ видалено.
