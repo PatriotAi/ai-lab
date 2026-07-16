@@ -142,10 +142,13 @@ def verify() -> int:
             if DANGER.search(line) and not line.lstrip().startswith("#"):
                 danger_hits.append(f"{py.relative_to(ROOT)}:{i}: {line.strip()[:60]}")
 
-    # Секрет-скан: реальні значення ключів/токенів у БУДЬ-ЯКОМУ текстовому файлі екосистеми
+    # Секрет-скан: реальні значення ключів/токенів у БУДЬ-ЯКОМУ текстовому файлі екосистеми.
+    # Файли без розширення (.env, .env.local, dotenv-подібні) сканувати ОБОВ'ЯЗКОВО —
+    # саме вони найчастіший контейнер секретів.
     secret_hits = []
     for f in ROOT.rglob("*"):
-        if f.is_file() and f.suffix in SECRET_SCAN_EXT and ".git" not in f.parts:
+        scannable = f.suffix in SECRET_SCAN_EXT or f.suffix == "" or f.name.startswith(".env")
+        if f.is_file() and scannable and ".git" not in f.parts:
             for i, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                 if SECRET_VALUES.search(line):
                     secret_hits.append(f"{f.relative_to(ROOT)}:{i}: {line.strip()[:60]}")
