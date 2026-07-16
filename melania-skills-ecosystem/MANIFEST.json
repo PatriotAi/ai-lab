@@ -68,10 +68,10 @@
    ]
   },
   "collaborative-browser": {
-   "version": "3.0.0",
+   "version": "3.0.1",
    "eval_cases": 8,
    "sha256_16": {
-    "SKILL.md": "a47d924c6cdea055",
+    "SKILL.md": "71352c4f87f50e0a",
     "evals/evals.json": "6f7ed62b650202cf"
    },
    "files": [

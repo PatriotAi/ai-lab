@@ -1693,7 +1693,9 @@ const Maps = (() => {
   }
 
   function embedUrl(query) {
-    return `https://www.google.com/maps/embed/v1/place?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&q=${encodeURIComponent(query)}`;
+    // Безключовий embed (як у showMapEmbed). Ключ Embed API v1 за потреби — ЛИШЕ з
+    // SecretsManager (name: 'google-maps-api-key'), ніколи не хардкодити в артефакт.
+    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
   }
 
   function renderCard(address, onclick) {
