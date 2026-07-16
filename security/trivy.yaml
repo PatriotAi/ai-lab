@@ -1,0 +1,11 @@
+# Trivy — конфіг для CI та локальних сканувань / config for CI and local scans.
+# Локально / locally: trivy fs --config security/trivy.yaml .
+severity: HIGH,CRITICAL
+scan:
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+  skip-dirs:
+    - node_modules
+    - .git

@@ -1,0 +1,471 @@
+<meta charset="utf-8">
+<title>GMI — Загальна Модель Інтелекту / General Model of Intelligence</title>
+<style>
+  :root{
+    --bg:#eef1f7; --surface:#ffffff; --surface-2:#f4f6fb; --line:#d8deea;
+    --ink:#131a26; --muted:#566072; --faint:#8b95a7;
+    --wave:#0e8f86; --wave-ink:#0b6f68; --result:#b5730f;
+    --E:#1f8a4c; --C:#b0761c; --S:#7c4dd1;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 28px rgba(16,24,40,.06);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:1080px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0a0f1a; --surface:#111a2b; --surface-2:#0d1524; --line:#22314a;
+      --ink:#e9eef8; --muted:#93a1ba; --faint:#66748d;
+      --wave:#3fd8c9; --wave-ink:#7ff0e4; --result:#f4b95e;
+      --E:#58d38a; --C:#f0b64f; --S:#b98cf2;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0f1a; --surface:#111a2b; --surface-2:#0d1524; --line:#22314a;
+    --ink:#e9eef8; --muted:#93a1ba; --faint:#66748d;
+    --wave:#3fd8c9; --wave-ink:#7ff0e4; --result:#f4b95e;
+    --E:#58d38a; --C:#f0b64f; --S:#b98cf2;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f7; --surface:#ffffff; --surface-2:#f4f6fb; --line:#d8deea;
+    --ink:#131a26; --muted:#566072; --faint:#8b95a7;
+    --wave:#0e8f86; --wave-ink:#0b6f68; --result:#b5730f;
+    --E:#1f8a4c; --C:#b0761c; --S:#7c4dd1;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    margin:0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  section{padding:52px 0;border-top:1px solid var(--line)}
+  h1,h2,h3{text-wrap:balance;line-height:1.15;margin:0}
+  h2{font-size:clamp(1.35rem,3.2vw,2rem);letter-spacing:-.02em;font-weight:750}
+  h3{font-size:1.06rem;font-weight:700;letter-spacing:-.01em}
+  p{margin:.55em 0}
+  a{color:var(--wave-ink);text-underline-offset:3px;text-decoration-thickness:1px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--wave-ink);font-weight:600}
+  .lead{color:var(--muted);font-size:1.06rem;max-width:64ch}
+  .mono{font-family:var(--mono)}
+  .tnum{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--wave);outline-offset:2px;border-radius:4px}
+
+  /* header */
+  header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);
+    backdrop-filter:blur(9px);border-bottom:1px solid var(--line)}
+  .bar .wrap{display:flex;align-items:center;gap:14px;height:56px}
+  .brand{font-family:var(--mono);font-weight:700;letter-spacing:.04em;font-size:.9rem}
+  .brand b{color:var(--wave-ink)}
+  .bar .sp{flex:1}
+  .toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+  .toggle button{font-family:var(--mono);font-size:.78rem;font-weight:600;border:0;background:transparent;
+    color:var(--muted);padding:6px 12px;cursor:pointer;letter-spacing:.06em}
+  .toggle button[aria-pressed="true"]{background:var(--wave);color:#04201d}
+  :root[data-theme="light"] .toggle button[aria-pressed="true"]{color:#fff}
+
+  /* hero */
+  .hero{padding-top:38px}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:34px;align-items:center}
+  @media(max-width:760px){.hero-grid{grid-template-columns:1fr;gap:24px}}
+  .hero h1{font-size:clamp(2rem,5.6vw,3.3rem);letter-spacing:-.03em;font-weight:800;margin:.28em 0 .1em}
+  .hero .sub{font-family:var(--mono);color:var(--muted);font-size:.86rem;letter-spacing:.02em}
+  .canvas-card{position:relative;aspect-ratio:1/.82;border:1px solid var(--line);border-radius:16px;
+    background:linear-gradient(160deg,var(--surface),var(--surface-2));overflow:hidden;box-shadow:var(--shadow)}
+  #field{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .canvas-hint{position:absolute;left:12px;bottom:10px;font-family:var(--mono);font-size:.68rem;
+    letter-spacing:.06em;color:var(--faint);pointer-events:none}
+  .canvas-state{position:absolute;right:12px;top:10px;font-family:var(--mono);font-size:.68rem;
+    letter-spacing:.08em;color:var(--wave-ink)}
+
+  /* generic pieces */
+  .grid{display:grid;gap:16px}
+  .cols-2{grid-template-columns:1fr 1fr}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.cols-2,.cols-3{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;
+    box-shadow:var(--shadow)}
+  .card h3{margin-bottom:2px}
+  .card .role{font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;color:var(--muted)}
+  .gid{font-family:var(--mono);font-weight:700;color:var(--wave-ink);font-size:.8rem}
+  .xval{font-size:.82rem;color:var(--muted);margin-top:8px}
+  .xval b{color:var(--ink);font-weight:600}
+
+  /* evidence tags */
+  .tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:.68rem;
+    font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+  .tag::before{content:"";width:7px;height:7px;border-radius:50%}
+  .tag.E{color:var(--E);border-color:color-mix(in srgb,var(--E) 45%,transparent);background:color-mix(in srgb,var(--E) 12%,transparent)}
+  .tag.E::before{background:var(--E)}
+  .tag.C{color:var(--C);border-color:color-mix(in srgb,var(--C) 45%,transparent);background:color-mix(in srgb,var(--C) 12%,transparent)}
+  .tag.C::before{background:var(--C)}
+  .tag.S{color:var(--S);border-color:color-mix(in srgb,var(--S) 45%,transparent);background:color-mix(in srgb,var(--S) 12%,transparent)}
+  .tag.S::before{background:var(--S)}
+
+  /* observer axis */
+  .axis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+  @media(max-width:820px){.axis{grid-template-columns:1fr}}
+  .level{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden}
+  .level .lv{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--wave-ink)}
+  .flowrow{display:flex;align-items:center;gap:8px;margin:12px 0 4px;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:.74rem;padding:5px 9px;border-radius:8px;border:1px solid var(--line);
+    background:var(--surface-2)}
+  .chip.und{color:var(--muted)}
+  .chip.act{color:var(--wave-ink);border-color:color-mix(in srgb,var(--wave) 40%,transparent)}
+  .chip.res{color:var(--result);border-color:color-mix(in srgb,var(--result) 45%,transparent);font-weight:600}
+  .arrow{color:var(--faint);font-family:var(--mono)}
+
+  /* verdict list */
+  .verdicts{display:grid;gap:10px;margin-top:18px}
+  .vd{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .vd .mark{font-family:var(--mono);font-weight:700;font-size:.92rem}
+  .vd.ok .mark{color:var(--E)} .vd.unk .mark{color:var(--C)} .vd.no .mark{color:var(--S)}
+  .vd small{color:var(--muted)}
+
+  /* stack */
+  .stack{display:grid;gap:8px;margin-top:16px}
+  .prow{display:grid;grid-template-columns:38px 1fr auto;gap:12px;align-items:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .prow .pk{font-family:var(--mono);font-weight:700;color:var(--wave-ink)}
+  .hw{font-family:var(--mono);font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .hw.y{color:var(--E);border-color:color-mix(in srgb,var(--E) 40%,transparent)}
+  .hw.p{color:var(--C);border-color:color-mix(in srgb,var(--C) 40%,transparent)}
+  .hw.n{color:var(--S);border-color:color-mix(in srgb,var(--S) 40%,transparent)}
+
+  /* gap-map bars */
+  .bars{display:grid;gap:12px;margin-top:8px}
+  .brow{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center}
+  @media(max-width:620px){.brow{grid-template-columns:1fr}}
+  .blabel{font-size:.86rem}
+  .blabel .sm{display:block;font-family:var(--mono);font-size:.68rem;color:var(--faint)}
+  .btrack{position:relative;height:26px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .bfill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,color-mix(in srgb,var(--wave) 55%,transparent),var(--wave));
+    border-radius:6px 0 0 6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px}
+  .bfill span{font-family:var(--mono);font-size:.72rem;font-weight:700;color:#04201d}
+  :root[data-theme="light"] .bfill span{color:#fff}
+  .axoticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.64rem;color:var(--faint);margin-top:6px;padding-left:162px}
+  @media(max-width:620px){.axoticks{padding-left:0}}
+
+  .callout{border-left:3px solid var(--result);background:color-mix(in srgb,var(--result) 8%,transparent);
+    padding:12px 16px;border-radius:0 10px 10px 0;margin-top:16px;font-size:.92rem}
+  .note{color:var(--muted);font-size:.9rem}
+
+  ol.hyp{counter-reset:h;list-style:none;padding:0;display:grid;gap:12px;margin:14px 0 0}
+  ol.hyp li{counter-increment:h;display:grid;grid-template-columns:auto 1fr;gap:14px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  ol.hyp li::before{content:"H" counter(h);font-family:var(--mono);font-weight:700;color:var(--wave-ink);
+    font-size:.86rem;padding-top:2px}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.two{grid-template-columns:1fr}}
+  .kv{display:flex;gap:8px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv .g{font-family:var(--mono);color:var(--wave-ink);font-weight:700;font-size:.8rem;min-width:34px}
+  .state{margin-left:auto;font-family:var(--mono);font-size:.72rem}
+  .state.s3{color:var(--E)} .state.s2{color:var(--C)} .state.s1{color:var(--S)}
+
+  .srclist{columns:2;column-gap:26px;font-size:.84rem;color:var(--muted)}
+  @media(max-width:620px){.srclist{columns:1}}
+  .srclist a{display:block;margin:5px 0;break-inside:avoid}
+  footer{border-top:1px solid var(--line);padding:26px 0 60px;color:var(--faint);font-size:.82rem}
+  footer .mono{color:var(--muted)}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .legend .tag{cursor:default}
+
+  /* language visibility */
+  .en{display:none}
+  :root[data-lang="en"] .ua{display:none}
+  :root[data-lang="en"] .en{display:revert}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <span class="brand">GMI<b>·</b>лаб</span>
+    <span class="sp"></span>
+    <div class="toggle" role="group" aria-label="Language / Мова">
+      <button id="ua" aria-pressed="true">UA</button>
+      <button id="en" aria-pressed="false">EN</button>
+    </div>
+    <div class="toggle" role="group" aria-label="Theme / Тема">
+      <button id="lt" aria-pressed="false" title="Світла / Dark-Light">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="ua">Дослідження · лабораторія ai-lab</span><span class="en">Research · ai-lab</span></span>
+      <h1><span class="ua">Загальна Модель Інтелекту</span><span class="en">General Model of Intelligence</span></h1>
+      <div class="sub">GMI · General Model of Intelligence · 2026-07-13</div>
+      <p class="lead" style="margin-top:16px">
+        <span class="ua">Не «ще одна теорія розуму», а <b>спільний кістяк</b> усіх серйозних рамок:
+        сім динамічних інваріантів, стек принципів ефективності мозку — і чесна вісь спостерігача,
+        де обчислення стає <em>результатом</em>. Кожне твердження позначене рівнем доказовості.</span>
+        <span class="en">Not “another theory of mind”, but the <b>shared skeleton</b> across the serious
+        frameworks: seven dynamic invariants, a stack of brain-efficiency principles — and an honest
+        observer axis where computation becomes a <em>result</em>. Every claim is tagged by evidence level.</span>
+      </p>
+      <div class="legend" aria-hidden="false">
+        <span class="tag E">[E] <span class="ua">встановлене</span><span class="en">established</span></span>
+        <span class="tag C">[C] <span class="ua">дискусійне</span><span class="en">contested</span></span>
+        <span class="tag S">[S] <span class="ua">гіпотеза-лінза</span><span class="en">speculative</span></span>
+      </div>
+    </div>
+    <div class="canvas-card">
+      <canvas id="field" aria-hidden="true"></canvas>
+      <div class="canvas-state" id="fstate">field: indeterminate</div>
+      <div class="canvas-hint"><span class="ua">клік / дотик → read-out</span><span class="en">click / tap → read-out</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="invariants">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Ядро</span><span class="en">Core</span></span>
+    <h2><span class="ua">Сім інваріантів — як течії, не деталі</span><span class="en">Seven invariants — as flows, not parts</span></h2>
+    <p class="lead"><span class="ua">Звужено 8→7 спираючись на джерела; кожен крос-валідований у ≥2 незалежних рамках.</span>
+      <span class="en">Narrowed 8→7 from the sources; each cross-validated in ≥2 independent frameworks.</span></p>
+    <div class="grid cols-3" style="margin-top:18px">
+      <div class="card"><div class="role">G1 · <span class="ua">течія</span><span class="en">flow</span></div><h3><span class="ua">Модель світу</span><span class="en">World-model</span></h3><div class="xval"><span class="ua">генеративний потік передбачення + стиснення</span><span class="en">generative predictive flow + compression</span><br><b>world-models · FEP · g</b></div></div>
+      <div class="card"><div class="role">G2</div><h3><span class="ua">Ціль / цінність</span><span class="en">Goal / value</span></h3><div class="xval"><span class="ua">градієнт, що спрямовує потік</span><span class="en">a gradient that steers the flow</span><br><b>Legg–Hutter · RL · active inference</b></div></div>
+      <div class="card"><div class="role">G3</div><h3><span class="ua">Висновок і планування</span><span class="en">Inference &amp; planning</span></h3><div class="xval"><span class="ua">пошук-хвиля над моделлю</span><span class="en">a search-wave over the model</span><br><b>Soar · ACT-R · sampling</b></div></div>
+      <div class="card"><div class="role">G4</div><h3><span class="ua">Пам'ять як атрактор</span><span class="en">Memory as attractor</span></h3><div class="xval"><span class="ua">атракторна динаміка, стиснення+індекс</span><span class="en">attractor dynamics, compress + index</span><br><b>Common Model · Hopfield</b></div></div>
+      <div class="card"><div class="role">G5</div><h3><span class="ua">Навчання = мінімізація похибки</span><span class="en">Learning = error-minimization</span></h3><div class="xval"><span class="ua">спадання похибки передбачення</span><span class="en">prediction-error descent</span><br><b>FEP · plasticity · RL</b></div></div>
+      <div class="card"><div class="role">G6</div><h3><span class="ua">Метакогніція</span><span class="en">Metacognition</span></h3><div class="xval"><span class="ua">рефлексивна петля моніторингу</span><span class="en">reflective monitoring loop</span><br><b>Global Workspace · self-model</b></div></div>
+      <div class="card" style="border-color:color-mix(in srgb,var(--wave) 40%,var(--line))"><div class="role">G7 · <span class="ua">внесок тези власника</span><span class="en">owner’s thesis</span></div><h3><span class="ua">Детермінація / read-out</span><span class="en">Determination / read-out</span></h3><div class="xval"><span class="ua"><b>невизначене → визначене</b> («спостерігач»)</span><span class="en"><b>indeterminate → determinate</b> (“observer”)</span><br><b>drift-diffusion · GWT · RQM</b></div></div>
+    </div>
+    <div class="callout">
+      <span class="ua"><b>Елегантний висновок:</b> «генеральність» — не восьма цеглинка, а <b>цільова властивість</b>,
+      що емерджентно виникає, коли G1–G7 стають домен-інваріантними. «General» — це наслідок, не компонент.</span>
+      <span class="en"><b>The elegant result:</b> “generality” is not an eighth brick but a <b>target property</b>
+      that emerges once G1–G7 become domain-invariant. “General” is a consequence, not a component.</span>
+    </div>
+  </div>
+</section>
+
+<section id="observer">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Головний неочевидний зв'язок</span><span class="en">The non-obvious link</span></span>
+    <h2><span class="ua">Вісь спостерігача: один патерн на трьох рівнях</span><span class="en">The observer axis: one pattern, three levels</span></h2>
+    <p class="lead"><span class="ua">Теза власника — «обчислення дає результат лише за акту спостереження» — виявилась
+      тим самим патерном <b>невизначене → (read-out) → визначене</b> на трьох рівнях. Це і є інваріант G7.</span>
+      <span class="en">The owner’s thesis — “computation yields a result only upon an act of observation” — turns out to be
+      the same <b>indeterminate → (read-out) → determinate</b> pattern at three levels. That is invariant G7.</span></p>
+    <div class="axis">
+      <div class="level"><div class="lv"><span class="ua">Квантовий</span><span class="en">Quantum</span></div>
+        <div class="flowrow"><span class="chip und"><span class="ua">суперпозиція</span><span class="en">superposition</span></span><span class="arrow">→</span><span class="chip act"><span class="ua">взаємодія</span><span class="en">interaction</span></span><span class="arrow">→</span><span class="chip res"><span class="ua">визн. стан</span><span class="en">definite state</span></span></div>
+        <span class="tag E" style="margin-top:6px">[E] RQM / <span class="ua">декогеренція</span><span class="en">decoherence</span></span></div>
+      <div class="level"><div class="lv"><span class="ua">Когнітивний</span><span class="en">Cognitive</span></div>
+        <div class="flowrow"><span class="chip und"><span class="ua">розподіл гіпотез</span><span class="en">hypothesis dist.</span></span><span class="arrow">→</span><span class="chip act"><span class="ua">атрактор/поріг</span><span class="en">attractor/threshold</span></span><span class="arrow">→</span><span class="chip res"><span class="ua">рішення</span><span class="en">decision</span></span></div>
+        <span class="tag E" style="margin-top:6px">[E] <span class="ua">нейронаука рішень</span><span class="en">decision neuroscience</span></span></div>
+      <div class="level"><div class="lv"><span class="ua">Інформаційний</span><span class="en">Informational</span></div>
+        <div class="flowrow"><span class="chip und"><span class="ua">питання</span><span class="en">question</span></span><span class="arrow">→</span><span class="chip act"><span class="ua">вимір (y/n)</span><span class="en">measurement</span></span><span class="arrow">→</span><span class="chip res">bit → it</span></div>
+        <span class="tag C" style="margin-top:6px">[C] Wheeler</span></div>
+    </div>
+
+    <div class="verdicts">
+      <div class="vd ok"><span class="mark">✓ [E]</span><div><span class="ua"><b>«Спостерігач ≠ конче свідомість; може бути інша змінна».</b> VALID — дослівно збігається з Ровеллі: спостерігач = будь-яка фізична система (електрон, лічильник).</span><span class="en"><b>“The observer need not be conscious; it can be another variable.”</b> VALID — matches Rovelli exactly: an observer is any physical system (an electron, a detector).</span></div></div>
+      <div class="vd unk"><span class="mark">? [C]</span><div><span class="ua"><b>«Потрібен саме свідомий спостерігач, інакше не існує».</b> UNKNOWN — фон Нейман–Вігнер відсунуто (Вігнер відмовився після декогеренції), але чесна щілина «чому вихід унікальний» лишається відкритою.</span><span class="en"><b>“A conscious observer is required, else it doesn’t exist.”</b> UNKNOWN — von Neumann–Wigner was sidelined (Wigner recanted after decoherence), yet the honest “unique-outcome” gap stays open.</span></div></div>
+      <div class="vd ok"><span class="mark">✓ [E/C]</span><div><span class="ua"><b>«Чи може мозок бути глибоким спостерігачем сам собі?»</b> Так — FEP-марковська ковдра (self-evidencing) + Global Workspace: мозок «спостерігає» власні стани.</span><span class="en"><b>“Can the brain be its own deep observer?”</b> Yes — the FEP Markov blanket (self-evidencing) + Global Workspace: the brain “observes” its own states.</span></div></div>
+      <div class="vd no"><span class="mark">— [S]</span><div><span class="ua"><b>«j-space» (підсвідомий фактор)</b> — термін власника; мапиться на <em>латентний / передсвідомий простір</em> — розподіл ДО коміту G7. Робоча назва, не доведена сутність. Буквальний квант-субстрат — INVALID (декогеренція за фемтосекунди), тримаємо як [S]-нитку.</span><span class="en"><b>“j-space” (a subconscious factor)</b> — the owner’s term; maps onto a <em>latent / preconscious space</em> — the distribution BEFORE the G7 commit. A working name, not a proven entity. A literal quantum substrate is INVALID (femtosecond decoherence); kept as an [S] thread.</span></div></div>
+    </div>
+    <p class="note" style="margin-top:14px"><span class="ua">Інженерний виграш: G7 у переносному вигляді = <b>атракторний коміт / поріг accumulation</b> — субстрат-нейтральний і будується. Квантова версія — той самий патерн, але не обов'язкова.</span>
+      <span class="en">Engineering payoff: G7 in transferable form = an <b>attractor commit / accumulation threshold</b> — substrate-neutral and buildable. The quantum version is the same pattern, but not required.</span></p>
+  </div>
+</section>
+
+<section id="efficiency">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Питання H-B</span><span class="en">The H-B question</span></span>
+    <h2><span class="ua">Чому мозок такий ощадний — це СТЕК, не один принцип</span><span class="en">Why the brain is so efficient — it’s a STACK, not one principle</span></h2>
+    <p class="lead"><span class="ua">Мозок працює на ~20 Вт (обчислювальна частка ~3 Вт ≈ 1.26× межі Ландауера). Спроба знайти «один принцип» провалилась — джерела вказують на стек.</span>
+      <span class="en">The brain runs on ~20 W (its ~3 W compute share ≈ 1.26× the Landauer limit). The hunt for “one principle” failed — the sources point to a stack.</span></p>
+    <div class="stack">
+      <div class="prow"><span class="pk">P1</span><span><span class="ua">Пам'ять+обчислення разом (немає von-Neumann-вузла)</span><span class="en">Memory+compute co-located (no von-Neumann bottleneck)</span></span><span class="hw y">[E] · <span class="ua">в залізі</span><span class="en">in HW</span></span></div>
+      <div class="prow"><span class="pk">P2</span><span><span class="ua">Розріджена подієва (спайкова) активність</span><span class="en">Sparse, event-driven (spiking) activity</span></span><span class="hw y">[E] · Loihi/SpiNNaker</span></div>
+      <div class="prow"><span class="pk">P3</span><span><span class="ua">Аналог, низька точність, ймовірнісність</span><span class="en">Analog, low-precision, probabilistic</span></span><span class="hw p">[E] · <span class="ua">зростає</span><span class="en">emerging</span></span></div>
+      <div class="prow"><span class="pk">P4</span><span><span class="ua">Масивна паралельність / розподіленість</span><span class="en">Massive parallelism / distribution</span></span><span class="hw y">[E]</span></div>
+      <div class="prow"><span class="pk">P5</span><span><span class="ua">Обробляти лише «несподіванку» (predictive)</span><span class="en">Process only “surprise” (predictive)</span></span><span class="hw p">[E/C]</span></div>
+      <div class="prow"><span class="pk">P6</span><span><span class="ua">Робота біля критичності</span><span class="en">Operating near criticality</span></span><span class="hw p">[C]</span></div>
+      <div class="prow"><span class="pk">P7</span><span><span class="ua">Фізика-native обчислення</span><span class="en">Physics-native computation</span></span><span class="hw p">[E/C]</span></div>
+      <div class="prow"><span class="pk">P8</span><span><span class="ua">Квантова когерентність як ресурс</span><span class="en">Quantum coherence as a resource</span></span><span class="hw n">[S] · <span class="ua">не підтримано</span><span class="en">unsupported</span></span></div>
+    </div>
+
+    <h3 style="margin-top:30px"><span class="ua">Розрив ефективності (потужність, лог-шкала)</span><span class="en">Efficiency gap (power, log scale)</span></h3>
+    <div class="bars" role="img" aria-label="Power comparison on a logarithmic scale">
+      <div class="brow"><div class="blabel"><span class="ua">Мозок людини</span><span class="en">Human brain</span><span class="sm tnum">~20 W · <span class="ua">загальний</span><span class="en">general</span></span></div><div class="btrack"><div class="bfill" style="width:36%"><span class="tnum">20 W</span></div></div></div>
+      <div class="brow"><div class="blabel"><span class="ua">Нейроморф. чип</span><span class="en">Neuromorphic chip</span><span class="sm tnum">~1 W · <span class="ua">вузький</span><span class="en">narrow</span></span></div><div class="btrack"><div class="bfill" style="width:14%"><span class="tnum">~1 W</span></div></div></div>
+      <div class="brow"><div class="blabel">GPU<span class="sm tnum">~700 W · <span class="ua">вузький</span><span class="en">narrow</span></span></div><div class="btrack"><div class="bfill" style="width:52%"><span class="tnum">~700 W</span></div></div></div>
+      <div class="brow"><div class="blabel"><span class="ua">Суперкомп'ютер</span><span class="en">Supercomputer</span><span class="sm tnum">El Capitan · <span class="ua">сира арифм.</span><span class="en">raw FLOPs</span></span></div><div class="btrack"><div class="bfill" style="width:100%"><span class="tnum">~30 MW</span></div></div></div>
+    </div>
+    <div class="axoticks"><span>1 W</span><span>10³</span><span>10⁶</span><span>30 MW</span></div>
+    <div class="callout">
+      <span class="ua"><b>Чесне застереження:</b> множник «мозок vs суперкомп'ютер» <b>нестійкий</b> — оцінки мозку у FLOPS
+      охоплюють 10¹²–10²⁸ (16 порядків!). Робустне твердження: мозок радикально ощадний <b>на своїх задачах</b>
+      (сприйняття, навчання з одного разу, втілений контроль), не конче на сирій арифметиці. Порівняння не «яблуко до яблука».</span>
+      <span class="en"><b>Honest caveat:</b> the “brain vs supercomputer” multiplier is <b>unstable</b> — brain-FLOPs estimates span
+      10¹²–10²⁸ (16 orders of magnitude!). The robust claim: the brain is radically efficient <b>at its own tasks</b>
+      (perception, one-shot learning, embodied control), not necessarily at raw arithmetic. Not an apples-to-apples comparison.</span>
+    </div>
+  </div>
+</section>
+
+<section id="hypotheses">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Вагомі результати</span><span class="en">Weighty results</span></span>
+    <h2><span class="ua">П'ять гіпотез для побудови</span><span class="en">Five hypotheses to build on</span></h2>
+    <ol class="hyp">
+      <li><span class="ua"><b>[E/C] Ефективність = архітектурний стек, не магія.</b> Брейн-паритет по енергії досяжний для вузьких задач уже сьогодні; вузьке місце — <b>генеральність при тій же ефективності</b>.</span><span class="en"><b>[E/C] Efficiency = an architectural stack, not magic.</b> Energy brain-parity is reachable for narrow tasks today; the bottleneck is <b>generality at that same efficiency</b>.</span></li>
+      <li><span class="ua"><b>[E] «Потік/хвиля/круговорот» — легітимна онтологія</b> (FEP + біжучі хвилі + критичність), реалізовна без квантів. Вихор — лише візуальна модель, не сама структура.</span><span class="en"><b>[E] “Flow / wave / circulation” is a legitimate ontology</b> (FEP + traveling waves + criticality), realizable without quantum. The vortex is only a visual model, not the structure itself.</span></li>
+      <li><span class="ua"><b>[E] G7 (детермінація/read-out) — інженерно-ключовий</b> і будується як атракторний коміт; «спостерігач» не мусить бути свідомим (RQM).</span><span class="en"><b>[E] G7 (determination/read-out) is engineering-critical</b> and builds as an attractor commit; the “observer” need not be conscious (RQM).</span></li>
+      <li><span class="ua"><b>[C/S] Сильна теза «свідомість творить результат»</b> — відкрите питання (щілина унікальних виходів); тримаємо як дослідницьку ставку, не як фундамент.</span><span class="en"><b>[C/S] The strong “consciousness makes the result” thesis</b> — an open question (the unique-outcome gap); kept as a research bet, not a foundation.</span></li>
+      <li><span class="ua"><b>Дорожня гіпотеза:</b> над-людський, але брейн-паритетний інтелект ≈ <b>стек ефективності (P1–P7) × повний набір інваріантів (G1–G7) з домен-інваріантністю</b>; над-людські «еволюційно недосяжні» змінні додаються ПОНАД цей мінімум.</span><span class="en"><b>Roadmap hypothesis:</b> a superhuman yet brain-parity intelligence ≈ <b>the efficiency stack (P1–P7) × the full invariant set (G1–G7) with domain-invariance</b>; superhuman “evolution-inaccessible” variables are added ON TOP of that minimum.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="grounding">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Grounding — власний артефакт</span><span class="en">Grounding — the owner’s artifact</span></span>
+    <h2><span class="ua">System Core «Гіперрозум» крізь лінзу GMI</span><span class="en">The “Hypermind” System Core through the GMI lens</span></h2>
+    <div class="two" style="margin-top:16px">
+      <div class="card">
+        <h3><span class="ua">Що вже сильне</span><span class="en">Already strong</span></h3>
+        <div style="margin-top:8px">
+          <div class="kv"><span class="g">G3</span><span><span class="ua">фазове дерево, розгалуження, TRIZ, Оккам</span><span class="en">phased tree, branching, TRIZ, Occam</span></span><span class="state s3">●●●</span></div>
+          <div class="kv"><span class="g">G4</span><span><span class="ua">«стиснення+індексація», Master Index</span><span class="en">“compress+index”, Master Index</span></span><span class="state s3">●●●</span></div>
+          <div class="kv"><span class="g">G6</span><span><span class="ua">постійний самоаналіз контексту</span><span class="en">continuous context self-analysis</span></span><span class="state s3">●●●</span></div>
+          <div class="kv"><span class="g">G2</span><span><span class="ua">мета-гіпотеза, критерій фальсифікованості</span><span class="en">meta-hypothesis, falsifiability</span></span><span class="state s2">●●</span></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:color-mix(in srgb,var(--result) 32%,var(--line))">
+        <h3><span class="ua">Прогалини → апгрейд</span><span class="en">Gaps → upgrade</span></h3>
+        <div style="margin-top:8px">
+          <div class="kv"><span class="g">G5</span><span><span class="ua">навчання МІЖ сесіями (не лише ручний архів)</span><span class="en">learning ACROSS sessions (not just a manual archive)</span></span><span class="state s1"><span class="ua">високий</span><span class="en">high</span></span></div>
+          <div class="kv"><span class="g">G1</span><span><span class="ua">вивчена модель, що передбачає, а не каталогізує</span><span class="en">a learned model that predicts, not catalogs</span></span><span class="state s2"><span class="ua">середній</span><span class="en">medium</span></span></div>
+          <div class="kv"><span class="g">G7</span><span><span class="ua">явний commit-протокол (розподіл→поріг→результат)</span><span class="en">explicit commit protocol (dist→threshold→result)</span></span><span class="state s2"><span class="ua">середній</span><span class="en">medium</span></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="ua"><b>Головний бар'єр до цілі-північ</b> (розум ≤ 1.3 л, ≤ 20 Вт, ≥ найрозумнішої людини): не ефективність
+      і не загальність окремо, а <b>їх ПОЄДНАННЯ</b>. Жодна система 2026 р. не має обох одночасно.</span>
+      <span class="en"><b>The main barrier to the north-star</b> (a mind ≤ 1.3 L, ≤ 20 W, ≥ the smartest human): not efficiency
+      nor generality alone, but <b>their COMBINATION</b>. No 2026 system has both at once.</span>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <span class="eyebrow"><span class="ua">Джерела (звірені)</span><span class="en">Sources (checked)</span></span>
+    <h2><span class="ua">Опора</span><span class="en">Grounding</span></h2>
+    <p class="note"><span class="ua">Числа — search-derived з Tier-1 венью (прямий fetch первинників був заблокований середовищем); найвагоміші крос-валідовані ≥2 запитами. Повний фактчек — у репозиторії (<span class="mono">experiments/gmi/sources.md</span>).</span>
+      <span class="en">Figures are search-derived from Tier-1 venues (direct fetch of primaries was blocked in the environment); the load-bearing ones are cross-validated by ≥2 queries. Full fact-check lives in the repo (<span class="mono">experiments/gmi/sources.md</span>).</span></p>
+    <div class="srclist" style="margin-top:12px">
+      <a href="http://www.scholarpedia.org/article/Artificial_General_Intelligence">Scholarpedia — AGI / Legg–Hutter</a>
+      <a href="https://en.wikipedia.org/wiki/Relational_quantum_mechanics">Relational Quantum Mechanics (Rovelli)</a>
+      <a href="https://en.wikipedia.org/wiki/Consciousness_causes_collapse">Consciousness causes collapse — status</a>
+      <a href="https://arxiv.org/pdf/2301.01207">Can Decoherence Solve the Measurement Problem?</a>
+      <a href="https://www.nature.com/articles/nrn.2018.20">Cortical travelling waves (Nature Rev. Neuro)</a>
+      <a href="https://direct.mit.edu/netn/article/6/4/1148/112392">Criticality in the brain (MIT Press)</a>
+      <a href="https://arxiv.org/pdf/2001.08028">Neural dynamics under active inference (FEP)</a>
+      <a href="https://www.nature.com/articles/s44287-024-00037-6">Memristor accelerators (Nature Rev. EE)</a>
+      <a href="https://www.intel.com/content/www/us/en/research/neuromorphic-computing.html">Intel — neuromorphic / Loihi 2</a>
+      <a href="https://aiimpacts.org/brain-performance-in-flops/">Brain performance in FLOPs (range)</a>
+      <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10629395/">Energy challenges of ASI</a>
+      <a href="https://plus.maths.org/content/it-bit">Wheeler — “it from bit”</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="mono"><span class="ua">ai-lab · серія GMI · гіпотеза → дизайн → запуск → вимір → лиши/прибери → висновок</span><span class="en">ai-lab · GMI series · hypothesis → design → run → measure → keep/drop → conclusion</span></div>
+    <p><span class="ua">Двомовний артефакт (UA-канон / EN-дзеркало). Метод: source-research-harvest → knowledge-synthesizer → validation-mesh. Рівні доказовості [E]/[C]/[S] застосовано до кожного твердження; UNKNOWN тримаємо як UNKNOWN.</span>
+      <span class="en">Bilingual artifact (UA canon / EN mirror). Method: source-research-harvest → knowledge-synthesizer → validation-mesh. Evidence levels [E]/[C]/[S] applied to every claim; UNKNOWN is kept as UNKNOWN.</span></p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  // language
+  var ua=document.getElementById('ua'), en=document.getElementById('en');
+  function setLang(l){root.setAttribute('data-lang',l);root.setAttribute('lang',l);
+    ua.setAttribute('aria-pressed',l==='ua');en.setAttribute('aria-pressed',l==='en');}
+  ua.addEventListener('click',function(){setLang('ua')});
+  en.addEventListener('click',function(){setLang('en')});
+  setLang('ua');
+  // theme override toggle (cycles light/dark relative to current)
+  var lt=document.getElementById('lt');
+  lt.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    lt.setAttribute('aria-pressed',next==='dark');
+  });
+
+  // signature canvas: an oscillating field that collapses to one determinate point on interaction
+  var cv=document.getElementById('field'); if(!cv) return;
+  var ctx=cv.getContext('2d'), W=0,H=0,dpr=Math.min(window.devicePixelRatio||1,2);
+  var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var N=90, pts=[], collapsed=false, tCollapse=0;
+  function css(v){return getComputedStyle(root).getPropertyValue(v).trim();}
+  function resize(){var r=cv.getBoundingClientRect();W=cv.width=r.width*dpr;H=cv.height=r.height*dpr;}
+  function init(){pts=[];for(var i=0;i<N;i++){pts.push({x:Math.random(),y:Math.random(),ph:Math.random()*6.283,sp:.4+Math.random()*.8});}}
+  new ResizeObserver(resize).observe(cv); resize(); init();
+  var t=0, cx=.5, cy=.5;
+  function frame(){
+    t+=reduce?0:.016;
+    ctx.clearRect(0,0,W,H);
+    var wave=css('--wave')||'#3fd8c9', res=css('--result')||'#f4b95e', line=css('--line')||'#22314a';
+    // faint grid
+    ctx.strokeStyle=line; ctx.globalAlpha=.5; ctx.lineWidth=1;
+    for(var g=1;g<6;g++){var y=H*g/6;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.globalAlpha=1;
+    var conv = collapsed ? Math.min(1,(t-tCollapse)/1.1) : 0;
+    conv = conv<0?0:conv; var ease=conv*conv*(3-2*conv);
+    for(var i=0;i<pts.length;i++){
+      var p=pts[i];
+      var baseY = p.y + (reduce?0:Math.sin(t*p.sp+p.ph)*0.05);
+      var fx = p.x*(1-ease)+cx*ease;
+      var fy = baseY*(1-ease)+cy*ease;
+      var x=fx*W, y=fy*H;
+      var r=(collapsed? (2.2+2*(1-ease)) : 2.4)*dpr;
+      ctx.beginPath(); ctx.arc(x,y,r,0,6.283);
+      ctx.fillStyle = ease>.6 ? res : wave;
+      ctx.globalAlpha = collapsed? (0.25+0.75*(1-ease)) : (0.55+0.35*Math.sin(t*p.sp+p.ph));
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    if(collapsed && ease>=1){
+      // the determinate point
+      ctx.beginPath(); ctx.arc(cx*W,cy*H,7*dpr,0,6.283); ctx.fillStyle=res; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx*W,cy*H,13*dpr,0,6.283);
+      ctx.strokeStyle=res; ctx.globalAlpha=.5; ctx.lineWidth=1.5*dpr; ctx.stroke(); ctx.globalAlpha=1;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  var st=document.getElementById('fstate');
+  function readout(ev){
+    var r=cv.getBoundingClientRect();
+    var e=ev.touches?ev.touches[0]:ev;
+    if(e){cx=Math.max(.12,Math.min(.88,(e.clientX-r.left)/r.width));cy=Math.max(.12,Math.min(.88,(e.clientY-r.top)/r.height));}
+    if(!collapsed){collapsed=true;tCollapse=t;st.textContent='field: determinate ●';}
+    else{collapsed=false;st.textContent='field: indeterminate';}
+  }
+  cv.addEventListener('click',readout);
+  cv.addEventListener('touchstart',function(e){e.preventDefault();readout(e);},{passive:false});
+})();
+</script>

@@ -1,0 +1,34 @@
+# Щотижневий дайджест / Weekly digest: детермінований зріз тижня → GitHub Issue.
+name: Weekly digest
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # щопонеділка 06:00 UTC / every Monday 06:00 UTC
+  workflow_dispatch:
+
+# Один активний прогін / one active run at a time
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  digest:
+    name: weekly digest → issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # повна історія для git log --since / full history
+      - name: Build digest
+        run: bash scripts/weekly-digest.sh > digest.md
+      - name: Open reminder issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "🗓 Щотижневий дайджест — $(date -u +%Y-%m-%d)" \
+            --body-file digest.md

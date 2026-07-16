@@ -10,10 +10,10 @@
  "install_entrypoint": "README-FOR-AI.md",
  "skills": {
   "ai-core-runtime": {
-   "version": "3.10.0",
+   "version": "3.10.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "de738645ddd8ef34",
+    "SKILL.md": "2da3eac7053c7c18",
     "evals/evals.json": "929c037bb02ec4dc"
    },
    "files": [
@@ -83,10 +83,10 @@
    ]
   },
   "continuation-memory": {
-   "version": "1.9.0",
+   "version": "1.9.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "a67f6c4ef888ab82",
+    "SKILL.md": "1e67106aa1e03811",
     "evals/evals.json": "a95905b1448ff886"
    },
    "files": [
@@ -111,10 +111,10 @@
    ]
   },
   "knowledge-synthesizer": {
-   "version": "1.0.1",
+   "version": "1.0.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "a5bb317e6e953f70",
+    "SKILL.md": "60c5a6bed5af8c82",
     "evals/evals.json": "6181d196be6eba3a"
    },
    "files": [
