@@ -17,7 +17,7 @@ jobs:
     name: Dependency review
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Крок не блокує, поки в repo Settings → Security не ввімкнено Dependency
       # graph (після ввімкнення — прибрати continue-on-error) / step-level
       # non-blocking until the Dependency graph is enabled; remove afterwards.
