@@ -54,7 +54,7 @@
 | knowledge-synthesizer | 1.0.2 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
 | llm-api-builder | 1.4.0 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
 | auth-session-manager | 1.4.2 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
-| collaborative-browser | 3.0.0 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
+| collaborative-browser | 3.0.1 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
 | notebooklm-connector | 4.2.3 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |
 | browser-local-ai-webllm | 1.2.3 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
 | webapp-testing | 1.4.0 | Playwright-тестування локальних веб-застосунків, скриншоти, UI-дебаг |

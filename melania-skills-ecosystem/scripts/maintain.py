@@ -22,8 +22,15 @@ MANIFEST = ROOT / "MANIFEST.json"
 BOOTSTRAP = ROOT / "MELANIA-BOOTSTRAP.md"
 
 # Небезпечні патерни у скриптах скілів (skill_guard.py тощо мають лишатись локальними).
-DANGER = re.compile(r"\b(subprocess|socket|urllib|requests|os\.system|eval\(|exec\()"
-                    r"|curl |wget |base64\.b64decode")
+DANGER = re.compile(r"\b(subprocess|socket|urllib|requests|os\.system|eval\(|exec\(|__import__|pickle\.loads?)"
+                    r"|curl |wget |base64\.b64decode|getattr\(os|https?://")
+
+# Реальні ЗНАЧЕННЯ секретів (не згадки в документації): формат-специфічні хвости.
+SECRET_VALUES = re.compile(
+    r"sk-ant-[a-zA-Z0-9_-]{10,}|ghp_[a-zA-Z0-9]{20,}|gho_[a-zA-Z0-9]{20,}"
+    r"|AKIA[A-Z0-9]{12,}|xox[bp]-[0-9]{5,}|AIza[a-zA-Z0-9_-]{20,}"
+    r"|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY")
+SECRET_SCAN_EXT = {".md", ".py", ".json", ".html", ".txt", ".yml", ".yaml", ".js"}
 
 # Скіли, чий guard приймає підкоманди замість --snapshot/--validate.
 SUBCMD_GUARDS = {"notebooklm-connector": ("snapshot", "validate")}
@@ -127,12 +134,24 @@ def verify() -> int:
         if p.read_bytes() != data:
             p.write_bytes(data)
 
-    # Safety scan
+    # Safety scan (py-скрипти: небезпечні виклики; docs/html не сканується DANGER-ом,
+    # бо там легітимні приклади з requests/curl/URL — для них є SECRET_VALUES нижче)
     danger_hits = []
     for py in SKILLS.rglob("*.py"):
         for i, line in enumerate(py.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if DANGER.search(line) and not line.lstrip().startswith("#"):
                 danger_hits.append(f"{py.relative_to(ROOT)}:{i}: {line.strip()[:60]}")
+
+    # Секрет-скан: реальні значення ключів/токенів у БУДЬ-ЯКОМУ текстовому файлі екосистеми.
+    # Файли без розширення (.env, .env.local, dotenv-подібні) сканувати ОБОВ'ЯЗКОВО —
+    # саме вони найчастіший контейнер секретів.
+    secret_hits = []
+    for f in ROOT.rglob("*"):
+        scannable = f.suffix in SECRET_SCAN_EXT or f.suffix == "" or f.name.startswith(".env")
+        if f.is_file() and scannable and ".git" not in f.parts:
+            for i, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                if SECRET_VALUES.search(line):
+                    secret_hits.append(f"{f.relative_to(ROOT)}:{i}: {line.strip()[:60]}")
 
     print(f"verify: {len(dirs)} скілів · {total_evals} eval-кейсів")
     ok = True
@@ -151,6 +170,11 @@ def verify() -> int:
         for h in danger_hits: print(f"  ! {h}")
     else:
         print("✅ safety-scan скриптів чистий")
+    if secret_hits:
+        ok = False; print(f"\n🔑 РЕАЛЬНІ значення секретів у файлах — {len(secret_hits)}:")
+        for h in secret_hits: print(f"  ! {h}")
+    else:
+        print("✅ секрет-скан чистий (нуль захардкоджених ключів/токенів)")
     return 0 if ok else 1
 
 

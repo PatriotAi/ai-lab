@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- NOTE: No CSP meta tag. Claude.ai sandbox provides security. A meta CSP with default-src 'self' would block fetch() to api.anthropic.com because the sandboxed iframe has an opaque (null) origin where 'self' matches nothing. -->
-<title>Collaborative Browser v3.0.0</title>
+<title>Collaborative Browser v3.0.1</title>
 <!--
+  CHANGELOG v3.0.1 (2026-07-16) — security: keyless Maps embedUrl (ключ лише з SecretsManager)
   CHANGELOG v3.0.0 (2026-07-03) — "Maximum Power"
   • Gate: класифікатор збоїв + jittered backoff + verify-after-action (safe-action-gate)
   • PageCache: кеш сторінок (TTL 10хв) — назад/вперед без повторних API-викликів
@@ -827,7 +828,7 @@ input{font-family:inherit}
     <span class="status-pill pill-research" id="pillResearch" style="display:none">&#128270; Ресерч</span>
   </div>
   <span id="statusRight" style="font-size:11px;color:var(--muted)">Агент: активний</span>
-  <span style="font-size:10px;color:var(--muted);opacity:.5">v3.0.0</span>
+  <span style="font-size:10px;color:var(--muted);opacity:.5">v3.0.1</span>
 </div>
 
 <!-- SELECTION TOOLTIP -->
@@ -1693,7 +1694,9 @@ const Maps = (() => {
   }
 
   function embedUrl(query) {
-    return `https://www.google.com/maps/embed/v1/place?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&q=${encodeURIComponent(query)}`;
+    // Безключовий embed (як у showMapEmbed). Ключ Embed API v1 за потреби — ЛИШЕ з
+    // SecretsManager (name: 'google-maps-api-key'), ніколи не хардкодити в артефакт.
+    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
   }
 
   function renderCard(address, onclick) {
@@ -2803,7 +2806,7 @@ async function loadPage(url, addHist = true, force = false) {
 ══════════════════════════════════════════════════ */
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-6';
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.0.1';
 
 /* ══ RUNTIME — dual-mode: артефакт claude.ai (без ключа) / standalone (ключ із Secrets) ══ */
 const Runtime = (() => {
@@ -3355,7 +3358,7 @@ function showNewTabScreen() {
   document.getElementById('contentInner').innerHTML = `
     <div class="new-tab-screen">
       <div class="ntab-logo">&#127760;</div>
-      <div class="ntab-title">Collaborative Browser v3.0.0</div>
+      <div class="ntab-title">Collaborative Browser v3.0.1</div>
       <div class="ntab-sub">AI-агент і ви — разом досліджуєте веб. Натисніть <b>Ctrl+K</b> для команд.</div>
       <div class="quick-links">
         <div class="quick-link" onclick="navigate('https://en.wikipedia.org')"><div class="ql-icon">&#128214;</div>Wikipedia</div>
