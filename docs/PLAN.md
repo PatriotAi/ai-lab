@@ -87,6 +87,9 @@ Vertical slice: двомовний контент-пайплайн end-to-end �
 validation-mesh → content-pipeline → translate-uaen → pre-delivery-gate). **Промоутнуто:**
 нова навичка `gmi-audit` (GMI-лінза) + крос-лінк у `ai-core-runtime`/`knowledge-synthesizer`
 (melania resync/verify ✅). Висновок — у `docs/learnings.md`. PR #16 (merge за згодою власника).
+**Ітерації 2–3** (PR #16, #17 змерджено): закрито прогалину G5 (пам'ять між сесіями) — **повний
+авто-цикл** `automations/g5-consolidate` (Stop) + `automations/g5-retrieve` (SessionStart) → **G5 ✅**;
+`gmi-audit` розширено G5/G7-пробами. Відкриті лише P2-нитки (`experiments/gmi-g5-memory/g5-package.md`).
 
 ---
 
