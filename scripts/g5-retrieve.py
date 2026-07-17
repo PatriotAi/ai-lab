@@ -13,7 +13,9 @@ from __future__ import annotations
 import sys, os, glob, pathlib
 
 # заголовки секцій, які складають resume-дайджест (за ключовими словами, регістронезалежно)
-WANT = ("STATE", "OPEN THREADS", "NEXT STEP")
+# DECISIONS додано після cold-reader аналізу: ключові рішення (D1..Dn) — критичний контекст,
+# без них нова сесія не знає, ЩО означають терміни (інваріанти/G7/governance).
+WANT = ("STATE", "DECISIONS", "OPEN THREADS", "NEXT STEP")
 
 
 def find_default() -> str | None:
