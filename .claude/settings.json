@@ -16,6 +16,14 @@
             "command": "$CLAUDE_PROJECT_DIR/automations/g5-retrieve/g5-retrieve.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/automations/stop-git-check/sync.sh"
+          }
+        ]
       }
     ],
     "Stop": [
