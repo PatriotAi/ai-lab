@@ -15,7 +15,7 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 3.10.1
+  version: 3.11.0
   category: orchestration
 ---
 
@@ -102,7 +102,7 @@ Activate **only what is required**. Match task type to minimal agent set:
 **мінімальний достатній набір**: лише потрібні, у потрібній кількості — щоб не марнувати токени,
 але й не жертвувати якістю (бракує охоплення → додай скіл; зайве → прибери).
 
-**Kernel default-start:** коли вхід неоднозначний або жоден конкретний скіл явно не підходить — `ai-core-runtime` є стартовою точкою за замовчуванням: піднімає рантайм, викликає `semantic-router` для класифікації наміру й активує мінімальний достатній ланцюг. Реципрокно до правила роутера «if uncertain → ai-core-runtime first». Тривіальний вхід → 0 агентів/скілів (зазначити).
+**Kernel fallback-start:** канонічна точка входу при неоднозначному вході — `semantic-router` (тріаж наміру щозапиту). `ai-core-runtime` стартує першим ЛИШЕ коли роутер недоступний/не завантажений: тоді піднімає рантайм, викликає `semantic-router` для класифікації наміру й активує мінімальний достатній ланцюг. Тривіальний вхід → 0 агентів/скілів (зазначити).
 
 Available agents: `researcher`, `analyst`, `architect`, `builder`, `debugger`, `validator`, `optimizer`
 
@@ -201,6 +201,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v3.11.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) «Kernel default-start» → **fallback-start** — канонічна точка входу при неоднозначному вході тепер semantic-router; ACR стартує першим лише коли роутер недоступний (розрив циклу «хто перший», знахідка №2). (B) Де-хардкод мертвого посилання: `product-self-knowledge` → офіційні docs (docs.claude.com) у прикладі extended thinking (№1; історичний запис v3.7.1 у changelog не переписувався — append-only). Лише уточнення.
 - **v3.10.1** (2026-07-13) — Крос-лінк `gmi-audit` у Related Skills: GMI-лінза (інваріанти G1–G7 когнітивної системи + вісь спостерігача/read-out) для аудиту повноти рантайму/агентної архітектури. Лише додавання (DRY-покажчик, без дублювання). _(Джерело: experiments/gmi harvest.)_
 - **v3.10.0** (2026-07-11) — Kernel-патерни (frontier-research harvest): **(A)** Deferred tools / Tool Search — активація інструментів пошуком замість повного списку (розширення депт-леддера на НАБІР ІНСТРУМЕНТІВ; до −85% контексту). **(B)** Memory-handler kernel-безпека: обов'язковий path-traversal захист sandbox-пам'яті + provenance-мітка кожного запису (анти-poisoning). API-механіка обох — покажчик на `llm-api-builder` (DRY). Агностично, без пін-у моделей. Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v3.9.2** (2026-06-26) — `evals/` реконструйовано. Форензик-аудит: claim існував з v3.2.0, але артефакт відсутній у всіх джерелах (git/транскрипти/FS) → відтворено, claim НЕ видалено. `evals/` виключається з .skill (тест-артефакт). Лише додавання.
@@ -219,7 +220,7 @@ multi-step reasoning) — активуй **extended thinking** через API:
 
 ```python
 response = client.messages.create(
-    model=MODEL,   # актуальна модель з extended thinking — звір через product-self-knowledge/docs, не пінь версію
+    model=MODEL,   # актуальна модель з extended thinking — звір через офіційні docs (docs.claude.com), не пінь версію
     max_tokens=16000,
     thinking={"type": "enabled", "budget_tokens": 10000},
     messages=[{"role":"user","content": complex_task}]

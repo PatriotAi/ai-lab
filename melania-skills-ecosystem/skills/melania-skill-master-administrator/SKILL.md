@@ -16,7 +16,11 @@ description: >
   три закони, закони роботехніки, skill guard, skill validate, CHANGELOG.
 
   DO NOT use for non-skill Claude tasks, general coding, or document creation
-  unrelated to the skill lifecycle.
+  unrelated to the skill lifecycle. Усередині життєвого циклу: чистий авторинг
+  формату SKILL.md без governance-рішень → skill-creation-guide; пакування й
+  дистрибуція в маркетплейси → skill-marketplace-distribution; легкі лабораторні
+  навички ai-lab поза екосистемою melania → skill-new. SMA = governance
+  (версії, затвердження, Три Закони, авторитет пакування).
 compatibility: >
   Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Copilot.
   Core features are cross-platform. hooks and context:fork are Claude Code only
@@ -27,11 +31,11 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 2.15.0
+  version: 2.16.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-05-27
-  last_updated: 2026-07-11
+  last_updated: 2026-07-19
 ---
 
 # Melania — Skill Master Administrator
@@ -400,6 +404,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v2.16.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, P1 №26): розведено потрійне перекриття тригера «створення скіла» — у DO NOT додано внутрішньоциклові делегування: чистий авторинг → skill-creation-guide; маркетплейс-дистрибуція → skill-marketplace-distribution; лабораторні навички ai-lab → skill-new; SMA = governance. Дзеркальні межі — у skill-creation-guide v1.10.0. Лише уточнення меж.
 - **v2.15.0** (2026-07-11) — Auto-Trigger виконано: SKILL.md 471→<450 рядків. Шаблони YAML frontmatter + body винесено в `references/templates.md` (новий файл; рядок у References-таблиці та File Structure), у тілі — компактний покажчик. Синхронізовано банер (був v2.13.3 при frontmatter 2.14.0 — дрейф закрито). Інваріанти guard збережено: всі 15 canonical terms у SKILL.md, скорочення −12% < порогу 18%. Зміст шаблонів не змінювався — перенесення 1:1.
 - **v2.14.0** (2026-07-11) — SDE: Pattern Lifecycle (frontier-research harvest P2): success-rate цикл strengthen/correct/deprecate(<0.5, n≥4)/capture(3+→Rule 7 Gate)/scheduled-консолідація — узгоджено з 4-м шаром playbooks knowledge base; агностично до платформ (керований scheduled-рев'ю = та сама дисципліна, делегована). +Auto-Trigger «позаскіловий підхід 3+». Core Rule 5: зафіксовано guard-контракт SELF-BOUND (здобуто болем: виклик чужої копії з аргументом валідує ЧУЖИЙ скіл — виявлено й закрито в цій сесії). Нотатка: SKILL.md перетнув 450-поріг ЩЕ ДО цієї правки (457) — Auto-Trigger refactor→references/ активний, кандидат наступного циклу. Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v2.13.3** (2026-06-26) — Вшито обов'язковий `pre-delivery-gate` у Packaging & Delivery: будь-який готовий артефакт проходить автоматичний гейт перевірок (validation/safety/evals/guard/повнота/анти-втрата) перед видачею. Лише додавання.

@@ -29,7 +29,7 @@
 | Shared-state / blackboard | shared State channel | shared memory | shared context | session state | shared session | session attributes |
 | Handoff / swarm | command/goto | (через process) | speaker transitions | handoffs (нативно) | transfer | routing |
 
-Версії/назви API НЕ хардкодь — перевіряй через `product-self-knowledge` та офіційні доки.
+Версії/назви API НЕ хардкодь — перевіряй через офіційні доки провайдерів/фреймворків.
 
 ## 3. Shared task list — деталі реалізації (Agent Teams, Topology 5)
 
