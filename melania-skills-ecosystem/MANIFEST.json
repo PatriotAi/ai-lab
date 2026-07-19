@@ -10,10 +10,10 @@
  "install_entrypoint": "README-FOR-AI.md",
  "skills": {
   "ai-core-runtime": {
-   "version": "3.10.1",
+   "version": "3.11.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "2da3eac7053c7c18",
+    "SKILL.md": "6c0f0c4464255629",
     "evals/evals.json": "929c037bb02ec4dc"
    },
    "files": [
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.15.0",
+   "version": "2.16.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "b9285a2d2731af31",
+    "SKILL.md": "d7920ee8464607fb",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -241,10 +241,10 @@
    ]
   },
   "rlm-harness": {
-   "version": "0.4.0",
+   "version": "0.4.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "227360fecc2929c9",
+    "SKILL.md": "12527226ffda16be",
     "evals/evals.json": "4c348b6d0b54326e"
    },
    "files": [
@@ -278,10 +278,10 @@
    ]
   },
   "semantic-router": {
-   "version": "1.13.2",
+   "version": "1.14.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "23ab09b223f8a132",
+    "SKILL.md": "d06f75ae04b70c00",
     "evals/evals.json": "923c9bb3b7898c15"
    },
    "files": [
@@ -292,10 +292,10 @@
    ]
   },
   "skill-creation-guide": {
-   "version": "1.9.3",
+   "version": "1.10.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "c14aa003b962ec41",
+    "SKILL.md": "6d86808b7e8de930",
     "evals/evals.json": "12ea3914d2f9230d"
    },
    "files": [
@@ -410,10 +410,10 @@
    ]
   },
   "workflow-orchestration": {
-   "version": "1.4.0",
+   "version": "1.4.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "2becae7d089bae34",
+    "SKILL.md": "0d3a902c84243cd5",
     "evals/evals.json": "30257eca68d27e83"
    },
    "files": [

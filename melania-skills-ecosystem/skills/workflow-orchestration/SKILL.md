@@ -14,7 +14,7 @@ compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Co
 license: MIT
 metadata:
   author: Melania (Master Administrator)
-  version: 1.4.0
+  version: 1.4.1
   category: orchestration
   created: 2026-06-13
   last_updated: 2026-07-11
@@ -165,7 +165,7 @@ Loop (авто): sync -> verify -> update -> context -> state -> plan -> continu
 
 Claude Code:
 - Subagents: `.claude/agents/*.md` (`description/tools/model`); спавн Agent/Task tool; до ~7 паралельних; `CLAUDE_CODE_SUBAGENT_MODEL` дешевша модель.
-- Nested subagents (Topology 3): саб-агент спавнить саб-агента; жорстка серверна стеля **5 рівнів вниз** (на L5 `Agent` не видається). Щоб агент НЕ спавнив дітей — прибери `Agent` з `tools` (leaf-агент). Гоча: `Agent(type)`-allowlist У ВИЗНАЧЕННІ саб-агента ІГНОРУЄТЬСЯ → для заборони спавну `permissions.deny: ["Agent(...)"]` у `.claude/settings.json`. Depth-tracking коректний з пізніших білдів — звіряй версію через `product-self-knowledge`, не пінь.
+- Nested subagents (Topology 3): саб-агент спавнить саб-агента; жорстка серверна стеля **5 рівнів вниз** (на L5 `Agent` не видається). Щоб агент НЕ спавнив дітей — прибери `Agent` з `tools` (leaf-агент). Гоча: `Agent(type)`-allowlist У ВИЗНАЧЕННІ саб-агента ІГНОРУЄТЬСЯ → для заборони спавну `permissions.deny: ["Agent(...)"]` у `.claude/settings.json`. Depth-tracking коректний з пізніших білдів — звіряй через офіційні docs (code.claude.com/docs), не пінь.
 - Ізоляція skill: `context: fork` (+опц. `agent:`) — вміст skill = prompt субагента без історії. Відомі баги: інколи ігнорується через Skill tool -> додай явну Task-інструкцію.
 - Agent Teams: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — Lead + named teammates + shared task list + mailbox (experimental).
 - Shared state/governance: MCP як спільний стан/інструменти; hooks (`PreToolUse`/`PostToolUse`/`Stop`) для human-confirm/завершення.
@@ -187,6 +187,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
+- **v1.4.1** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, №1): де-хардкод мертвого посилання `product-self-knowledge` (скіл не існує) → «офіційні docs» у SKILL.md (Stack Mapping) і `references/topology-taxonomy.md`. Правило «не пінь» незмінне.
 - **v1.4.0** (2026-07-11) — Topology 4: Evaluator-Optimizer / Outcomes-патерн (frontier-research harvest): produce→grade→revise з grader-ом в ізольованому чистому контексті, rubric-verdict, bounded-цикл; емпірика (+10 п. success, file-gen +8-10%); анти-патерн self-grade; крос-лінки rlm-harness (клас judge-моделі) + ai-core-runtime (resilience-стеля). Підключено до Autonomous Decision Algorithm (анти-орфан, урок v1.3.1). +1 рядок емпірики масштабу в Topology 2 (16 паралельних агентів → 100K+ рядків, агностично). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v1.3.3** (2026-06-26) — +`references/topology-taxonomy.md` (повна таксономія 10+ топологій swarm/handoff/blackboard/contract-net/group-chat; framework-мапінг LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock; деталі shared-task; observability-стек). Відновлює обіцяний-але-відсутній `references/` (форензик-аудит: артефакт не існував у git/транскриптах/FS → реконструйовано, проміс НЕ видалено). Лише додавання.
 - **v1.3.2** (2026-06-26) — +evals/ (5 кейсів Topology 3: адаптивна глибина SDLC; стеля-5 / відносна до підкладки; композиція блоків «рівень Бога»; fan-out-vs-nest анти-патерн; .md-handoff). Закриває claimed-but-missing-evals для цього скіла (артефакт тепер існує). evals/ виключається з .skill (тест-артефакт). Лише додавання.
