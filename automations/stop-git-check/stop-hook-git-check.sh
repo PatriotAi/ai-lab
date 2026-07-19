@@ -148,6 +148,15 @@ if [[ -n "$current_branch" || -n "$TEST_RANGE" ]]; then
     # Скан ПОВНИЙ — жодного обрізання діапазону (Codex C5).
     while IFS='|' read -r h sig ce an; do
       [[ -z "$h" ]] && continue
+      # %G? для SSH-підписів без allowedSignersFile/ключа повертає N навіть для
+      # ПІДПИСАНОГО коміта. Первинний факт — заголовок gpgsig в об'єкті коміта:
+      # якщо він є, статус насправді E (підпис присутній, локально неперевірний).
+      # Шукаємо ЛИШЕ в блоці заголовків (до першого порожнього рядка) — рядок
+      # «gpgsig…» у ТЕКСТІ повідомлення не має маскувати непідписаний коміт
+      # (рев'ю Codex, PR #23).
+      if [[ "$sig" == "N" ]] && git cat-file commit "$h" 2>/dev/null | sed '/^$/q' | grep -q '^gpgsig'; then
+        sig="E"
+      fi
       verdict="" ; reason=""
       if [[ "$ce" == "noreply@anthropic.com" ]] && sig_ok "$sig"; then
         continue   # R1: наш із прийнятним підписом — поза підозрою, не звітуємо
