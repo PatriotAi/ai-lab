@@ -26,7 +26,7 @@
 ## Авто-пам'ять між сесіями (G5-цикл) — нове
 - **Консолідація (Stop-хук):** `automations/g5-consolidate/` → `scripts/g5-consolidate.py` детерміновано знімає стан із git у `AUTO-STATE.md` (гітігноровано).
 - **Витяг (SessionStart-хук):** `automations/g5-retrieve/` → `scripts/g5-retrieve.py` дістає з durable-пакета секції STATE/OPEN THREADS/NEXT STEP у контекст сесії.
-- Разом = **нова сесія автоматично «пам'ятає, де ми»**. Точка відновлення дослідження: `experiments/gmi-g5-memory/g5-package.md`. Обидва скрипти узагальнені на будь-яку теку (шлях/glob).
+- Разом = **нова сесія автоматично «пам'ятає, де ми»**. Точка відновлення дослідження: `experiments/gmi-g5-memory/g5-package.md` (§0 KEY-глосарій дає cold-сесії ще й ЗНАЧЕННЯ термінів, не лише стан — самодостатність ~85%, об'єктивно виміряно `cold-reader-test.md`). Обидва скрипти узагальнені на будь-яку теку (шлях/glob).
 
 ## Що є в КОЖНІЙ сесії цього репо (доступ «з коробки»)
 - **Інформація:** `CLAUDE.md`, `docs/PLAN.md`, `docs/learnings.md`, `docs/methodology.md`, `docs/glossary.md`, `experiments/`, `docs/ua` + `docs/en`.
