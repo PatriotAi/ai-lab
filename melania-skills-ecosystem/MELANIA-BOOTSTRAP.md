@@ -35,14 +35,14 @@
 
 | Скіл | v | Активувати коли |
 |---|---|---|
-| semantic-router | 1.13.2 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація |
-| melania-skill-master-administrator | 2.15.0 | GOVERNANCE: створити/оновити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
-| ai-core-runtime | 3.10.1 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools |
-| rlm-harness | 0.4.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
-| workflow-orchestration | 1.4.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
+| semantic-router | 1.14.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
+| melania-skill-master-administrator | 2.16.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
+| ai-core-runtime | 3.11.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
+| rlm-harness | 0.4.1 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
+| workflow-orchestration | 1.4.1 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
 | multi-provider-ai-orchestration | 1.5.0 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.2.1 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
-| skill-creation-guide | 1.9.3 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура |
+| skill-creation-guide | 1.10.0 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура (авторинг; governance/оновлення → SMA) |
 | skill-ecosystem-auditor | 1.6.2 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
 | source-research-harvest | 0.1.1 | «досліди це джерело для оновлення»: будь-яке джерело → дослідження → покращення екосистеми → валідація |
 | skill-marketplace-distribution | 0.2.0 | публікація/продаж власного скіла в маркетплейси, .skill-пакування, монетизація |

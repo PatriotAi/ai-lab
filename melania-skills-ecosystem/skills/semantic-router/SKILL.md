@@ -1,30 +1,22 @@
 ---
 name: semantic-router
 description: >
-  Analyzes user intent and routes requests to the correct skills,
-  reasoning modules, and orchestration flows within the Claude Skill
-  Ecosystem. Selects the minimal set of skills/agents needed, prevents
-  over-activation, and coordinates multi-skill workflows.
+  Analyzes user intent and routes requests to the correct skills and
+  orchestration flows in the ecosystem; selects the minimal skill set
+  and prevents over-activation.
 
-  USE THIS SKILL whenever: a user request is ambiguous or complex and
-  needs routing to multiple skills, when building a multi-agent system,
-  when designing adaptive AI pipelines, when coordinating ai-core-runtime
-  with other ecosystem skills, or when the right skill for a task is unclear.
+  USE whenever: запит неоднозначний чи багатоскіловий, вибір скіла
+  неочевидний, потрібна координація кількох скілів. Also: "який скіл
+  використати", "route this request", "intent classification",
+  "skill selection", "multi-agent coordination".
 
-  Also trigger for: "який скіл використати", "route this request",
-  "which agent should handle", "multi-agent coordination",
-  "adaptive execution", "intent classification", "skill selection",
-  "orchestrate multiple skills", "modular reasoning pipeline".
+  ALWAYS the entry point for multi-skill workflows. Triggers match by
+  MEANING (semantic intent) — синоніми й парафрази активують скіл;
+  фрази в описі лише приклади, не вичерпний список.
 
-  ALWAYS use this skill as the entry point for any multi-skill or
-  multi-agent workflow in the ecosystem. Triggers match by MEANING
-  (semantic intent): synonyms and paraphrases activate the skill —
-  listed phrases are examples, not an exhaustive list.
-
-  DO NOT use for: механіка топологій мультиагентних воркфлоу
-  (workflow-orchestration); kernel/активація агентів (ai-core-runtime);
-  мета-оркестрація важких процесів (rlm-harness); коли потрібний скіл
-  один і очевидний — активуй його напряму.
+  DO NOT use for: механіка топологій (workflow-orchestration);
+  kernel/активація агентів (ai-core-runtime); мета-оркестрація важких
+  процесів (rlm-harness); один очевидний скіл — активуй напряму.
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
@@ -181,7 +173,8 @@ Fallback на CLI — тільки при miss або помилці tool, не 
 | "validate", "check", "verify", "review" | validation-mesh | — |
 | "route", "orchestrate", "multi-agent" | semantic-router | ai-core-runtime |
 | "оркеструй", "найвищий рівень", "важкий процес", "deep research", "security audit", "перепланування", "RLM", "harness" | rlm-harness | workflow-orchestration |
-| "створити/оновити скіл", "SKILL.md", "package skill" | skill-creation-guide | melania-skill-master-administrator |
+| "створити скіл", "написати SKILL.md", "формат скіла" | skill-creation-guide | melania-skill-master-administrator |
+| "оновити скіл", "підвищити версію", "затвердити/package skill" | melania-skill-master-administrator | skill-creation-guide |
 | "аудит скілів", "ревізія екосистеми", "онови скіли" | skill-ecosystem-auditor | validation-mesh |
 | "skill governance", "версія/CHANGELOG", "MA directive", "три закони" | melania-skill-master-administrator | skill-creation-guide |
 | "публікація скіла", "монетизація", "trademark", "дисклеймер", "security gate", "недовірений вхід" | safety-compliance-gate | melania-skill-master-administrator |
@@ -351,7 +344,7 @@ Load only on demand — not proactively.
 
 ## Changelog
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (v1.6.0 двічі — артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
-- **v1.14.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) **семантичні тригери** — маршрутизація за ЗНАЧЕННЯМ наміру, не за дослівними фразами (директива власника; принцип у тілі + description). (B) Розрив циклу «хто перший»: uncertain → роутер сам виконує тріаж (канонічна точка входу); ai-core-runtime — лише fallback, коли роутер недоступний (закриває аудит-знахідку №2). (C) +DO NOT-межі в description: топології→workflow-orchestration, kernel→ai-core-runtime, мета-оркестрація→rlm-harness (№3). Лише уточнення меж; Routing Map не змінювалась.
+- **v1.14.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) **семантичні тригери** — маршрутизація за ЗНАЧЕННЯМ наміру, не за дослівними фразами (директива власника; принцип у тілі + description). (B) Розрив циклу «хто перший»: uncertain → роутер сам виконує тріаж (канонічна точка входу); ai-core-runtime — лише fallback, коли роутер недоступний (закриває аудит-знахідку №2). (C) +DO NOT-межі в description: топології→workflow-orchestration, kernel→ai-core-runtime, мета-оркестрація→rlm-harness (№3). (D) Routing Map: рядок «створити/оновити скіл» розділено за governance-межею — створити→skill-creation-guide, оновити/версія/затвердити→SMA (рев'ю Codex PR #24). (E) Description ужато до ≤1024 симв. (packaging-ліміт; рев'ю Codex PR #24).
 - **v1.13.2** (2026-06-26) — Changelog-гігієна (F2): примітка про історичні дублі-номери (v1.6.0 двічі). Усі записи збережено; нумерацію НЕ переписано без верифікації (форензик: git/історія відсутні → не вгадуємо). Лише додавання примітки.
 - **v1.13.1** (2026-06-26) — `evals/` реконструйовано. Форензик-аудит: claim існував з v1.2.1, але артефакт відсутній у всіх джерелах (git/транскрипти/FS) → відтворено, claim НЕ видалено. `evals/` виключається з .skill (тест-артефакт). Лише додавання.
 - **v1.13.0** (2026-06-15) — Активне виконання у статусі: статус-рядок веде ПОІМЕННИМ набором скілів, що реально діють у запиті (не лічильником змонтованих); 0-активних → з причиною. Додано правило «роутер = точка входу щозапиту, піднімає мінімальний ланцюг». Реалізує вимогу MA: бачити активне виконання + щозапитову економну активацію.
