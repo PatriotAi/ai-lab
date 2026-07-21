@@ -3,14 +3,14 @@ name: pwa-to-android-app
 description: "Ship a single-file HTML/JS app as an installable PWA, then path to a real Android APK. Covers self-contained inlining (manifest as data URI, service worker as Blob, icons as base64), the content:// vs HTTPS limitation (mic/WebGPU need HTTPS), Netlify Drop for testing, one-button auto-update via version.json, and cloud APK builds via GitHub Actions when no PC is available. ALWAYS use when packaging a web app for phone install, making a PWA, building an APK, enabling auto-updates, or the user says: зробити аплікацію, інсталювати на смартфон, PWA, APK, авто-оновлення однією кнопкою, мікрофон не працює, content:// не працює, зібрати APK на телефоні, single file, self-contained HTML, Netlify, GitHub Actions build. Also triggers for: add to home screen, service worker, installable app, Capacitor, cloud build. DO NOT use for pure backend services, desktop-only apps, or iOS-native development."
 license: Proprietary
 metadata:
-  version: 1.3.2
+  version: 1.3.3
   author: Melania (Master Administrator)
   category: packaging
   created: 2026-06-02
-  last_updated: 2026-06-02
+  last_updated: 2026-07-19
 ---
 
-# PWA → Android App — v1.0
+# PWA → Android App — v1.3.3
 > Напрацьовано на AI Gateway. Шлях від single-file HTML до інсталюваної аплікації з авто-оновленнями, включно зі збіркою APK повністю з Android-телефону (без ПК).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -209,6 +209,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.3.3** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Core Rule secure-context підтверджено як КАНОН правила для екосистеми (дубль у webllm v1.2.4 замінено покажчиком сюди) [#46]; синхрон H1-банера (був v1.0 при 1.3.2) + `last_updated` [#21/#45]. Лише метадані; тіло незмінне.
 - **v1.3.2** (2026-06-26) — Ре-верифікація: +примітка про дубль v1.2.0 (вміст збережено). Лише примітка.
 - **v1.3.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.
 - **v1.2.0** (2026-06-02) — додано `metadata`/`license`-frontmatter + явну директиву «українською-перша»; додано в Routing Map семантичного роутера. _(аудит Кластер 4: metadata + P9 + P-23)_

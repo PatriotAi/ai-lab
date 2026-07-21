@@ -39,10 +39,10 @@
    ]
   },
   "auth-session-manager": {
-   "version": "1.4.2",
+   "version": "1.4.3",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "970c05b85f222e7a",
+    "SKILL.md": "279fab9c5436971e",
     "evals/evals.json": "afc52e694dc60354"
    },
    "files": [
@@ -54,10 +54,10 @@
    ]
   },
   "browser-local-ai-webllm": {
-   "version": "1.2.3",
+   "version": "1.2.4",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "d1e8d9b829be154f",
+    "SKILL.md": "27c892e6cab7b69e",
     "evals/evals.json": "b78bf5d515e4d0bd"
    },
    "files": [
@@ -111,10 +111,10 @@
    ]
   },
   "knowledge-synthesizer": {
-   "version": "1.0.2",
+   "version": "1.1.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "60c5a6bed5af8c82",
+    "SKILL.md": "1557e631c87223b7",
     "evals/evals.json": "6181d196be6eba3a"
    },
    "files": [
@@ -125,10 +125,10 @@
    ]
   },
   "llm-api-builder": {
-   "version": "1.4.0",
+   "version": "1.4.1",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "a06f880c77a27155",
+    "SKILL.md": "d7c0d5df777cdbf4",
     "evals/evals.json": "be05cc6c2d17e509"
    },
    "files": [
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.16.0",
+   "version": "2.17.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "d7920ee8464607fb",
+    "SKILL.md": "4e41ee2b10d9dd80",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -171,10 +171,10 @@
    ]
   },
   "n8n-orchestrator": {
-   "version": "2.8.3",
+   "version": "2.9.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "2c2c4afcbde1db4b",
+    "SKILL.md": "6b021be1b46297f7",
     "evals/evals.json": "47b92f907915d091"
    },
    "files": [
@@ -186,10 +186,10 @@
    ]
   },
   "notebooklm-connector": {
-   "version": "4.2.3",
+   "version": "4.3.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "5c54ccc3ca485ed1",
+    "SKILL.md": "6f009728f2d1cab2",
     "evals/evals.json": "bca104be7be197b6"
    },
    "files": [
@@ -214,10 +214,10 @@
    ]
   },
   "pre-delivery-gate": {
-   "version": "1.0.0",
+   "version": "1.1.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "eeb2f340a781981c",
+    "SKILL.md": "c65772e250ac3825",
     "evals/evals.json": "07f5158b582ddaf5"
    },
    "files": [
@@ -227,10 +227,10 @@
    ]
   },
   "pwa-to-android-app": {
-   "version": "1.3.2",
+   "version": "1.3.3",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "5d9198c6a5d6288f",
+    "SKILL.md": "dcc7f76be39b7629",
     "evals/evals.json": "1f9c11478e3d8ef8"
    },
    "files": [
@@ -264,10 +264,10 @@
    ]
   },
   "safety-compliance-gate": {
-   "version": "1.1.1",
+   "version": "1.1.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "5fd3bb77c143ec38",
+    "SKILL.md": "53584e1fcf432da3",
     "evals/evals.json": "e125b0560c380b0a"
    },
    "files": [
@@ -278,10 +278,10 @@
    ]
   },
   "semantic-router": {
-   "version": "1.14.0",
+   "version": "1.15.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "d06f75ae04b70c00",
+    "SKILL.md": "4d97ae8ed5262546",
     "evals/evals.json": "923c9bb3b7898c15"
    },
    "files": [
@@ -308,10 +308,10 @@
    ]
   },
   "skill-ecosystem-auditor": {
-   "version": "1.6.2",
+   "version": "1.7.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "4e1489c5278e414d",
+    "SKILL.md": "3a4a4890dc28e063",
     "evals/evals.json": "0ce12a0832e6322e"
    },
    "files": [
@@ -354,10 +354,10 @@
    ]
   },
   "surgical-code-refactoring": {
-   "version": "1.5.2",
+   "version": "1.5.3",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "0b72978de95fed27",
+    "SKILL.md": "f55f68b1aaa2406e",
     "evals/evals.json": "26cab27d86888236"
    },
    "files": [
@@ -368,10 +368,10 @@
    ]
   },
   "validation-mesh": {
-   "version": "1.5.4",
+   "version": "1.6.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "57b96757a251fc26",
+    "SKILL.md": "3e9e951688a36288",
     "evals/evals.json": "df970a015d3d5500"
    },
    "files": [
@@ -396,10 +396,10 @@
    ]
   },
   "webapp-testing": {
-   "version": "1.4.0",
+   "version": "1.5.0",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "5fce0e52fd797f83",
+    "SKILL.md": "b74a9590a1831045",
     "evals/evals.json": "587d53be9aa38c39"
    },
    "files": [
@@ -410,10 +410,10 @@
    ]
   },
   "workflow-orchestration": {
-   "version": "1.4.1",
+   "version": "1.5.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "0d3a902c84243cd5",
+    "SKILL.md": "5b4172c7b001b1df",
     "evals/evals.json": "30257eca68d27e83"
    },
    "files": [

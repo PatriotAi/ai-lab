@@ -35,33 +35,33 @@
 
 | Скіл | v | Активувати коли |
 |---|---|---|
-| semantic-router | 1.14.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
-| melania-skill-master-administrator | 2.16.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
+| semantic-router | 1.15.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
+| melania-skill-master-administrator | 2.17.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
 | ai-core-runtime | 3.12.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
 | rlm-harness | 0.4.1 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
-| workflow-orchestration | 1.4.1 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
+| workflow-orchestration | 1.5.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
 | multi-provider-ai-orchestration | 1.5.0 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.3.0 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
 | skill-creation-guide | 1.10.0 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура (авторинг; governance/оновлення → SMA) |
-| skill-ecosystem-auditor | 1.6.2 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
+| skill-ecosystem-auditor | 1.7.0 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
 | source-research-harvest | 0.2.0 | «досліди це джерело для оновлення»: будь-яке джерело → дослідження → покращення екосистеми → валідація |
 | skill-marketplace-distribution | 0.2.1 | публікація/продаж власного скіла в маркетплейси, .skill-пакування, монетизація |
-| safety-compliance-gate | 1.1.1 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
-| pre-delivery-gate | 1.0.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
-| validation-mesh | 1.5.4 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
+| safety-compliance-gate | 1.1.2 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
+| pre-delivery-gate | 1.1.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
+| validation-mesh | 1.6.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
 | continuation-memory | 1.10.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.1.0 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
-| knowledge-synthesizer | 1.0.2 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
-| llm-api-builder | 1.4.0 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
-| auth-session-manager | 1.4.2 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
+| knowledge-synthesizer | 1.1.0 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
+| llm-api-builder | 1.4.1 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
+| auth-session-manager | 1.4.3 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
 | collaborative-browser | 3.1.0 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
-| notebooklm-connector | 4.2.3 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |
-| browser-local-ai-webllm | 1.2.3 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
-| webapp-testing | 1.4.0 | Playwright-тестування локальних веб-застосунків, скриншоти, UI-дебаг |
-| n8n-orchestrator | 2.8.3 | будь-що про n8n: workflow JSON, вебхуки, автоматизації, пайплайни |
+| notebooklm-connector | 4.3.0 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |
+| browser-local-ai-webllm | 1.2.4 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
+| webapp-testing | 1.5.0 | Playwright-тестування локальних веб-застосунків, скриншоти, UI-дебаг |
+| n8n-orchestrator | 2.9.0 | будь-що про n8n: workflow JSON, вебхуки, автоматизації, пайплайни |
 | vercel-mcp-connector | 1.1.0 | робота з Vercel: деплой, build/runtime логи, "чому впав білд", домени |
-| pwa-to-android-app | 1.3.2 | упакувати HTML/JS-застосунок як PWA/APK, авто-оновлення, встановлення на смартфон |
-| surgical-code-refactoring | 1.5.2 | правки великого робочого коду без поломок: patch over rewrite, regression-check |
+| pwa-to-android-app | 1.3.3 | упакувати HTML/JS-застосунок як PWA/APK, авто-оновлення, встановлення на смартфон |
+| surgical-code-refactoring | 1.5.3 | правки великого робочого коду без поломок: patch over rewrite, regression-check |
 
 ## Стан пакета (довідково, не перевіряти повторно)
 

@@ -1,16 +1,16 @@
 ---
 name: notebooklm-connector
-description: "Full integration with Google NotebookLM: read sources, add URLs and files, merge all sources into one document, generate Audio Overview, Video Overview, Briefing Doc, Study Guide, FAQ, Timeline, Mind Map, Slide Deck, Infographic, Flashcards, Quizzes, Deep Research, and Chat with citations. ALWAYS use this skill when user mentions notebook or notebooklm, shares a notebooklm.google.com link, or says dodai do notebook, vytahny z notebook, obiednai dzherela, analizui notebook. Even without the word notebooklm: use when user wants to merge research sources, generate a podcast from documents, build a knowledge base, or analyze sources with cited answers. Also triggers for: collaborative browser, спільний браузер, відкрий браузер. DO NOT use for plain Google Docs tasks with no NotebookLM involvement."
+description: "Full integration with Google NotebookLM: read sources, add URLs and files, merge all sources into one document, generate Audio Overview, Video Overview, Briefing Doc, Study Guide, FAQ, Timeline, Mind Map, Slide Deck, Infographic, Flashcards, Quizzes, Deep Research, and Chat with citations. ALWAYS use this skill when user mentions notebook or notebooklm, shares a notebooklm.google.com link, or says dodai do notebook, vytahny z notebook, obiednai dzherela, analizui notebook. Even without the word notebooklm: use when user wants to merge research sources, generate a podcast from documents, build a knowledge base, or analyze sources with cited answers. DO NOT use for: plain Google Docs tasks with no NotebookLM involvement; запуск спільного браузера — «відкрий браузер»/collaborative browser (collaborative-browser; MODE F делегує туди); синтез неочевидних зв'язків поверх власних нотаток поза NotebookLM (knowledge-synthesizer)."
 license: Proprietary
 metadata:
-  version: 4.2.3
+  version: 4.3.0
   author: Melania (Master Administrator)
   category: knowledge
   created: 2026-03-20
-  last_updated: 2026-06-02
+  last_updated: 2026-07-19
 ---
 
-# NotebookLM Connector — v4
+# NotebookLM Connector — v4.3.0
 > Українською-перша: відповіді, пояснення й нотатки — українською за замовчуванням; UI-шляхи NotebookLM лишаються як є. Перемикання мови лише слідом за користувачем.
 >
 > **Неофіційний.** Не пов'язаний з, не схвалений і не спонсорований Google. «NotebookLM» — продукт і торгова марка Google; назва вжита суто референційно (опис сумісності).
@@ -109,23 +109,12 @@ Raw browser control (when needed):
 Trigger phrases: "відкрий браузер", "collaborative browser", "спільний браузер",
 or whenever web content needs interactive real-time fetching.
 
-Generate `collaborative-browser.jsx` React Artifact with:
-- Anthropic API-powered navigation (askClaude fetches + summarizes pages)
-- Language switcher: 🇺🇦 UK · 🇬🇧 EN · 🇩🇪 DE · 🇫🇷 FR · 🇵🇱 PL · 🇪🇸 ES
-- Page translation button (⟷) — translates loaded content to UI language via Claude API
-- BroadcastChannel multiplayer — real-time sync across tabs
-- window.storage — bookmarks, notes, history, Google cookies persist
-- Autopilot — multi-step research chains
-- Command Palette ⌘K — 15+ actions including language/translation commands
-- Quick Actions bar — NotebookLM + Canva/Gmail/Calendar/Vercel
-- Agent panel — commands via Anthropic API, sendPrompt() to Claude
-- Cookie injection modal — accepts Cookie Editor JSON for Android auth
-
-The i18n system covers all UI strings in 6 languages.
-Page translation detects source language and translates via Claude.
-Translation bar shows all target languages for quick switching.
-
-Full artifact source: `collaborative-browser.jsx` (already built)
+**Делегування (канон):** повний браузерний артефакт живе у скілі `collaborative-browser`
+(v3.x: Anthropic API-навігація, i18n UI in 6 languages, мультиплеєр, Autopilot,
+Command Palette, Secrets, cookie-інʼєкція тощо). Цей скіл НЕ генерує власний `collaborative-browser.jsx` —
+активуй `collaborative-browser` і передай NotebookLM-контекст (URL нотатника, ціль сесії,
+потрібні Quick Actions). Історичний опис фіч — `references/collaborative-browser-artifact.md`
+(застарілий, лише архів).
 
 ### 1D — React Artifact + Google OAuth
 
@@ -294,7 +283,7 @@ pending         — queued
 | session days < 7 | Warn + show Android guide proactively | Wait for failure |
 | notebooklm_session_status shows needs_refresh | Immediately show Cookie Editor steps | Continue silently |
 | days_remaining returns negative | Session expired — block and require re-auth | Try operations anyway |
-| "відкрий браузер" | Generate collaborative-browser.jsx Artifact | Text-only response |
+| "відкрий браузер" | Activate `collaborative-browser` skill (делегування MODE F) | Генерувати власний .jsx-дубль |
 | Collab Browser active | Use sendPrompt() content, trust BroadcastChannel | Ignore Artifact data |
 | Language switch | Apply T[lang] across all UI, persist to storage, broadcast | Mix languages |
 | Page translate request | translatePage(lang) via Claude API, show translation bar | Use external service |
@@ -331,6 +320,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v4.3.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): MODE F більше не генерує власний `collaborative-browser.jsx` (мертвий референс на «already built» артефакт) — тонке делегування у скіл `collaborative-browser` з передачею NotebookLM-контексту; Behavior-рядок «відкрий браузер» відповідно [#9]; з опису знято перехоплювальні тригери «відкрий браузер/спільний браузер» (канон — collaborative-browser) і додано межу з `knowledge-synthesizer` [#11]; синхрон H1-банера (був v4). Делегування; власна NotebookLM-механіка незмінна.
 - **v4.2.3** (2026-06-26) — Stage 3: **S-3** `evals/` відновлено (6 реальних кейсів v3.0.0 з форензик-пошуку: read-notebook-url, add-multiple-sources, feature-generator-survey, mobile-friendly-instructions, deep-research-new-feature, context-chat-export; канон-схема). **S-2** дубльовану секцію «Зміни» + дубль v4.2.0 консолідовано (вміст збережено). Відновлення + консолідація.
 - **v4.2.2** (2026-06-15) — B2 (safety-compliance-gate): дисклеймер неприналежності — NotebookLM (Google).
 - **v4.2.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна.

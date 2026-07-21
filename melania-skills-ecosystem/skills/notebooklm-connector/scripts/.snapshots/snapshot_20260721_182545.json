@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-07-21T18:26:05.177749+00:00",
-  "md5": "b6d6635a805d831f89f1bc6edf9a4560",
+  "timestamp": "2026-07-21T18:25:45.335235+00:00",
+  "md5": "86f80d9502034f8693822947123706ef",
   "total_lines": 328,
   "desc_length": 934,
   "has_valid_frontmatter": true,
@@ -52,7 +52,7 @@
     "translatePage": true,
     "BroadcastChannel": true,
     "window.storage": true,
-    "6 languages": true,
+    "6 languages": false,
     "sendPrompt": true,
     "Autopilot": true,
     "Cookie Editor": true,
