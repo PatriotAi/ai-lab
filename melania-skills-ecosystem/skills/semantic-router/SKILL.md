@@ -20,7 +20,7 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.14.0
+  version: 1.14.1
   category: routing
 ---
 
@@ -178,6 +178,7 @@ Fallback на CLI — тільки при miss або помилці tool, не 
 | "аудит скілів", "ревізія екосистеми", "онови скіли" | skill-ecosystem-auditor | validation-mesh |
 | "skill governance", "версія/CHANGELOG", "MA directive", "три закони" | melania-skill-master-administrator | skill-creation-guide |
 | "публікація скіла", "монетизація", "trademark", "дисклеймер", "security gate", "недовірений вхід" | safety-compliance-gate | melania-skill-master-administrator |
+| "GitHub", "PR", "pull request", "issues", "CI", "реліз", "слідкуй за PR", "щоб зміни перевірялись самі", "поверни як було", "що з репо" | github-collab | continuation-memory |
 | "notebooklm", "обʼєднай джерела", "podcast з документів" | notebooklm-connector | — |
 | "vercel", "deploy", "деплой", "build logs", "хостинг", "vercel mcp", "чому впав білд" | vercel-mcp-connector | safety-compliance-gate |
 | "відкрий браузер", "спільний браузер", "веб-серфінг з агентом" | collaborative-browser | — |
@@ -344,6 +345,7 @@ Load only on demand — not proactively.
 
 ## Changelog
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (v1.6.0 двічі — артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.14.1** (2026-07-21) — Routing Map: +рядок `github-collab` (нова навичка GitHub-автоматизації та співпраці; болі своїми словами: PR/CI/issues/«поверни як було»; secondary — continuation-memory для циклу compact). Лише додавання рядка, семантичний принцип без змін.
 - **v1.14.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) **семантичні тригери** — маршрутизація за ЗНАЧЕННЯМ наміру, не за дослівними фразами (директива власника; принцип у тілі + description). (B) Розрив циклу «хто перший»: uncertain → роутер сам виконує тріаж (канонічна точка входу); ai-core-runtime — лише fallback, коли роутер недоступний (закриває аудит-знахідку №2). (C) +DO NOT-межі в description: топології→workflow-orchestration, kernel→ai-core-runtime, мета-оркестрація→rlm-harness (№3). (D) Routing Map: рядок «створити/оновити скіл» розділено за governance-межею — створити→skill-creation-guide, оновити/версія/затвердити→SMA (рев'ю Codex PR #24). (E) Description ужато до ≤1024 симв. (packaging-ліміт; рев'ю Codex PR #24).
 - **v1.13.2** (2026-06-26) — Changelog-гігієна (F2): примітка про історичні дублі-номери (v1.6.0 двічі). Усі записи збережено; нумерацію НЕ переписано без верифікації (форензик: git/історія відсутні → не вгадуємо). Лише додавання примітки.
 - **v1.13.1** (2026-06-26) — `evals/` реконструйовано. Форензик-аудит: claim існував з v1.2.1, але артефакт відсутній у всіх джерелах (git/транскрипти/FS) → відтворено, claim НЕ видалено. `evals/` виключається з .skill (тест-артефакт). Лише додавання.

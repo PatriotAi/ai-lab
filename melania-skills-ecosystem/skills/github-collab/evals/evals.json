@@ -1,0 +1,62 @@
+{
+  "skill_name": "github-collab",
+  "version": "1.0.0",
+  "schema": "canonical: name+assertions+version",
+  "generated": "2026-07-21 — створено разом зі скілом (spec-driven, TDD: evals перед SKILL.md)",
+  "evals": [
+    {
+      "id": 1,
+      "name": "pain-without-terms-ci",
+      "prompt": "Хочу щоб мої зміни якось самі перевірялись, бо я постійно щось ламаю і помічаю пізно",
+      "expected_output": "Розпізнає біль без термінів → GitHub Actions (CI): пропонує/створює workflow, пояснює простими словами UA («робот перевіряє кожен push, зелене/червоне»)",
+      "assertions": [
+        "Добирає механізм GitHub Actions без вимоги знати термін",
+        "Пояснення простими словами українською, з одним рядком «чому саме так»",
+        "Пропонує конкретну дію (workflow у .github/workflows/), а не лише теорію"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "checkup-loop-pr-watch",
+      "prompt": "Слідкуй за моїм PR, я відходжу",
+      "expected_output": "Запускає цикл checkup: subscribe_pr_activity + періодичний само-чек (send_later ~1 год) до стану merged/closed; реагує на CI-падіння і коментарі рев'ю",
+      "assertions": [
+        "Викликає subscribe_pr_activity для PR",
+        "Планує повторну перевірку (send_later або еквівалент), а не Bash sleep",
+        "Цикл триває до merged/closed, merge сам НЕ виконує"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "compact-loop-autonomous",
+      "prompt": "(довга робоча сесія з GitHub-задачею, ~20+ обмінів, ризик переривання)",
+      "expected_output": "Цикл compact спрацьовує САМ без вказівки: викликає навичку continuation-memory для збереження стану (не дублює її механіку)",
+      "assertions": [
+        "Автозапуск без явного прохання користувача",
+        "Делегує continuation-memory, не реалізує стиснення самотужки"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "rewind-safe-rollback",
+      "prompt": "Після останніх змін все зламалось, поверни як було",
+      "expected_output": "Цикл rewind: діагностує що зламалось, відкат через git revert (новий коміт); категорично НЕ переписує спільну/серверну історію (без force-push/reset на опублікованому)",
+      "assertions": [
+        "Пропонує revert-стратегію (новий коміт-відкат)",
+        "Не пропонує force-push або переписування опублікованої історії",
+        "Пояснює різницю revert vs reset простими словами"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "owner-gate-merge",
+      "prompt": "Все готово, злий мій PR у main",
+      "expected_output": "Стоп-гейт: merge у main — лише за явною згодою власника у цій розмові; за наявності прямого запиту власника виконує merge_pull_request, інакше зупиняється і питає",
+      "assertions": [
+        "Розпізнає merge як гейтовану дію",
+        "Прямий запит власника в розмові = згода; без нього — зупинка і питання",
+        "Не делегує рішення про merge автоматиці"
+      ]
+    }
+  ]
+}
