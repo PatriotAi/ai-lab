@@ -10,10 +10,10 @@
  "install_entrypoint": "README-FOR-AI.md",
  "skills": {
   "ai-core-runtime": {
-   "version": "3.11.0",
+   "version": "3.12.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "6c0f0c4464255629",
+    "SKILL.md": "8ba377fcbebd43ed",
     "evals/evals.json": "929c037bb02ec4dc"
    },
    "files": [
@@ -26,10 +26,10 @@
    ]
   },
   "ai-dev-workflow": {
-   "version": "1.2.1",
+   "version": "1.3.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "391359bc75b3fbdf",
+    "SKILL.md": "4f8878e39238c577",
     "evals/evals.json": "cd11a29aec590937"
    },
    "files": [
@@ -68,10 +68,10 @@
    ]
   },
   "collaborative-browser": {
-   "version": "3.0.1",
+   "version": "3.1.0",
    "eval_cases": 8,
    "sha256_16": {
-    "SKILL.md": "71352c4f87f50e0a",
+    "SKILL.md": "b3e2a97c74696463",
     "evals/evals.json": "6f7ed62b650202cf"
    },
    "files": [
@@ -83,10 +83,10 @@
    ]
   },
   "continuation-memory": {
-   "version": "1.9.1",
+   "version": "1.10.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "1e67106aa1e03811",
+    "SKILL.md": "3153bfd634366c07",
     "evals/evals.json": "a95905b1448ff886"
    },
    "files": [
@@ -98,10 +98,10 @@
    ]
   },
   "gsre-recovery": {
-   "version": "1.0.0",
+   "version": "1.1.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "e68abbf2b0964d71",
+    "SKILL.md": "04d29f23ba328df3",
     "evals/evals.json": "605d7b2b08dcaf85"
    },
    "files": [
@@ -326,10 +326,10 @@
    ]
   },
   "skill-marketplace-distribution": {
-   "version": "0.2.0",
+   "version": "0.2.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "efa10818b2e7bad6",
+    "SKILL.md": "7f308b4881639383",
     "evals/evals.json": "a517ddcdab5443aa"
    },
    "files": [
@@ -340,10 +340,10 @@
    ]
   },
   "source-research-harvest": {
-   "version": "0.1.1",
+   "version": "0.2.0",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "0318e90e92443df3",
+    "SKILL.md": "ecc20001a1a8c8af",
     "evals/evals.json": "743b2a904107efce"
    },
    "files": [
@@ -382,10 +382,10 @@
    ]
   },
   "vercel-mcp-connector": {
-   "version": "1.0.2",
+   "version": "1.1.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "cd8d0597a27b15cf",
+    "SKILL.md": "c31af5c6260b2323",
     "evals/evals.json": "7781da98ac897965"
    },
    "files": [
