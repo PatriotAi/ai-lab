@@ -6,7 +6,7 @@ Read-only. Друкує: frontmatter-матрицю, вісь українськ
 карту координації та orphan-перевірку. Жодних змін на диску."""
 import os, re, sys
 
-_LAB_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_LAB_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 ROOT = sys.argv[1] if len(sys.argv) > 1 else (
     "/mnt/skills/user" if os.path.isdir("/mnt/skills/user") else _LAB_SKILLS)
 

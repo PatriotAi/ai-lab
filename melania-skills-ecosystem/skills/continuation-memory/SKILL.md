@@ -16,8 +16,10 @@ description: >
   "де ти був перебитий", "відновити прогрес", "save state", "STENO",
   "pick up where we left off".
 
-  IMPORTANT: This skill is a drop-in memory system for any project.
-  Use it proactively after ~20 turns or whenever a task may be interrupted. DO NOT use for: short sessions (under 20 turns) or one-shot questions needing no state; пошук/відновлення ВТРАЧЕНИХ напрацювань по минулих чатах — forensic recovery (gsre-recovery); цей скіл зберігає/відновлює стан ПОТОЧНОЇ лінії роботи, не шукає загублене.
+  IMPORTANT: use proactively after ~20 turns or whenever a task may be
+  interrupted. DO NOT use for: short sessions or one-shot questions needing
+  no state; forensic-пошук ВТРАЧЕНОГО по минулих чатах (gsre-recovery) —
+  тут лише стан ПОТОЧНОЇ лінії роботи.
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
@@ -323,7 +325,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
-- **v1.10.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `gsre-recovery` — «відновити прогрес/контекст» тут = стан ПОТОЧНОЇ лінії; forensic-пошук втраченого по чатах = gsre [#10]; H1-банер з версією + `last_updated` у metadata [#21/#45]. Лише опис/метадані.
+- **v1.10.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `gsre-recovery` — «відновити прогрес/контекст» тут = стан ПОТОЧНОЇ лінії; forensic-пошук втраченого по чатах = gsre [#10]; H1-банер з версією + `last_updated` у metadata [#21/#45]. Лише опис/метадані. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v1.9.1** (2026-07-13) — G5 cold-start recovery gate: валідований патерн зовнішньої пам'яті проти прогалини G5 — self-contained critical refs (критичні URL/шляхи inline, не pointer-only) + recovery-checklist ДО тесту (об'єктивний вимір 100% критичних без повтору); крос-лінк `gmi-audit`. Лише додавання. _(Джерело: experiments/gmi-g5-memory — recovery 9/9.)_
 - **v1.9.0** (2026-07-11) — Compaction-дисципліна (frontier-research harvest): **(A)** 4-кроковий порядок навколо server-side стиснення: pre-compaction flush (durable ПЕРЕД стисненням; recall-first тюнінг проти poisoned summary), стабільний кеш-префікс (edits щотурну вбивають prompt-cache), context editing як другий важіль (емпірика +29% / +39% і −84% з memory), provider-agnostic fallback (STENO+hot/warm/cold = та сама дисципліна для будь-якої моделі). API-механіка — покажчик на `llm-api-builder` (DRY). **(B)** De-pin: згадка конкретних моделей у Compaction → «поточні топ-моделі (звір docs)» (правило агностичності MA). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено навмисно; нумерацію НЕ переписано без верифікації джерел (принцип: не вгадувати/не видаляти неперевірене)._

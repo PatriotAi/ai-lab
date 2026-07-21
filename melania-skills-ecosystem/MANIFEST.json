@@ -29,7 +29,7 @@
    "version": "1.3.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "4f8878e39238c577",
+    "SKILL.md": "fe99f168a4bf0c93",
     "evals/evals.json": "cd11a29aec590937"
    },
    "files": [
@@ -86,7 +86,7 @@
    "version": "1.10.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "3153bfd634366c07",
+    "SKILL.md": "df5ba719dfea1865",
     "evals/evals.json": "a95905b1448ff886"
    },
    "files": [
@@ -311,7 +311,7 @@
    "version": "1.7.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "3a4a4890dc28e063",
+    "SKILL.md": "dae568916330bb4b",
     "evals/evals.json": "0ce12a0832e6322e"
    },
    "files": [
@@ -343,7 +343,7 @@
    "version": "0.2.0",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "ecc20001a1a8c8af",
+    "SKILL.md": "50170a48bb29ca8c",
     "evals/evals.json": "743b2a904107efce"
    },
    "files": [
@@ -371,7 +371,7 @@
    "version": "1.6.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "3e9e951688a36288",
+    "SKILL.md": "d37925764685baea",
     "evals/evals.json": "df970a015d3d5500"
    },
    "files": [
