@@ -40,7 +40,7 @@ validation-mesh → snapshot → merge-not-replace → bump+CHANGELOG → схв
 | «слідкуй за PR» | цикл `checkup` | `subscribe_pr_activity` + `send_later` |
 | «загубив задачі» | Issues / Projects | `issue_write`, `list_issues` |
 | «поверни як було» | цикл `rewind` | `git revert` (БЕЗ переписування історії) |
-| «чому червоний хрестик» | логи CI | `get_job_logs`, `get_check_run` |
+| «чому червоний хрестик» | логи CI | `pull_request_read (get_check_runs)`, `get_job_logs` |
 | «чи не витік ключ» | secret scanning | `run_secret_scanning`, gitleaks |
 | «що з репо» | зведення стану | `list_pull_requests` + `list_issues` + `actions_list` |
 | «зробити сайт з репо» | GitHub Pages | налаштування Pages |

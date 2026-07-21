@@ -21,8 +21,9 @@
   AI-рев'ю: `request_copilot_review` → пояснити: PR = пропозиція злиття + обговорення.
 - «Що там кажуть по моєму PR?» / «слідкуй за PR» → цикл `checkup` →
   `pull_request_read`, `subscribe_pr_activity` (+ періодичний само-чек `send_later`).
-- «Відповісти на зауваження» → review-коментарі → `add_reply_to_pull_request_comment`,
-  `resolve_review_thread`.
+- «Відповісти на зауваження» → review-коментарі → `add_reply_to_pull_request_comment`;
+  `resolve_review_thread` — ЛИШЕ після реально виконаної й перевіреної правки
+  (reply і resolve — різні дії; передчасний resolve ховає відкрите зауваження).
 - «Злий мої зміни в main» → merge → ⛔ ГЕЙТ: merge лише за явною згодою власника
   (потім MCP `merge_pull_request`).
 
@@ -35,8 +36,8 @@
 - «Хочу щоб зміни перевірялись самі» → GitHub Actions → workflow-файл у
   `.github/workflows/` (створити/поправити), MCP `actions_list`, `actions_get`,
   `actions_run_trigger` → пояснити: робот перевіряє кожен push і показує зелене/червоне.
-- «Чому червоний хрестик?» → логи CI → `get_job_logs`, `get_check_run` → діагноз
-  простими словами + пропозиція фікса.
+- «Чому червоний хрестик?» → логи CI → `pull_request_read (get_check_runs)`,
+  `get_job_logs` → діагноз простими словами + пропозиція фікса.
 
 ## 5. Випуски та версії
 - «Зафіксувати версію» / «випустити» → releases/tags → MCP `list_releases`,
@@ -67,3 +68,4 @@
 - Створювати PR, коли задача цього не вимагає і власник не просив (виняток: протокол
   melania пре-схвалює відкриття PR для поширення змін екосистеми).
 - Вигадувати стан («0 відкритих PR») без повної перевірки списку через API.
+- Резолвити тред рев'ю без виконаної правки — reply і resolve це різні дії.
