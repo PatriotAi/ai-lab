@@ -53,7 +53,7 @@
 5. Білінгвальні коментарі в конфігах (workflows, pre-commit, `.env.example`, trivy).
 6. **Конвенція:** UA — джерело правди; EN оновлюємо в тому ж PR (не розходяться).
 
-## Фаза 2 — Довершення безпеки та CI 🟡 (код ✅; branch protection ⛔)
+## Фаза 2 — Довершення безпеки та CI 🟡 (код ✅; branch protection — рішення «варіант C», див. висновок 2026-07-13)
 1. `.github/workflows/code-quality.yml` (розширений із первинного `lint.yml`): pre-commit +
    actionlint + форматування за мовами (коли з'явиться код).
 2. `.github/workflows/dependencies.yml` — `dependency-review-action` (рев'ю залежностей у PR).
@@ -61,9 +61,14 @@
 3. `scripts/setup.sh` — бутстрап: встановити `pre-commit`, hooks, перевірити оточення.
 4. `scripts/security-check.sh` — локально прогнати gitleaks + Trivy + pre-commit одним викликом.
 5. `projects/project-template/` — додати `.gitignore` і `src/.gitkeep`.
-6. ⛔ **Branch protection** для `main`: обов'язкові PR + рев'ю + зелені перевірки
-   (`security`, `code-quality`). Потрібен доступ до GitHub API/налаштувань.
-7. ⛔ Увімкнути **code scanning / secret scanning** (Settings → Security).
+6. ✔ **Branch protection** для `main` — **рішення прийнято (варіант C, 2026-07-13):** жорсткі
+   GitHub rulesets не діють на приватному репо на безкоштовному плані, тож обрано **м'який
+   governance** — доступ лише власника + `CLAUDE.md` без авто-злиття (merge у `main` тільки
+   за явною згодою власника) + увімкнено Dependency graph. Це свідомий вибір, не блокер;
+   жорсткий замок (обов'язкові PR/рев'ю/зелені перевірки) — лише за апгрейду плану (public/Team).
+7. ✔ **Code/secret scanning** — той самий контекст free-плану: покрито CI-рівнем (gitleaks +
+   Trivy + Semgrep у workflow, SARIF) замість вбудованого GitHub Advanced Security; активація
+   вбудованого — теж за апгрейду плану.
 
 ## Фаза 3 — Двигун продуктивності (навички та автоматизації) ✅ ЗРОБЛЕНО
 Серце лабораторії — «створювати / покращувати / винаходити».
@@ -96,7 +101,7 @@ validation-mesh → content-pipeline → translate-uaen → pre-delivery-gate). 
 ## Рішення — прийнято за рекомендаціями ✅
 > Apache-2.0 · `docs/ua`+`docs/en` · без окремого `README_UA.md` · перший експеримент — `skill-new`.
 > Нижче — повний контекст кожного пункту (як запис рішення).
-1. **Ліцензія:** лишаємо **Apache-2.0** (рекоменд. — патентний захист) чи переходимо на **MIT** (як радив Copilot)?
+1. **Ліцензія:** лишаємо **Apache-2.0** — патентний захист (пропозицію Copilot про MIT відхилено).
 2. **Модель білінгвальності docs:** (А) паралельні `docs/ua` + `docs/en` (як у плані Copilot)
    чи (Б) один файл із UA+EN секціями. **Рекоменд.: (А)** — чистіше перемикання.
 3. **`README_UA.md` окремо?** Рекоменд.: ні — `README.md` уже білінгвальний із повною
