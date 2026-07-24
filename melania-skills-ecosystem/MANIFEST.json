@@ -1,10 +1,10 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-07-11",
- "governance": "melania-skill-master-administrator v2.15.0",
+ "built": "2026-07-21",
+ "governance": "melania-skill-master-administrator v2.17.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
- "skill_count": 27,
- "total_eval_cases": 128,
+ "skill_count": 28,
+ "total_eval_cases": 133,
  "eval_schema": "canonical: top-level version + evals[].name/prompt/expected_output/assertions",
  "provenance_note": "v4 rebuilt from live disk 2026-07-05. source-research-harvest recovered via GSRE (lost in parallel sessions). All 27 eval sets restored from v3 zip + regenerated where missing. collaborative-browser upgraded 2.7.2->3.0.0.",
  "install_entrypoint": "README-FOR-AI.md",
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.17.0",
+   "version": "2.18.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "4e41ee2b10d9dd80",
+    "SKILL.md": "12c67336e54ae95c",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -241,15 +241,16 @@
    ]
   },
   "rlm-harness": {
-   "version": "0.4.1",
+   "version": "0.5.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "12527226ffda16be",
+    "SKILL.md": "d279d3796077462b",
     "evals/evals.json": "4c348b6d0b54326e"
    },
    "files": [
     "SKILL.md",
     "evals/evals.json",
+    "references/conductor-standard.md",
     "references/context-engineering.md",
     "references/model-fit-policy.md",
     "references/recipe-template.md",
@@ -281,7 +282,7 @@
    "version": "1.15.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "4d97ae8ed5262546",
+    "SKILL.md": "3c36b68b6805844a",
     "evals/evals.json": "923c9bb3b7898c15"
    },
    "files": [
@@ -420,6 +421,21 @@
     "SKILL.md",
     "evals/evals.json",
     "references/topology-taxonomy.md",
+    "scripts/skill_guard.py"
+   ]
+  },
+  "github-collab": {
+   "version": "1.0.0",
+   "eval_cases": 5,
+   "sha256_16": {
+    "SKILL.md": "70705a9996b0a2af",
+    "evals/evals.json": "910a91bf952634f6"
+   },
+   "files": [
+    "SKILL.md",
+    "evals/evals.json",
+    "references/essentials-roadmap.md",
+    "references/pain-to-solution.md",
     "scripts/skill_guard.py"
    ]
   }
