@@ -15,6 +15,7 @@ build_digest() {
   printf '## Контекст лабораторії ai-lab — SessionStart\n\n'
   printf '**Мова:** спілкування українською; UA — канон, EN — дзеркало для публікацій.\n'
   printf '**Безпека:** жодних секретів у репо (лише env); перед комітом — pre-commit.\n\n'
+  printf '**Дій за Робочим стандартом щозапиту (CLAUDE.md § Робочий стандарт).**\n\n'
 
   if compgen -G ".claude/skills/*/SKILL.md" >/dev/null 2>&1; then
     printf '**Активні навички:**\n'
