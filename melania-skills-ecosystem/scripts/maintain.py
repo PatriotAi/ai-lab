@@ -122,6 +122,52 @@ def verify() -> int:
     if total_evals != man.get("total_eval_cases"):
         problems.append(f"total_eval_cases {man.get('total_eval_cases')} != {total_evals} фактичних")
 
+    # ── Гейт актуальності: КОЖНА згадка версії/лічильника в репо = факту ──
+    # (правило актуальності: документація не має права відставати від стану)
+    n_skills = len(dirs)
+    mel_ver = man["skills"].get("melania-skill-master-administrator", {}).get("version")
+    gov = re.search(r"v([\d.]+)", man.get("governance", ""))
+    if mel_ver and gov and gov.group(1) != mel_ver:
+        problems.append(f"MANIFEST.governance v{gov.group(1)} != melania {mel_ver}")
+
+    # Похідні лічильники в будь-якому документі екосистеми та ключових файлах репо
+    doc_targets = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
+                   ROOT / "README-FOR-AI.md", ROOT / "INSTALL-PROMPT.txt",
+                   ROOT.parent / "README.md"]
+    for doc in doc_targets:
+        if not doc.exists():
+            continue
+        txt = doc.read_text(encoding="utf-8", errors="replace")
+        rel = doc.name
+        for pat, actual, label in (
+            (r"(\d+)\s+(?:AI-)?(?:скіл|навич|skill)|[Сс]кілів:\s*(\d+)", n_skills, "кількість скілів"),
+            (r"(\d+)\s+eval-кейс|[Ee]val-кейсів:\s*(\d+)|тест-кейси\s*\((\d+)", total_evals, "кількість evals"),
+        ):
+            found = [g for tup in re.findall(pat, txt) for g in (tup if isinstance(tup, tuple) else (tup,)) if g]
+            stale = {v for v in found if v.isdigit() and int(v) != actual and 10 < int(v) < 1000}
+            if stale:
+                problems.append(f"{rel}: застаріла {label} {sorted(stale)} != {actual}")
+        for m_gov in re.findall(r"melania v([\d.]+)", txt):
+            if mel_ver and m_gov != mel_ver:
+                problems.append(f"{rel}: governance v{m_gov} != melania {mel_ver}")
+        # дати «збірка/зафіксовано/верифіковано» = MANIFEST.built
+        built = man.get("built", "")
+        stale_dates = {d for d in re.findall(
+            r"(?:збірк[аи]|зафіксовано|верифіковано|перевірено|Дата збірки:)\s*(\d{4}-\d{2}-\d{2})", txt)
+            if d != built}
+        if stale_dates:
+            problems.append(f"{rel}: застаріла дата {sorted(stale_dates)} != built {built}")
+
+    # Версії в маршрутній таблиці BOOTSTRAP = MANIFEST
+    bs = ROOT / "MELANIA-BOOTSTRAP.md"
+    if bs.exists():
+        rows = dict(re.findall(r"^\|\s*([a-z0-9-]+)\s*\|\s*([\d.]+)\s*\|", bs.read_text(encoding="utf-8"), re.M))
+        for name, v in rows.items():
+            if name in man["skills"] and man["skills"][name]["version"] != v:
+                problems.append(f"BOOTSTRAP: {name} v{v} != MANIFEST {man['skills'][name]['version']}")
+        for name in set(man["skills"]) - set(rows):
+            problems.append(f"BOOTSTRAP: немає рядка маршрутизації для {name}")
+
     # Guards. Деякі guard (notebooklm) дописують runtime-лог audit.jsonl —
     # verify має лишатись read-only, тож зберігаємо й відновлюємо такі логи.
     logs = {p: p.read_bytes() for p in SKILLS.rglob("audit.jsonl")}
@@ -215,6 +261,12 @@ def resync() -> int:
         if sha.get("evals/evals.json") != new["sha_evals"]: sha["evals/evals.json"] = new["sha_evals"]; changed_manifest = True
     if man.get("total_eval_cases") != total: man["total_eval_cases"] = total; changed_manifest = True
     if man.get("skill_count") != len(dirs): man["skill_count"] = len(dirs); changed_manifest = True
+    # governance — похідне від фактичної версії melania (правило anti-stale)
+    mel_v = man["skills"].get("melania-skill-master-administrator", {}).get("version")
+    if mel_v:
+        want_gov = f"melania-skill-master-administrator v{mel_v}"
+        if man.get("governance") != want_gov:
+            man["governance"] = want_gov; changed_manifest = True
     if changed_manifest:
         MANIFEST.write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
