@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Кишеньковий агент</title>
+<link rel="manifest" href="__MANIFEST_DATA_URI__">
+<link rel="icon" type="image/png" href="__ICON192_DATA_URI__">
+<link rel="apple-touch-icon" href="__ICON192_DATA_URI__">
+<style>
+  :root{
+    --bg:#0b0d0f; --surface:#14181c; --surface-2:#1c2126; --line:#2a3138;
+    --ink:#eef2f4; --ink-dim:#93a1ab; --accent:#d4ff4f; --accent-ink:#12160a;
+    --warn:#ffb020; --err:#ff6b5e; --radius:16px;
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.45 ui-sans-serif,"Inter","Segoe UI Variable","Segoe UI",Roboto,system-ui,sans-serif;
+    display:flex;flex-direction:column;overscroll-behavior:none;
+  }
+  header{
+    display:flex;align-items:center;gap:10px;padding:14px 16px 12px;
+    border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5;
+  }
+  .brand{font-weight:700;letter-spacing:-.02em;font-size:17px;flex:1;min-width:0}
+  .brand small{display:block;font-weight:400;font-size:11px;color:var(--ink-dim);letter-spacing:.04em}
+  .chip{
+    font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-dim);white-space:nowrap;cursor:pointer;
+  }
+  .chip.cloud{color:#8fd8ff;border-color:#28414f}
+  .chip.local{color:var(--accent);border-color:#3d4a1f}
+  .chip.offline{color:var(--warn);border-color:#4a3a17}
+  .icon-btn{
+    width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:17px;cursor:pointer;
+  }
+  #banner{display:none;padding:10px 16px;background:#20301a;border-bottom:1px solid #3d4a1f;
+    font-size:14px;align-items:center;gap:10px}
+  #banner.on{display:flex}
+  #banner button{margin-left:auto;background:var(--accent);color:var(--accent-ink);border:0;
+    padding:7px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+  .searchbar{padding:10px 16px 4px}
+  .searchbar input{
+    width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:15px;
+  }
+  main{flex:1;overflow-y:auto;padding:8px 16px 16px;-webkit-overflow-scrolling:touch}
+  .note{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:13px 14px;margin:10px 0;
+  }
+  .note.task{border-left:3px solid var(--accent)}
+  .note .meta{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--ink-dim);margin-bottom:7px}
+  .note .meta .badge{border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+  .note .q{font-weight:600;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
+  .note .a{white-space:pre-wrap;word-break:break-word;color:#cdd7dd;font-size:15px}
+  .note .tags{margin-top:8px;font-size:12px;color:var(--accent)}
+  .note .del{float:right;background:none;border:0;color:var(--ink-dim);cursor:pointer;font-size:15px}
+  .empty{color:var(--ink-dim);text-align:center;padding:48px 20px;font-size:14px}
+  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:8px}
+  footer{
+    border-top:1px solid var(--line);background:var(--bg);
+    padding:10px 12px calc(10px + var(--safe-b));display:flex;gap:8px;align-items:flex-end;
+  }
+  #input{
+    flex:1;min-height:46px;max-height:140px;resize:none;padding:12px 14px;border-radius:14px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15px;
+  }
+  #send{
+    width:46px;height:46px;flex:none;border-radius:14px;border:0;background:var(--accent);
+    color:var(--accent-ink);font-size:19px;font-weight:700;cursor:pointer;
+  }
+  #send:disabled{opacity:.45}
+  dialog{
+    border:0;border-radius:18px 18px 0 0;background:var(--surface);color:var(--ink);
+    padding:0;width:100%;max-width:560px;margin:auto auto 0;
+  }
+  dialog::backdrop{background:#000a}
+  .sheet{padding:18px 18px calc(18px + var(--safe-b))}
+  .sheet h2{margin:0 0 14px;font-size:17px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;color:var(--ink-dim);margin-bottom:6px}
+  .field input,.field select{
+    width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink);font-size:15px;
+  }
+  .row{display:flex;gap:8px}
+  .btn{
+    padding:11px 14px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:14px;cursor:pointer;flex:1;
+  }
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .hint{font-size:12px;color:var(--ink-dim);margin-top:-6px;margin-bottom:14px}
+  .hint.err{color:var(--err)}
+  #toast{
+    position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--surface-2);
+    border:1px solid var(--line);color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw;text-align:center;
+  }
+  #toast.on{opacity:1}
+  .spin{display:inline-block;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Кишеньковий агент<small>ai-lab · projects/mobile-agent</small></div>
+  <button class="chip" id="engineChip" title="Двигун">…</button>
+  <button class="icon-btn" id="openSettings" aria-label="Налаштування">⚙</button>
+</header>
+
+<div id="banner">
+  <span id="bannerText">Доступне оновлення</span>
+  <button id="applyUpdate">Оновити</button>
+</div>
+
+<div class="searchbar"><input id="search" type="search" placeholder="Пошук у нотатках…" autocomplete="off"></div>
+
+<main id="list"></main>
+
+<footer>
+  <textarea id="input" rows="1" placeholder="Запитай, або «+» для задачі…"></textarea>
+  <button class="icon-btn" id="mic" aria-label="Голос">🎤</button>
+  <button id="send" aria-label="Надіслати">➤</button>
+</footer>
+
+<div id="toast"></div>
+
+<dialog id="settings"><div class="sheet">
+  <h2>Налаштування</h2>
+
+  <div class="field">
+    <label for="prefer">Двигун</label>
+    <select id="prefer">
+      <option value="auto">Авто (хмара → локальна → офлайн)</option>
+      <option value="cloud">Тільки хмара</option>
+      <option value="local">Тільки локальна (WebGPU)</option>
+      <option value="offline">Тільки офлайн (без моделі)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="provider">Провайдер</label>
+    <select id="provider">
+      <option value="anthropic">Anthropic (Claude)</option>
+      <option value="openai">OpenAI-сумісний</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="model">Модель (хмара)</label>
+    <input id="model" type="text" spellcheck="false" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <label for="apikey">API-ключ (шифрується на пристрої)</label>
+    <input id="apikey" type="password" placeholder="лишається лише у твоєму телефоні" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="passphrase">Пароль-фраза для ключа</label>
+    <input id="passphrase" type="password" placeholder="потрібна щоб зашифрувати/відкрити" autocomplete="off">
+  </div>
+  <div class="hint" id="keyHint">Ключ шифрується AES-GCM (PBKDF2-SHA256) і зберігається лише тут. У репозиторії ключів нема.</div>
+  <div class="row" style="margin-bottom:14px">
+    <button class="btn" id="saveKey">Зберегти ключ</button>
+    <button class="btn" id="unlockKey">Відкрити</button>
+    <button class="btn" id="forgetKey">Забути</button>
+  </div>
+
+  <div class="field">
+    <label for="ram">Пам'ять пристрою, ГБ (Chrome показує максимум 8)</label>
+    <input id="ram" type="number" min="1" max="64" step="1" placeholder="авто">
+  </div>
+  <div class="row" style="margin-bottom:14px">
+    <button class="btn" id="loadLocal">Завантажити локальну модель</button>
+  </div>
+  <div class="hint" id="localHint"></div>
+
+  <div class="field">
+    <label for="updateUrl">URL version.json (авто-оновлення)</label>
+    <input id="updateUrl" type="url" spellcheck="false" placeholder="https://…/version.json" autocomplete="off">
+  </div>
+  <div class="row" style="margin-bottom:14px">
+    <button class="btn" id="checkUpdate">Перевірити оновлення</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="exportNotes">Експорт нотаток</button>
+    <button class="btn primary" id="closeSettings">Готово</button>
+  </div>
+  <div class="hint" style="margin-top:14px">Версія <span id="verLabel"></span> · дані не залишають пристрій, окрім явних запитів до обраного провайдера.</div>
+</div></dialog>
+
+<script type="module">
+/* ────────────────────────── CORE:BEGIN (вбудовано build.mjs із src/core.js) */
+__CORE__
+/* ────────────────────────── CORE:END */
+
+const $ = (id) => document.getElementById(id);
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const SETTINGS_KEY = "pocket-agent.settings.v1";
+
+const state = {
+  notes: LS.get(NOTES_KEY, []),
+  settings: Object.assign(
+    { prefer: "auto", provider: "anthropic", model: DEFAULT_CLOUD_MODEL, updateUrl: "", baseUrl: "", ram: "" },
+    LS.get(SETTINGS_KEY, {}),
+  ),
+  apiKey: "",            // лише в пам'яті сесії, ніколи в localStorage у відкритому вигляді
+  query: "",
+  busy: false,
+  caps: { webgpu: false, secure: false, online: true },
+  local: { engine: null, model: null },
+};
+
+function toast(msg, ms = 2600) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), ms);
+}
+const saveNotes = () => { if (!LS.set(NOTES_KEY, state.notes)) toast("Не вдалось зберегти (пам'ять браузера повна)"); };
+const saveSettings = () => LS.set(SETTINGS_KEY, state.settings);
+
+// ── Можливості пристрою ────────────────────────────────────────────────────
+async function detectCaps() {
+  state.caps.secure = window.isSecureContext === true;
+  state.caps.online = navigator.onLine !== false;
+  state.caps.webgpu = false;
+  if (navigator.gpu && state.caps.secure) {
+    try { state.caps.webgpu = !!(await navigator.gpu.requestAdapter()); } catch { state.caps.webgpu = false; }
+  }
+  renderEngine();
+}
+
+function currentEngine() {
+  return pickEngine({
+    online: state.caps.online,
+    hasCloudKey: !!state.apiKey,
+    webgpu: state.caps.webgpu,
+    secureContext: state.caps.secure,
+    prefer: state.settings.prefer,
+  });
+}
+
+function renderEngine() {
+  const e = currentEngine();
+  const chip = $("engineChip");
+  chip.className = "chip " + e.engine;
+  chip.textContent = { cloud: "☁️ хмара", local: "⬇ локальна", offline: "⚡ офлайн" }[e.engine];
+  chip.title = `${e.engine}: ${e.reason}`;
+  const hint = $("localHint");
+  if (hint) {
+    hint.textContent = state.caps.webgpu
+      ? (state.local.model ? `Завантажено: ${state.local.model}` : "WebGPU доступний — модель ще не завантажено.")
+      : (state.caps.secure ? "WebGPU недоступний у цьому браузері." : "Потрібен HTTPS: на file:// та content:// WebGPU і мікрофон вимкнені.");
+  }
+}
+
+// ── Рендер ─────────────────────────────────────────────────────────────────
+const fmtTime = (ts) => new Date(ts).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function render() {
+  const list = $("list");
+  const notes = searchNotes(state.notes, state.query);
+  if (!notes.length) {
+    list.innerHTML = state.query
+      ? `<div class="empty"><b>Нічого не знайдено</b>Спробуй інше слово або тег.</div>`
+      : `<div class="empty"><b>Порожньо — і це нормально</b>Напиши думку або запитання внизу. Працює навіть без мережі й без ключа:
+         офлайн-режим структурує запис. «+» на початку — задача, «знайди …» — пошук.</div>`;
+    return;
+  }
+  list.innerHTML = notes.map((n) => `
+    <article class="note ${n.kind === "task" ? "task" : ""}" data-id="${esc(n.id)}">
+      <button class="del" data-del="${esc(n.id)}" aria-label="Видалити">✕</button>
+      <div class="meta">
+        <span class="badge">${n.kind === "task" ? "задача" : "нотатка"}</span>
+        <span class="badge">${esc(n.engine || "?")}</span>
+        <span>${fmtTime(n.ts)}</span>
+      </div>
+      <div class="q">${esc(n.input)}</div>
+      <div class="a">${esc(n.answer)}</div>
+      ${n.tags?.length ? `<div class="tags">${n.tags.map((t) => "#" + esc(t)).join(" ")}</div>` : ""}
+    </article>`).join("");
+}
+
+// ── Двигуни ────────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT =
+  "Ти — кишеньковий помічник у телефоні. Відповідай стисло (2–5 речень), українською, " +
+  "без вступів і без повторення запитання. Якщо це задача — дай 2–3 конкретні кроки.";
+
+async function runCloud(text) {
+  const req = buildCloudRequest({
+    provider: state.settings.provider,
+    apiKey: state.apiKey,
+    model: state.settings.model || DEFAULT_CLOUD_MODEL,
+    baseUrl: state.settings.baseUrl,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: text }],
+    maxTokens: 800,
+  });
+  const res = await fetch(req.url, { method: "POST", headers: req.headers, body: JSON.stringify(req.body) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${redactSecrets((await res.text()).slice(0, 200))}`);
+  const reply = readCloudReply(state.settings.provider, await res.json());
+  if (!reply) throw new Error("Порожня відповідь провайдера");
+  return reply;
+}
+
+const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
+let webllmLib = null;
+async function loadWebllmLib() {
+  if (webllmLib) return webllmLib;
+  const imp = new Function("u", "return import(u)");   // динамічний імпорт, не чіпаний збіркою
+  return (webllmLib = await imp(WEBLLM_CDN));
+}
+
+async function ensureLocalModel(onProgress) {
+  if (state.local.engine) return state.local.engine;
+  if (!state.caps.webgpu) throw new Error("WebGPU недоступний (потрібен HTTPS і сучасний Chrome)");
+  const lib = await loadWebllmLib();
+  const est = estimateVramMB(state.settings.ram || navigator.deviceMemory, true);
+  const models = (lib.prebuiltAppConfig?.model_list || []).map((m) => ({ id: m.model_id, vram: m.vram_required_MB }));
+  const best = rankLocalModels(models, est)[0];
+  if (!best) throw new Error("Не знайдено придатної моделі");
+  state.local.engine = await lib.CreateMLCEngine(best.id, {
+    initProgressCallback: (p) => onProgress?.(Math.round((p.progress || 0) * 100), p.text || ""),
+  });
+  state.local.model = best.id;
+  renderEngine();
+  return state.local.engine;
+}
+
+async function runLocal(text) {
+  const engine = await ensureLocalModel((pct, msg) => toast(`Модель ${pct}% ${msg.slice(0, 40)}`, 1500));
+  const r = await engine.chat.completions.create({
+    messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: text }],
+    max_tokens: 500, stream: false,
+  });
+  return String(r.choices?.[0]?.message?.content || "").trim();
+}
+
+// ── Головний цикл ──────────────────────────────────────────────────────────
+async function submit() {
+  if (state.busy) return;
+  const raw = $("input").value;
+  const cmd = parseCommand(raw);
+  if (!cmd.payload && cmd.kind !== "search") return;
+
+  if (cmd.kind === "search") {
+    state.query = cmd.payload;
+    $("search").value = cmd.payload;
+    $("input").value = "";
+    render();
+    return;
+  }
+
+  state.busy = true; $("send").disabled = true; $("send").innerHTML = '<span class="spin">◠</span>';
+  state.caps.online = navigator.onLine !== false;
+  const chosen = currentEngine();
+  let answer = "", used = chosen.engine;
+  try {
+    if (chosen.engine === "cloud") answer = await runCloud(cmd.payload);
+    else if (chosen.engine === "local") answer = await runLocal(cmd.payload);
+    else answer = offlineAnswer(cmd.payload, cmd.kind);
+  } catch (err) {
+    // Деградація замість помилки: агент однаково лишає корисний запис.
+    answer = offlineAnswer(cmd.payload, cmd.kind) + `\n\n⚠️ ${chosen.engine}: ${redactSecrets(err.message || String(err))}`;
+    used = "offline";
+    toast("Двигун недоступний — записав офлайн");
+  } finally {
+    state.busy = false; $("send").disabled = false; $("send").textContent = "➤";
+  }
+
+  state.notes.unshift(makeNote({ input: cmd.payload, answer, engine: used, kind: cmd.kind }));
+  saveNotes();
+  $("input").value = ""; $("input").style.height = "auto";
+  state.query = ""; $("search").value = "";
+  render(); renderEngine();
+}
+
+// ── Голос ──────────────────────────────────────────────────────────────────
+function setupVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = $("mic");
+  if (!SR || !window.isSecureContext) {
+    btn.disabled = true;
+    btn.title = window.isSecureContext ? "Браузер не підтримує розпізнавання мовлення" : "Потрібен HTTPS";
+    btn.style.opacity = ".4";
+    return;
+  }
+  const rec = new SR();
+  rec.lang = "uk-UA"; rec.interimResults = false; rec.maxAlternatives = 1;
+  let on = false;
+  btn.onclick = () => { on ? rec.stop() : rec.start(); };
+  rec.onstart = () => { on = true; btn.textContent = "⏺"; };
+  rec.onend = () => { on = false; btn.textContent = "🎤"; };
+  rec.onerror = (e) => { on = false; btn.textContent = "🎤"; toast("Мікрофон: " + e.error); };
+  rec.onresult = (e) => {
+    const t = e.results[0][0].transcript;
+    $("input").value = ($("input").value ? $("input").value + " " : "") + t;
+    $("input").focus();
+  };
+}
+
+// ── Секрети ────────────────────────────────────────────────────────────────
+async function saveKey() {
+  const key = $("apikey").value.trim(), pass = $("passphrase").value;
+  if (!key || !pass) return toast("Потрібні і ключ, і пароль-фраза");
+  try {
+    LS.set(SECRET_KEY, await encryptSecret(key, pass));
+    state.apiKey = key;
+    $("apikey").value = ""; $("passphrase").value = "";
+    $("keyHint").textContent = "Ключ зашифровано й збережено на пристрої.";
+    $("keyHint").classList.remove("err");
+    toast("Ключ збережено (зашифровано)"); renderEngine();
+  } catch (e) { toast("Не вдалось зашифрувати: " + e.message); }
+}
+
+async function unlockKey() {
+  const env = LS.get(SECRET_KEY, null), pass = $("passphrase").value;
+  if (!env) return toast("Збереженого ключа нема");
+  if (!pass) return toast("Введи пароль-фразу");
+  try {
+    state.apiKey = await decryptSecret(env, pass);
+    $("passphrase").value = "";
+    $("keyHint").textContent = "Ключ відкрито для цієї сесії.";
+    $("keyHint").classList.remove("err");
+    toast("Ключ відкрито"); renderEngine();
+  } catch {
+    $("keyHint").textContent = "Хибна пароль-фраза.";
+    $("keyHint").classList.add("err");
+  }
+}
+
+// ── Авто-оновлення ─────────────────────────────────────────────────────────
+async function checkUpdate(silent) {
+  const url = state.settings.updateUrl;
+  if (!url) { if (!silent) toast("Спершу вкажи URL version.json"); return; }
+  try {
+    const d = await (await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" })).json();
+    if (isNewerVersion(d.version, APP_VERSION)) {
+      $("bannerText").textContent = `Доступна версія ${d.version}${d.notes ? " — " + d.notes : ""}`;
+      $("banner").classList.add("on");
+    } else if (!silent) toast(`Актуальна версія (${APP_VERSION})`);
+  } catch (e) { if (!silent) toast("Перевірка не вдалась: " + e.message); }
+}
+
+async function applyUpdate() {
+  if ("caches" in window) { try { await Promise.all((await caches.keys()).map((k) => caches.delete(k))); } catch {} }
+  if (navigator.serviceWorker?.getRegistrations) {
+    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch {}
+  }
+  location.reload();
+}
+
+// ── Service worker (офлайн-оболонка) ───────────────────────────────────────
+// ВАЖЛИВО (перевірено 2026-07-24): реєстрація SW з blob:-URL браузером ЗАБОРОНЕНА
+// («The URL protocol of the script is not supported»), тому «повністю один файл»
+// і справжній офлайн одночасно неможливі. Рішення: поруч лежить sw.js (той самий
+// origin). Якщо його нема — застосунок працює далі без офлайн-кешу, без помилок.
+async function registerSW() {
+  const secureOrigin = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (!("serviceWorker" in navigator) || !secureOrigin) return;
+  try {
+    const probe = await fetch("./sw.js", { method: "HEAD", cache: "no-store" });
+    if (!probe.ok) return;                       // роздача одним файлом — це нормально
+    await navigator.serviceWorker.register("./sw.js");
+    await navigator.serviceWorker.ready;
+    // Явно кладемо саме цю сторінку в кеш: інакше вона потрапила б туди лише
+    // з другого відкриття (перше завантаження відбувається до контролю SW).
+    if ("caches" in window) (await caches.open(`pocket-agent-${APP_VERSION}`)).add(location.href).catch(() => {});
+  } catch { /* офлайн-режим просто не вмикається */ }
+}
+
+// ── Старт ──────────────────────────────────────────────────────────────────
+function bindUI() {
+  const s = state.settings;
+  $("prefer").value = s.prefer; $("provider").value = s.provider;
+  $("model").value = s.model; $("updateUrl").value = s.updateUrl; $("ram").value = s.ram;
+  $("verLabel").textContent = APP_VERSION;
+
+  $("send").onclick = submit;
+  $("input").addEventListener("input", (e) => {
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+  });
+  $("input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submit(); }
+  });
+  $("search").addEventListener("input", (e) => { state.query = e.target.value; render(); });
+  $("list").addEventListener("click", (e) => {
+    const id = e.target.dataset?.del;
+    if (!id) return;
+    state.notes = state.notes.filter((n) => n.id !== id);
+    saveNotes(); render();
+  });
+
+  $("openSettings").onclick = () => $("settings").showModal();
+  $("closeSettings").onclick = () => $("settings").close();
+  $("engineChip").onclick = () => $("settings").showModal();
+  for (const [id, key] of [["prefer", "prefer"], ["provider", "provider"], ["model", "model"], ["updateUrl", "updateUrl"], ["ram", "ram"]]) {
+    $(id).addEventListener("change", (e) => { state.settings[key] = e.target.value.trim?.() ?? e.target.value; saveSettings(); renderEngine(); });
+  }
+  $("saveKey").onclick = saveKey;
+  $("unlockKey").onclick = unlockKey;
+  $("forgetKey").onclick = () => { LS.del(SECRET_KEY); state.apiKey = ""; toast("Ключ видалено з пристрою"); renderEngine(); };
+  $("loadLocal").onclick = () => ensureLocalModel((p, m) => toast(`Модель ${p}% ${m.slice(0, 40)}`, 1500))
+    .then(() => toast("Локальна модель готова")).catch((e) => toast("Локальна модель: " + e.message));
+  $("checkUpdate").onclick = () => checkUpdate(false);
+  $("applyUpdate").onclick = applyUpdate;
+  $("exportNotes").onclick = () => {
+    const blob = new Blob([JSON.stringify(state.notes, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "pocket-agent-notes.json"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+  window.addEventListener("online", () => { state.caps.online = true; renderEngine(); });
+  window.addEventListener("offline", () => { state.caps.online = false; renderEngine(); });
+}
+
+bindUI();
+render();
+setupVoice();
+registerSW();
+detectCaps();
+if (LS.get(SECRET_KEY, null)) $("keyHint").textContent = "Ключ збережено зашифрованим — введи пароль-фразу і натисни «Відкрити».";
+if (state.settings.updateUrl) checkUpdate(true);
+
+// Налагоджувальний доступ (він же — точка входу для браузерних тестів).
+window.PocketAgent = {
+  version: APP_VERSION, state, render, submit, currentEngine,
+  core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret },
+};
+</script>
+</body>
+</html>
