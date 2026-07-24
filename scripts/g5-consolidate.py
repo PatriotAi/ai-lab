@@ -30,7 +30,10 @@ def consolidate(target: str) -> str:
     branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     commits = git("log", "-n", "10", "--pretty=- %h · %s", "--", rel, cwd=root) or "- (немає комітів для теки)"
-    files = sorted(p.name for p in pathlib.Path(target).iterdir() if p.is_file()) if os.path.isdir(target) else []
+    # AUTO-STATE.md — сам згенерований артефакт: не перелічуємо його в списку файлів,
+    # інакше вміст різниться між 1-м і 2-м прогоном (втрата ідемпотентності)
+    files = sorted(p.name for p in pathlib.Path(target).iterdir()
+                   if p.is_file() and p.name != "AUTO-STATE.md") if os.path.isdir(target) else []
     files_md = "\n".join(f"- `{f}`" for f in files) or "- (порожньо)"
     return (
         f"# AUTO-STATE — {rel} (авто-консолідація)\n\n"
@@ -47,8 +50,15 @@ def main(argv: list[str]) -> int:
         if not os.path.isdir(t):
             print(f"g5-consolidate: пропущено (не тека): {t}", file=sys.stderr)
             continue
+        try:
+            body = consolidate(t)
+        except subprocess.CalledProcessError:
+            # тека поза git-репозиторієм (або git недоступний) — керована відмова,
+            # а не сирий трейсбек: хук не має валити сесію через це
+            print(f"g5-consolidate: пропущено (поза git-репозиторієм): {t}", file=sys.stderr)
+            continue
         out = os.path.join(t, "AUTO-STATE.md")
-        pathlib.Path(out).write_text(consolidate(t), encoding="utf-8")
+        pathlib.Path(out).write_text(body, encoding="utf-8")
         print(f"g5-consolidate: оновлено {out}")
     return 0
 
