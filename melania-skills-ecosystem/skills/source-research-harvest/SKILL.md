@@ -5,14 +5,14 @@ description: >
   Бере БУДЬ-ЯКЕ джерело (зображення/URL/назва/фрагмент/навіть начебто недоступне) і
   напрацьовує МАКСИМУМ корисного через багатошляхове здобуття з graceful fallback, далі прогорає весь
   harvest-пайплайн із РЕАЛЬНОЮ машинною валідацією. Делегує механіку наявним скілам, не дублює.
-  ALWAYS use when: "Давай дослідимо це для оновлення", "досліди це джерело", "досліди для оновлення",
-  даю джерело для опрацювання/оновлення скілів, перетворити джерело на покращення екосистеми,
-  знайти корисне з мінімального/обмеженого входу.
-  Also: source research, research a source, harvest from source, info maximization, from minimal input,
-  досліди і онови, опрацюй це джерело.
-  DO NOT use for: звичайний веб-пошук без harvest-наміру (web_search напряму); правки одного відомого
-  скіла без джерела (melania / skill-creation-guide); чистий аудит без зовнішнього джерела
-  (skill-ecosystem-auditor mode A); просте Q&A.
+  ALWAYS use when (лише з harvest-наміром «для оновлення/покращення екосистеми»):
+  "досліди це (джерело) для оновлення [скілів]", даю джерело для опрацювання/оновлення,
+  перетворити джерело на покращення екосистеми, знайти корисне з мінімального входу.
+  Голе «досліди тему» без наміру оновлення — НЕ тригер (звичайне дослідження/web_search).
+  Also: harvest from source, info maximization, досліди і онови.
+  DO NOT use for: звичайний веб-пошук (web_search); правки відомого скіла без джерела
+  (melania / skill-creation-guide); аудит без зовнішнього джерела (skill-ecosystem-auditor
+  mode A); відновлення втраченого по чатах (gsre-recovery); просте Q&A.
 compatibility: >
   Claude.ai (всі плани) · Claude Code · Codex CLI · Cursor · Copilot.
   Acquire-стадія потребує web-інструментів; виконавча стадія — file-tools + python-валідатори.
@@ -24,14 +24,14 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 0.1.1
+  version: 0.2.0
   author: Melania (Master Administrator)
   category: research-orchestration
   created: 2026-06-15
-  last_updated: 2026-07-05
+  last_updated: 2026-07-19
 ---
 
-# Source Research Harvest — v0.1.1
+# Source Research Harvest — v0.2.0
 > Українською-перша: рішення/приклади — українською; код/ідентифікатори — англійською.
 > ⚖️ Безпека/intake чужого матеріалу — `safety-compliance-gate` (Блок C). Запис скілів — Закон II.
 
@@ -117,5 +117,6 @@ validation-mesh = QA; continuation-memory = стан). **Прогалина, я�
 `references/acquire-playbook.md` КОЛИ: потрібні детальні fallback-рецепти per тип джерела (URL/зображення/handle/фрагмент).
 
 ## Зміни
+- **v0.2.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): тригер «досліди це джерело» кваліфіковано harvest-наміром («для оновлення екосистеми»); голе «досліди тему» — не тригер [#16]; DO NOT-межа з `gsre-recovery` (власне втрачене ≠ зовнішнє джерело) [#12]. Лише опис/тригери. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v0.1.1** (2026-07-05) — GSRE-відновлення: скіл був втрачений паралельними сесіями (відсутній на диску 28.06+, у zip v3 та в routing — жодних згадок). Відновлено 1:1 із затвердженого дизайну H2.2; логіка без змін. Routing: за гібридною архітектурою semantic-router 1.13.x скіл підхоплюється пасивним CORE-індексом через description — хардкод-рядок не потрібен.
 - **v0.1.0** (2026-06-15) — Початковий каркас (H2.2): єдиний тригерний оркестратор «джерело→harvest→валідація»; §1 Information Maximization acquire-front-end (graceful fallback: search→домен-аналіз→валідація трендами; чесний Source-Reality) — нове; стадії 2–7 делегують rlm-harness/auditor/validation-mesh/continuation-memory; integrate-check (функції=інтегровані); анти-компресія стан-на-диск.

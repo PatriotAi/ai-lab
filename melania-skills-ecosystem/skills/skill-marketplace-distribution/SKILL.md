@@ -22,14 +22,14 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 0.2.0
+  version: 0.2.1
   author: Melania (Master Administrator)
   category: skill-distribution
   created: 2026-06-14
-  last_updated: 2026-06-14
+  last_updated: 2026-07-19
 ---
 
-# Skill Marketplace Distribution — v0.1.1
+# Skill Marketplace Distribution — v0.2.1
 > Українською-перша: рішення/приклади — українською; код/ідентифікатори — англійською.
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (ОБОВ'ЯЗКОВО перед пакуванням/публікацією/комерціалізацією).
 
@@ -119,9 +119,10 @@ author (skill-creation-guide) → validate (validation-mesh)
 
 ## References
 Читай `references/marketplaces.md` КОЛИ: потрібні по-маркетплейсні деталі (точні формати пакетів,
-curl-синтаксис, умови виплат, submission-флоу). *(заплановано)*
+curl-синтаксис, умови виплат, submission-флоу).
 
 ## Зміни
-- **v0.2.0** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (5, канон-схема). Лише додавання.
+- **v0.2.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): синхрон H1-банера з frontmatter (був v0.1.1 при version 0.2.0) [#34]; знято хибний тег *(заплановано)* з `references/marketplaces.md` — файл наявний [#35]; виправлено лічильник eval-кейсів у записі v0.2.0 (4, не 5 — фактична похибка) [#31]. Лише документація/метадані; поведінка незмінна.
+- **v0.2.0** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (4, канон-схема). Лише додавання.
 - **v0.1.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.
 - **v0.1.0** (2026-06-14) — Початковий каркас (P-N1, harvest-2026): карта маркетплейсів 2026 + вибір за ціллю; пакування .skill/curl; опис=активаційна логіка; version-pinning; монетизація (80/20, планка B4); гейтований publish-workflow. Безпеку/IP делегує safety-compliance-gate (Блоки B+C). _(SKILL-AUDIT-LEDGER, Партія 2.)_

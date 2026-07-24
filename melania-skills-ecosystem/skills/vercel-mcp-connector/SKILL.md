@@ -7,8 +7,10 @@ description: >
   ALWAYS use when: робота з Vercel, деплой/redeploy, build/deployment logs,
   runtime logs, статус проєкту, health-check, домени, "чому впав білд",
   "vercel mcp", оптимізація деплою, troubleshoot Vercel.
-  Also: deploy, деплой, хостинг, build failed, fix build, deployment status,
-  project health, Vercel docs, vercel_help, Next.js deploy on Vercel.
+  Also (лише в контексті Vercel): deploy на Vercel, деплой/хостинг на Vercel,
+  build failed, fix build, deployment status, project health, Vercel docs,
+  vercel_help, Next.js deploy on Vercel. Голі «deploy/хостинг» без згадки
+  Vercel — НЕ тригер (маршрутизуй за платформою наміру).
   DO NOT use for: загальний деплой не на Vercel, упаковку PWA/APK
   (pwa-to-android-app), механіку OAuth/сесій (auth-session-manager),
   створення скіла (skill-creation-guide).
@@ -19,14 +21,14 @@ allowed-tools:
   - Read
 license: Proprietary
 metadata:
-  version: 1.0.2
+  version: 1.1.0
   author: Melania (Master Administrator)
   category: connector
   created: 2026-06-12
-  last_updated: 2026-06-12
+  last_updated: 2026-07-19
 ---
 
-# Vercel MCP Connector — v1.0
+# Vercel MCP Connector — v1.1.0
 > Меланія · українською-перша · скіл-компаньйон для офіційного Vercel MCP (`mcp.vercel.com`).
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією/комерціалізацією).
 >
@@ -112,6 +114,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): голі тригери «deploy/хостинг» кваліфіковано контекстом Vercel — без згадки платформи скіл не перехоплює запит [#42]; синхрон H1-банера (був v1.0 при version 1.0.2) [#34-клас]. Лише опис/метадані.
 - **v1.0.2** (2026-06-26) — Ре-верифікація: +guard-скрипт (snapshot/validate, additive-only) — паритет з екосистемою. Лише додавання.
 - **v1.0.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.
 - **v1.0.0** (2026-06-12) — Початкова версія. Конектор-компаньйон для Vercel MCP: MCP-first→CLI-fallback, депт-леддер (quick_status→get_project_status→project_health_check→debug_deployment_issues), карта tools↔prompts, маршрут docs (анти-галюцинація), безпекова постава з делегуванням у гейт. Тонкий покажчик + дисклеймер (названий за продуктом). _(Harvest Vercel MCP → Proposal #1.)_

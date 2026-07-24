@@ -28,14 +28,14 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 1.6.2
+  version: 1.7.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-06-02
-  last_updated: 2026-06-02
+  last_updated: 2026-07-19
 ---
 
-# Skill Ecosystem Auditor — v1.0
+# Skill Ecosystem Auditor — v1.7.0
 > Меланія · MA-керований · детальна методологія в `references/methodology.md`
 > Працює під владою `melania-skill-master-administrator` (Три Закони, авторитет MA, Self-Dev Engine).
 > Claude Code hooks: `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`
@@ -85,7 +85,7 @@ metadata:
 
 ### Stage 0 — Foundation & State
 - Прочитай `melania` (governance), `validation-mesh` (QA), `continuation-memory` (стан), `semantic-router` (маршрути).
-- Звір **джерела**: `/mnt/skills/user`, CHANGELOG-и, `/mnt/transcripts`, `/mnt/user-data/uploads`. Чесно познач, що порожнє.
+- Звір **джерела**: диск зі скілами (у claude.ai — `/mnt/skills/user`; у лабораторії ai-lab — `melania-skills-ecosystem/skills/`), CHANGELOG-и, `/mnt/transcripts`, `/mnt/user-data/uploads`. Чесно познач, що порожнє.
 - Створи `SKILL-AUDIT-LEDGER.md` (шаблон у `references/ledger-template.md`) і STENO-рядок continuation-memory.
 
 ### Stage 1 — Inventory (read-only)
@@ -113,13 +113,10 @@ metadata:
 ### Stage 5 — Execute (ЄДИНИЙ етап, що змінює; партіями 2–3)
 Цикл на КОЖНУ схвалену пропозицію:
 ```
-Цикл на КОЖНУ схвалену пропозицію:
-```
 re-read (актуальний стан з диску) → snapshot → diff (показати MA) → [confirm] → apply → validation-mesh → bump версії → CHANGELOG → новий snapshot
 ```
 **Re-read обовʼязковий:** реєстр живий — версія скіла могла оновитися в іншому чаті. Правки роби
 на реальному поточному вмісті, не на старому з контексту, щоб НЕ перезаписати новіше/краще.
-```
 Закон II: жодного запису без показаного diff і явного підтвердження MA.
 Якщо Decision Gate сказав "новий скіл" — делегуй у `skill-creation-guide`, не патч чужого.
 
@@ -168,6 +165,8 @@ Tier1-джерела (кураторські списки, офіційні) **+
 | `semantic-router` | Куди маршрутизувати знахідки; виявлення orphan-скілів |
 | `skill-creation-guide` | Виконавець гілки "створити новий скіл" |
 | `n8n-orchestrator` / `ai-core-runtime` | Якщо аудит треба автоматизувати як пайплайн |
+| `pre-delivery-gate` | **Межа:** PDG — гейт ОДНОГО артефакту перед видачею; авдитор — періодична ревізія ЕКОСИСТЕМИ. Не підміняють одне одного |
+| `safety-compliance-gate` | Канон безпеки/IP; принцип harvest-mode B живе ТАМ — авдитор лише посилається |
 
 **Pipeline:** `continuation-memory (state) → audit stages 0–4 → validation-mesh → MA → execute → melania (CHANGELOG/version)`
 
@@ -192,6 +191,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.7.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): полагоджено зламані code-fences у Stage 5 (дубль рядка + осиротіла ```-обгортка) [#23]; шлях диска скілів узагальнено на обидва середовища claude.ai/ai-lab (SKILL.md + дефолт `audit_scan.py`) [#22/#29]; у Координацію додано межу з `pre-delivery-gate` (гейт артефакту ≠ ревізія екосистеми) [#20] і зворотний покажчик на `safety-compliance-gate` як канон harvest-mode B [#19]; синхрон H1-банера (був v1.0 при 1.6.2). Формат/межі; методологія незмінна. Рев'ю Codex PR #29: прибрано другий осиротілий fence (після Re-read-нотатки) + `realpath` в audit_scan.py (symlink-виклик через .claude/skills).
 - **v1.6.2** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (5, канон-схема). **S-2** примітка про дубль v1.3.0. Додавання + примітка.
 
 - **v1.6.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

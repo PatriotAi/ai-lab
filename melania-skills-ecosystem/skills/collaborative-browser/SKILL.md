@@ -1,7 +1,7 @@
 ---
 name: collaborative-browser
 description: >
-  Запускає повноцінний браузерний артефакт Chrome-стилю v2.7.1 де користувач і Claude-агент
+  Запускає повноцінний браузерний артефакт Chrome-стилю (версія — у frontmatter/H1) де користувач і Claude-агент
   працюють разом у реальному часі. Агент завантажує сторінки через Anthropic API, аналізує
   контент, пропонує дії, генерує застосунки (AI Code Builder), виконує автономний Autopilot-ресерч,
   підтримує мультиплеєр, Secrets Manager (AES-GCM), Firebase Sync, Google Maps, список читання,
@@ -9,17 +9,17 @@ description: >
   safe-action-gate, кеш сторінок, dual-runtime (артефакт/standalone), Autopilot v2, mobile drawer.
   Використовуй цей skill коли: "відкрий браузер", "collaborative browser", "спільний браузер",
   "агент у браузері", "веб-серфінг з агентом", "досліди сайт", "відкрий сторінку", "AI браузер",
-  потрібен автономний ресерч у вебі, генерація mini-app, або спільна веб-сесія з агентом. DO NOT use for plain web search without an interactive browser, or backend scraping scripts.
+  потрібен автономний ресерч у вебі, генерація mini-app, або спільна веб-сесія з агентом. DO NOT use for plain web search without an interactive browser, backend scraping scripts, or automated E2E/Playwright test suites (webapp-testing).
 license: Proprietary
 metadata:
-  version: 3.0.1
+  version: 3.1.0
   author: Melania (Master Administrator)
   category: browser
   created: 2026-05-27
-  last_updated: 2026-07-16
+  last_updated: 2026-07-19
 ---
 
-# Collaborative Browser Skill v3.0.1
+# Collaborative Browser Skill v3.1.0
 > Українською-перша: весь UI, пояснення й приклади — українською за замовчуванням (артефакт має перемикач 🇺🇦/🇬🇧/🇩🇪/🇫🇷/🇵🇱/🇪🇸); перемикання лише слідом за користувачем.
 
 
@@ -438,6 +438,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v3.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): опис у frontmatter більше не хардкодить версію артефакту (був дрейф v2.7.1 vs 3.0.1 у router-видимому описі) [#40]; DO NOT-межа з `webapp-testing` — автоматизовані E2E/Playwright-сьюти поза скоупом [#41]. Лише опис/метадані; артефакт незмінний.
 - **v3.0.1** (2026-07-16) — Security-фікс (повний аудит екосистеми): з `browser-artifact.html` прибрано захардкоджений Google Maps API-ключ у `Maps.embedUrl()` (мертвий шлях `renderEmbed`; живий шлях `showMapEmbed` уже був безключовим `output=embed`) — embedUrl переведено на той самий безключовий варіант; ключ Embed API v1 за потреби — лише з SecretsManager (`google-maps-api-key`). Функціональність не змінена. Лише артефакт; SKILL.md — тільки цей запис і bump.
 - **v3.0.0** (2026-07-03) — «Maximum Power». **Фаза 0** ремонт цілісності: версію синхронізовано всюди (title/footer/UI/frontmatter з v2.5.1/v2.3 → v3.0.0), модель у коді → `claude-sonnet-4-6`; виправлено 3 латентні синтакс-баги (незаекрановані апострофи `з'єднання`, вкладені лапки `sendCmd`) з v2.7.1. **Фаза 1** safe-action-gate: `Gate` (класифікатор 429/401/5xx/timeout/network/contract + jittered backoff ≤3 + verify-after-action на JSON-контрактах), `PageCache` (TTL 10хв). **Фаза 2** Autopilot v2: динамічні підтеми (depth≤5), бюджетний губернатор (стеля → чесний частковий звіт, Принцип #0), пауза, звіт з джерелами+впевненістю, експорт .md. **Фаза 3** Builder v2: `AppLibrary` (save/open/delete). **Фаза 4** `Runtime` dual-mode (артефакт/standalone з власним ключем через Secrets `ANTHROPIC_API_KEY`/auto-fallback при 401), матриця середовища, експорт/імпорт профілю (merge-not-replace). **Фаза 5** mobile-first: агент-панель → нижній drawer ≤768px. Верифіковано: Playwright smoke 37/37, регресія 22/22 функцій, 88/88 HTML-обробників, deploy-чеклист 15/15, JS-синтаксис чистий. Merge-not-replace: усі 13 модулів v2.7.1 збережено. **Evals**: відновлено 4 кейси з ZIP-екосистеми (source-копії губилися між сесіями) + додано 4 нові під v3 (safe-action-gate-backoff, dual-runtime-standalone, page-cache-no-refetch, builder-app-library) = 8 кейсів, схема v3.0.0.
 - **v2.7.2** (2026-06-26) — Stage 3: **S-1** застарілий рядок моделі (`claude-sonnet-4-20250514`→`claude-sonnet-4-6`; хардкод лишається — легітимний для artifact-API). **S-4** внутрішню версію в тілі (заголовок/опис/футер/UI) синхронізовано з frontmatter (v2.5→v2.7.1; changelog v2.5.0 збережено). **S-3** +власні `evals/` (5). Корекція + додавання.

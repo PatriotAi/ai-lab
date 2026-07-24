@@ -9,18 +9,19 @@ description: >
   choosing an orchestration topology; planning a multi-agent workflow; "оркеструй",
   "розбий на агентів", "subagents", "agent team", "shared task list", "паралельно", "fan-out".
   DO NOT USE for: single simple Q&A or one-off snippet (use the specific skill); runtime
-  kernel / agent-activation mechanics (ai-core-runtime); intent routing across skills (semantic-router).
+  kernel / agent-activation mechanics (ai-core-runtime); intent routing across skills (semantic-router);
+  building n8n workflows/JSON (n8n-orchestrator).
 compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Copilot. Core platform-neutral; subagent/Agent-Teams mechanics are Claude Code.
 license: MIT
 metadata:
   author: Melania (Master Administrator)
-  version: 1.4.1
+  version: 1.5.0
   category: orchestration
   created: 2026-06-13
-  last_updated: 2026-07-11
+  last_updated: 2026-07-19
 ---
 
-# Workflow Orchestration
+# Workflow Orchestration — v1.5.0
 Українською-перша: тригери/відповіді/приклади — українською; перемикання лише слідом за користувачем.
 Безпека/комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією).
 
@@ -187,6 +188,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
+- **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `n8n-orchestrator` (побудова n8n-workflow/JSON поза скоупом) [#5]; депт-леддер перевірено — це коректне делегування механіки в `ai-core-runtime`, не дубль (без зміни) [#6]; H1-банер з версією. Лише опис/межі.
 - **v1.4.1** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, №1): де-хардкод мертвого посилання `product-self-knowledge` (скіл не існує) → «офіційні docs» у SKILL.md (Stack Mapping) і `references/topology-taxonomy.md`. Правило «не пінь» незмінне.
 - **v1.4.0** (2026-07-11) — Topology 4: Evaluator-Optimizer / Outcomes-патерн (frontier-research harvest): produce→grade→revise з grader-ом в ізольованому чистому контексті, rubric-verdict, bounded-цикл; емпірика (+10 п. success, file-gen +8-10%); анти-патерн self-grade; крос-лінки rlm-harness (клас judge-моделі) + ai-core-runtime (resilience-стеля). Підключено до Autonomous Decision Algorithm (анти-орфан, урок v1.3.1). +1 рядок емпірики масштабу в Topology 2 (16 паралельних агентів → 100K+ рядків, агностично). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_
 - **v1.3.3** (2026-06-26) — +`references/topology-taxonomy.md` (повна таксономія 10+ топологій swarm/handoff/blackboard/contract-net/group-chat; framework-мапінг LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock; деталі shared-task; observability-стек). Відновлює обіцяний-але-відсутній `references/` (форензик-аудит: артефакт не існував у git/транскриптах/FS → реконструйовано, проміс НЕ видалено). Лише додавання.

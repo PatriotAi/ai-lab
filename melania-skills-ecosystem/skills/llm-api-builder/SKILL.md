@@ -1,16 +1,16 @@
 ---
 name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
-license: Complete terms in LICENSE.txt
+license: Apache-2.0 — повні умови в LICENSE.txt кореня екосистеми
 metadata:
-  version: 1.4.0
+  version: 1.4.1
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-07-11
+  last_updated: 2026-07-19
 ---
 
-# Building LLM-Powered Applications with Claude
+# Building LLM-Powered Applications with Claude — v1.4.1
 > Пояснення — українською за замовчуванням (українською-перша); код, ідентифікатори та поля API лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -198,6 +198,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.4.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): ліцензійний покажчик виправлено на корінь екосистеми (локального LICENSE.txt не існувало) [#25/#44]; H1-банер з версією [#21/#45-клас]. Лише метадані.
 - **v1.4.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** Секцію «Поточні моделі» де-піновано: таблиця конкретних ID/цін → покажчик на спільний датований снапшот у `multi-provider` (DRY) + правило «найновіша доступна». **(B)** Compaction розширено (агностично): `context_management.edits`, конфігурований поріг, `pause_after_compaction`, попередження про кеш-префікс. **(C)** НОВА секція Memory Tool: sandbox-патерн, path-traversal захист, емпірика +39%/−84%, pre-compaction flush — без прив'язки до поколінь. **(D)** НОВА секція Advanced Tool Use: Programmatic Tool Calling (−37% токенів), Tool Search Tool (−85% контексту), Tool Use Examples (72→90%). **(E)** Pitfalls: +Batch довгий output (beta, звір хедер у docs). Лише додавання/де-пін; API-ідентифікатори (tool-типи, beta-хедери) збережені — це документація API, не пін моделей. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 - **v1.3.0** (2026-06-26) — Повна UA-локалізація (Task 1): технічну прозу (Defaults, Language Detection, Architecture, Reading Guide, Pitfalls, таблиці) перекладено українською; код / API / ідентифікатори лишаються англійською. +власні `evals/` (5, канон-схема). **S-1:** знімок моделей оновлено (Opus 4.6→4.8, `claude-opus-4-8`); version-tied claims генералізовано на «поточні флагмани» + verify-нота (без вигадування цін 4.8). **S-2:** дубльовану секцію «Зміни» + дубль v1.2.0 консолідовано (вміст збережено). Переклад + додавання; функціонал не змінено.
 - **v1.2.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна.

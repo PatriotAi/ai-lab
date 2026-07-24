@@ -15,15 +15,16 @@ description: >
   "connect APIs automatically", "AI automation", "CRM automation",
   "Telegram bot workflow", "n8n JSON", "workflow nodes".
 
-  ALWAYS use this skill for anything n8n-related, even if it seems simple. DO NOT use for non-n8n automation, plain code scripts, or single API calls without a workflow.
+  ALWAYS use this skill for anything n8n-related, even if it seems simple. DO NOT use for: non-n8n automation, plain code scripts, or single API calls without a workflow; оркестрація суб-агентів/топологій виконання БЕЗ n8n (workflow-orchestration).
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 2.8.3
+  version: 2.9.0
   category: automation
+  last_updated: 2026-07-19
 ---
 
-# N8N Orchestrator
+# N8N Orchestrator — v2.9.0
 > Працює українською за замовчуванням (українською-перша): пояснення, нотатки й приклади — українською; перемикання лише слідом за користувачем.
 >
 > **Неофіційний.** Не пов'язаний з, не схвалений і не спонсорований n8n GmbH. «n8n» — торгова марка n8n GmbH; назва вжита суто референційно (опис сумісності).
@@ -325,6 +326,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v2.9.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `workflow-orchestration` — оркестрація суб-агентів/топологій без n8n поза скоупом [#5]; H1-банер з версією + `last_updated` у metadata [#21/#45]. Лише опис/метадані.
 - **v2.8.3** (2026-06-26) — Stage 3: **S-1** `claude-opus-4-5`→`claude-opus-4-8` у прикладі. **S-2** примітка про дубль v2.6.0. **S-3** +власні `evals/` (5, канон-схема). Корекція + додавання.
 - **v2.8.2** (2026-06-15) — B2 (safety-compliance-gate): дисклеймер неприналежності — n8n (n8n GmbH).
 - **v2.8.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

@@ -8,3 +8,6 @@
 {"timestamp": "2026-06-02T06:00:14.833919+00:00", "event": "validate_pass", "score": 100, "md5": "bb0e61001d51857af72501b314dcf642"}
 {"timestamp": "2026-06-02T06:00:27.411465+00:00", "event": "snapshot", "file": "/mnt/skills/user/notebooklm-connector/scripts/.snapshots/snapshot_20260602_060027.json", "md5": "84a7534c9ad4fb3c700a7e88503e5905"}
 {"timestamp": "2026-06-02T13:09:23.830797+00:00", "event": "validate_pass", "score": 100, "md5": "84a7534c9ad4fb3c700a7e88503e5905"}
+{"timestamp": "2026-07-21T18:25:45.336143+00:00", "event": "snapshot", "file": "/home/user/ai-lab/melania-skills-ecosystem/skills/notebooklm-connector/scripts/.snapshots/snapshot_20260721_182545.json", "md5": "86f80d9502034f8693822947123706ef"}
+{"timestamp": "2026-07-21T18:25:51.748891+00:00", "event": "validate_fail", "errors": ["❌ ERROR:   Missing canonical term: '6 languages' (key: 6 languages)", "❌ ERROR:   REGRESSION: Term '6 languages' was present in baseline, now missing"], "score": 85, "md5": "86f80d9502034f8693822947123706ef"}
+{"timestamp": "2026-07-21T18:26:05.178340+00:00", "event": "snapshot", "file": "/home/user/ai-lab/melania-skills-ecosystem/skills/notebooklm-connector/scripts/.snapshots/snapshot_20260721_182605.json", "md5": "b6d6635a805d831f89f1bc6edf9a4560"}

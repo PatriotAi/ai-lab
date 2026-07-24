@@ -26,17 +26,17 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 2.17.0
+  version: 2.18.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-05-27
-  last_updated: 2026-07-19
+  last_updated: 2026-07-24
 ---
 
-# Melania — Skill Master Administrator
-> **v2.17.0** · Master Administrator: Меланія · `references/CHANGELOG.md`
+# Melania — Skill Master Administrator — v2.18.0
+> **v2.18.0** · Master Administrator: Меланія · `references/CHANGELOG.md`
 > Працює українською за замовчуванням (українською-перша); технічні поля/команди — як є.
-> Claude Code hooks: `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`
+> Claude Code hooks (опційний патерн — діє лише там, де НАЛАШТОВАНО в settings; не вшитий факт): `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`. У лабораторії ai-lab еквівалент — `maintain.py verify` перед комітом.
 
 ---
 
@@ -46,7 +46,7 @@ metadata:
 
 Перед застосуванням БУДЬ-ЯКОГО оновлення система ЗОБОВ'ЯЗАНА:
 
-1. **ПЕРЕЧИТАТИ актуальний стан з диску** — завантажити справжній живий `SKILL.md` і всі `references/` з `/mnt/skills/user/<name>/`. Реєстр живий і міг бути оновлений у паралельному чаті; версія у твоєму контексті може бути застарілою.
+1. **ПЕРЕЧИТАТИ актуальний стан з диску** — завантажити справжній живий `SKILL.md` і всі `references/` з диска скілів (у claude.ai — `/mnt/skills/user/<name>/`; у лабораторії ai-lab — `melania-skills-ecosystem/skills/<name>/`). Реєстр живий і міг бути оновлений у паралельному чаті; версія у твоєму контексті може бути застарілою.
 2. **ПОРІВНЯТИ версії** — звірити `metadata.version` на диску з версією, яку плануєш записати. Якщо версія на диску НОВІША або містить вміст, відсутній у твоєму оновленні → диск стає базою. Ніколи не перезаписуй новішу роботу старішою.
 3. **ЗВІРИТИ знання (diff)** — перед записом підтвердити, що кожна можливість, патерн, правило і reference з диску або (а) збережені в оновленні, або (б) свідомо й явно змінюються/видаляються із зазначеною причиною. Випадкове опущення = втрата знань = заборонено.
 4. **ЗЛИВАТИ, не замінювати** — застосовувати зміни як хірургічні доповнення/правки поверх поточного стану диску, а не як повне переписування з пам'яті.
@@ -279,7 +279,7 @@ Action: [затвердити / відхилити]
 
 ```
 BEFORE editing any SKILL.md:
-  1. view/read current file from /mnt/skills/user/<name>/SKILL.md
+  1. view/read current file from the skills disk (claude.ai: /mnt/skills/user/<name>/SKILL.md; ai-lab: melania-skills-ecosystem/skills/<name>/SKILL.md)
   2. Compare with context version — are they different?
   3. If newer on disk → use disk version as base, NOT memory
   4. Then apply surgical patch (str_replace, not full rewrite)
@@ -400,6 +400,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v2.18.0** (2026-07-24) — Reconcile-merge Wave 2 ↔ main: інтегрує напрацювання обох гілок, що незалежно взяли номер v2.17.0 (колізія версій усунена підняттям до 2.18.0). Wave-2 частина (аудит 2026-07-18): Claude-Code-hooks позначено як опційний патерн (діє лише де налаштовано; не вшитий факт), + ai-lab еквівалент `maintain.py verify` [#13]; шляхи `/mnt/skills/user` узагальнено на обидва середовища claude.ai/ai-lab (Update Workflow крок 1 + pseudocode) [#22/#29]; SMA-хуки як самостійна автоматизація — **DEFERRED** (архітектурне, потребує окремого дизайну) [#28]; H1/банер синхронізовано. Core Rule 11 Non-aging (нижче, v2.17.0 main) збережено дослівно. Лише уточнення/шляхи + узгодження.
 - **v2.17.0** (2026-07-19) — Core Rule 11 **Non-aging** (закон не-старіння, директива власника): правила/скіли описують поведінку й класи, не моделі; конкретика — лише в датованому замінному снапшоті; «працюй як найкращий» = conductor-standard (rlm-harness) + найсильніший доступний клас. Гарантує, що при зміні поколінь моделей оновлюється ЛИШЕ снапшот, а весь стандарт роботи застосовується будь-якою моделлю на всіх рівнях. Лише додавання.
 - **v2.16.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, P1 №26): розведено потрійне перекриття тригера «створення скіла» — у DO NOT додано внутрішньоциклові делегування: чистий авторинг → skill-creation-guide; маркетплейс-дистрибуція → skill-marketplace-distribution; лабораторні навички ai-lab → skill-new; SMA = governance. Дзеркальні межі — у skill-creation-guide v1.10.0. Рев'ю Codex PR #24: банер синхронізовано (v2.16.0), description ужато до ≤1024 симв. (packaging-ліміт). Лише уточнення меж.
 - **v2.15.0** (2026-07-11) — Auto-Trigger виконано: SKILL.md 471→<450 рядків. Шаблони YAML frontmatter + body винесено в `references/templates.md` (новий файл; рядок у References-таблиці та File Structure), у тілі — компактний покажчик. Синхронізовано банер (був v2.13.3 при frontmatter 2.14.0 — дрейф закрито). Інваріанти guard збережено: всі 15 canonical terms у SKILL.md, скорочення −12% < порогу 18%. Зміст шаблонів не змінювався — перенесення 1:1.

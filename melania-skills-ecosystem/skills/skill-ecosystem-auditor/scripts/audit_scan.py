@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """audit_scan.py — Stage 1+2 сканер екосистеми скілів.
-Використання: python3 audit_scan.py [SKILLS_DIR]   (типово /mnt/skills/user)
+Використання: python3 audit_scan.py [SKILLS_DIR]
+(типово: /mnt/skills/user у claude.ai; інакше — тека skills/ цієї екосистеми)
 Read-only. Друкує: frontmatter-матрицю, вісь українською-перша (P9),
 карту координації та orphan-перевірку. Жодних змін на диску."""
 import os, re, sys
 
-ROOT = sys.argv[1] if len(sys.argv) > 1 else "/mnt/skills/user"
+_LAB_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+ROOT = sys.argv[1] if len(sys.argv) > 1 else (
+    "/mnt/skills/user" if os.path.isdir("/mnt/skills/user") else _LAB_SKILLS)
 
 def cyr(s): return len(re.findall(r"[\u0400-\u04FF]", s or ""))
 

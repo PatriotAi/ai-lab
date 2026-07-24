@@ -9,23 +9,26 @@ description: >
   USE THIS SKILL whenever the user requests: runtime validation, dependency
   checking, contradiction detection, hallucination analysis, governance review,
   deployment safety checks, prompt quality analysis, architecture coherence
-  review, or any structured quality assurance for AI/automation systems.
+  review, or structured QA for AI/automation systems.
 
   Also trigger for: "перевір архітектуру", "validate this workflow",
   "check for errors", "is this correct", "hallucination check",
   "dependency validation", "sanity check", "review before deploy",
-  "governance check", "validate my prompt", "перевір логіку".
+  "validate my prompt", "перевір логіку".
 
   ALWAYS use this skill when something needs to be verified before
-  being used, deployed, or published. DO NOT use for generating new content — only validates existing artifacts.
+  being used, deployed, or published. DO NOT use for: generating new content — only validates
+  existing artifacts; вхід ПЕРЕД ВИДАЧЕЮ користувачу — pre-delivery-gate (він викликає
+  mesh як виконавця).
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.5.4
+  version: 1.6.0
   category: validation
+  last_updated: 2026-07-19
 ---
 
-# Validation Mesh
+# Validation Mesh — v1.6.0
 > Працює українською за замовчуванням (українською-перша): звіти, вердикти й пояснення — українською; перемикання лише слідом за користувачем.
 
 
@@ -161,6 +164,9 @@ For AI/automation architecture reviews:
 
 ## Security Validation Layer
 
+> **Канон безпекових/IP-правил і постави — `safety-compliance-gate`** (єдине джерело правди).
+> Таблиця нижче — ВИКОНАВЧІ механічні перевірки в контексті валідації коду/конфігу, не власна політика.
+
 Для будь-якого коду або конфігу що йде в production:
 
 | Check | Шукай | Дія |
@@ -221,6 +227,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.6.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): розведено подвійний ALWAYS «перед видачею» — вхідна точка видачі = `pre-delivery-gate`, mesh = виконавець валідації (DO NOT-межа в описі) [#17]; Security Validation Layer позначено як виконавчий шар з каноном у `safety-compliance-gate` (тонка версія, таблиця перевірок збережена) [#18]; H1-банер з версією + `last_updated` [#21/#45]. Лише межі/канон-нота. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v1.5.4** (2026-06-26) — Ре-верифікація: desc підрізано <1024 (валідатор відхиляв 1030); +примітка про дубль v1.4.0. Лише корекція.
 - **v1.5.3** (2026-06-26) — `evals/` реконструйовано (5 кейсів). Форензик-аудит: claim існував з v1.4.0, артефакт відсутній у всіх джерелах → відтворено, claim НЕ видалено. `evals/` виключається з .skill. Лише додавання.
 - **v1.5.2** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

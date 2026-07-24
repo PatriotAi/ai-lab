@@ -11,12 +11,13 @@ description: >
   orchestration, multi-agent frameworks, or bounded reasoning systems.
 
   Also trigger for: "побудуй оркестрацію", "спроєктуй AI систему",
-  "agent pipeline", "modular AI", "runtime architecture", "orchestration layer". DO NOT use for single simple Q&A, one-off code snippets, or tasks needing no orchestration (use the specific skill directly).
+  "agent pipeline", "modular AI", "runtime architecture", "orchestration layer". DO NOT use for: single simple Q&A, one-off code snippets, or tasks needing no orchestration (use the specific skill directly); маршрутизація наміру в один скіл (semantic-router); мета-оркестрація важких процесів (rlm-harness); механіка топологій виконання (workflow-orchestration).
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 3.11.0
+  version: 3.12.0
   category: orchestration
+  last_updated: 2026-07-19
 ---
 
 # AI Core Runtime
@@ -201,6 +202,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v3.12.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): взаємні DO NOT-межі в описі — semantic-router (intent→скіл), rlm-harness (мета-оркестрація), workflow-orchestration (механіка топологій) [#8]; +`last_updated` у metadata (був відсутній) [#21/#45]. Лише опис/метадані.
 - **v3.11.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) «Kernel default-start» → **fallback-start** — канонічна точка входу при неоднозначному вході тепер semantic-router; ACR стартує першим лише коли роутер недоступний (розрив циклу «хто перший», знахідка №2). (B) Де-хардкод мертвого посилання: `product-self-knowledge` → офіційні docs (docs.claude.com) у прикладі extended thinking (№1; історичний запис v3.7.1 у changelog не переписувався — append-only). (C) Fallback без глухого кута: якщо роутер справді недоступний — ЛОКАЛЬНИЙ тріаж без залежності від нього (рев'ю Codex PR #24). Лише уточнення.
 - **v3.10.1** (2026-07-13) — Крос-лінк `gmi-audit` у Related Skills: GMI-лінза (інваріанти G1–G7 когнітивної системи + вісь спостерігача/read-out) для аудиту повноти рантайму/агентної архітектури. Лише додавання (DRY-покажчик, без дублювання). _(Джерело: experiments/gmi harvest.)_
 - **v3.10.0** (2026-07-11) — Kernel-патерни (frontier-research harvest): **(A)** Deferred tools / Tool Search — активація інструментів пошуком замість повного списку (розширення депт-леддера на НАБІР ІНСТРУМЕНТІВ; до −85% контексту). **(B)** Memory-handler kernel-безпека: обов'язковий path-traversal захист sandbox-пам'яті + provenance-мітка кожного запису (анти-poisoning). API-механіка обох — покажчик на `llm-api-builder` (DRY). Агностично, без пін-у моделей. Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_

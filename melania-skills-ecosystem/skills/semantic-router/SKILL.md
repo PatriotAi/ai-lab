@@ -20,11 +20,12 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.14.1
+  version: 1.15.0
   category: routing
+  last_updated: 2026-07-19
 ---
 
-# Semantic Router
+# Semantic Router — v1.15.0
 > Працює українською за замовчуванням (українською-перша): рішення про маршрут і пояснення — українською; перемикання лише слідом за користувачем.
 
 
@@ -173,6 +174,7 @@ Fallback на CLI — тільки при miss або помилці tool, не 
 | "validate", "check", "verify", "review" | validation-mesh | — |
 | "route", "orchestrate", "multi-agent" | semantic-router | ai-core-runtime |
 | "оркеструй", "найвищий рівень", "важкий процес", "deep research", "security audit", "перепланування", "RLM", "harness" | rlm-harness | workflow-orchestration |
+| "розбий на агентів", "subagents", "agent team", "паралельно", "fan-out", вибір топології багатоагентної роботи | workflow-orchestration | ai-core-runtime |
 | "створити скіл", "написати SKILL.md", "формат скіла" | skill-creation-guide | melania-skill-master-administrator |
 | "оновити скіл", "підвищити версію", "затвердити/package skill" | melania-skill-master-administrator | skill-creation-guide |
 | "аудит скілів", "ревізія екосистеми", "онови скіли" | skill-ecosystem-auditor | validation-mesh |
@@ -191,7 +193,7 @@ Fallback на CLI — тільки при miss або помилці tool, не 
 | "авторизуйся", "онови cookie", "сесія протермінувалась", "OAuth", "збережи токен безпечно" | auth-session-manager | collaborative-browser |
 | "token efficiency", "compress", "optimize" | ai-core-runtime | continuation-memory |
 | Complex build + memory | ai-core-runtime | continuation-memory |
-| Complex build + deploy | n8n-orchestrator | validation-mesh |
+| Complex build + deploy | за платформою: vercel-mcp-connector (Vercel) · n8n-orchestrator (n8n-пайплайн) | validation-mesh |
 
 ---
 
@@ -345,6 +347,7 @@ Load only on demand — not proactively.
 
 ## Changelog
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (v1.6.0 двічі — артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.15.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Routing Map — додано primary-рядок для `workflow-orchestration` («розбий на агентів»/subagents/agent team/топологія; був лише secondary при rlm-harness) [#4]; легасі-рядок «Complex build + deploy» роздвоєно за платформою (Vercel → vercel-mcp-connector; n8n-пайплайн → n8n-orchestrator; був беззастережний n8n) [#7]; H1-банер з версією + `last_updated` [#21/#45]. Лише Routing Map/метадані. _(Merge-reconcile: рядок `github-collab` з v1.14.1 main збережено в Routing Map.)_
 - **v1.14.1** (2026-07-21) — Routing Map: +рядок `github-collab` (нова навичка GitHub-автоматизації та співпраці; болі своїми словами: PR/CI/issues/«поверни як було»; secondary — continuation-memory для циклу compact). Лише додавання рядка, семантичний принцип без змін.
 - **v1.14.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) **семантичні тригери** — маршрутизація за ЗНАЧЕННЯМ наміру, не за дослівними фразами (директива власника; принцип у тілі + description). (B) Розрив циклу «хто перший»: uncertain → роутер сам виконує тріаж (канонічна точка входу); ai-core-runtime — лише fallback, коли роутер недоступний (закриває аудит-знахідку №2). (C) +DO NOT-межі в description: топології→workflow-orchestration, kernel→ai-core-runtime, мета-оркестрація→rlm-harness (№3). (D) Routing Map: рядок «створити/оновити скіл» розділено за governance-межею — створити→skill-creation-guide, оновити/версія/затвердити→SMA (рев'ю Codex PR #24). (E) Description ужато до ≤1024 симв. (packaging-ліміт; рев'ю Codex PR #24).
 - **v1.13.2** (2026-06-26) — Changelog-гігієна (F2): примітка про історичні дублі-номери (v1.6.0 двічі). Усі записи збережено; нумерацію НЕ переписано без верифікації (форензик: git/історія відсутні → не вгадуємо). Лише додавання примітки.
