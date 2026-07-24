@@ -139,8 +139,25 @@ check("зіпсована відповідь → порожній рядок, н
 
 // ═══════ 9. Збірка: dist синхронний з джерелами ═══════
 console.log('\n════════ 9. Збірка одного файлу ════════');
+// Регрес 2026-07-24 (спіймано власним падінням у CI): відсутній файл давав сирий
+// ENOENT і вбивав увесь прогін разом з рештою перевірок. Тепер — керована відмова.
+function readOrFail(path, name) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (e) {
+    bad(name, `файл ${path} існує`, e.code || String(e));
+    return null;
+  }
+}
+
 const built = build.buildHtml();
-const dist = readFileSync(build.DIST_FILE, "utf8");
+const dist = readOrFail(build.DIST_FILE, "dist/mobile-agent.html присутній у репозиторії");
+if (dist === null) {
+  console.log("  ⚠️  зібраного файлу нема — перевірки збірки й PWA пропущено (запусти build.mjs)");
+  console.log(`\nTOTALS pass=${PASS} fail=${FAIL}`);
+  console.log("Впали:\n" + FAILED.map((f) => "  - " + f).join("\n"));
+  process.exit(1);
+}
 check("dist/mobile-agent.html збігається з поточними джерелами (перезібрано після правок)",
   true, dist === built.html);
 truthy("логіка core.js реально вбудована (не посилання на файл)",
@@ -175,7 +192,7 @@ truthy("SW підключається файлом sw.js, а не blob:-URL",
   dist.includes('register("./sw.js")') && !dist.includes("createObjectURL(new Blob([swCode]"));
 truthy("відсутній sw.js не ламає застосунок (перевірка HEAD перед реєстрацією)",
   dist.includes('fetch("./sw.js", { method: "HEAD"'));
-const swFile = readFileSync(build.SW_FILE, "utf8");
+const swFile = readOrFail(build.SW_FILE, "dist/sw.js присутній у репозиторії") ?? "";
 check("dist/sw.js синхронний зі збіркою", true, swFile === built.sw);
 check("кеш SW прив'язаний до версії (оновлення чистить старий)", true,
   swFile.includes(`pocket-agent-${core.APP_VERSION}`));
