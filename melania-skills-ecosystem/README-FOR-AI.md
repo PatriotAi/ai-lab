@@ -3,7 +3,7 @@
 
 ## What you are looking at
 
-This is a **portable AI skills library**: 27 self-contained skill modules ("skills") in the `skills/` directory. Each skill is a folder of plain Markdown + JSON + Python files that teaches an AI assistant a specific, reusable capability (governance, validation, orchestration, browser automation, deployment, testing, memory, and more). The library is **Ukrainian-first**: instructions and triggers are primarily in Ukrainian, with code, APIs, and identifiers in English. It is governed by a master protocol skill called `melania-skill-master-administrator`.
+This is a **portable AI skills library**: 28 self-contained skill modules ("skills") in the `skills/` directory. Each skill is a folder of plain Markdown + JSON + Python files that teaches an AI assistant a specific, reusable capability (governance, validation, orchestration, browser automation, deployment, testing, memory, and more). The library is **Ukrainian-first**: instructions and triggers are primarily in Ukrainian, with code, APIs, and identifiers in English. It is governed by a master protocol skill called `melania-skill-master-administrator`.
 
 **This package is platform-agnostic.** It was authored in the Anthropic Claude ecosystem but uses only open formats (Markdown, JSON, Python). Any AI system that can read files can use it — including systems that do not have a native "skills" feature.
 
@@ -50,7 +50,7 @@ Follow this decision tree, top to bottom:
 - and that `README-FOR-HUMANS.md` has the per-platform install walkthrough.
 
 ## Integrity verification (optional but recommended)
-`MANIFEST.json` lists every file with size and SHA-256. If you can execute code, verify; if not, at minimum check that all 27 skill folders listed in the manifest are present.
+`MANIFEST.json` lists every file with size and SHA-256. If you can execute code, verify; if not, at minimum check that all 28 skill folders listed in the manifest are present.
 
 ## Priority order if instructions ever conflict
 User's explicit request → this package's `melania` governance protocol → individual SKILL.md → this README.

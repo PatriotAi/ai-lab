@@ -1,7 +1,7 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-07-21",
- "governance": "melania-skill-master-administrator v2.17.0",
+ "built": "2026-07-24",
+ "governance": "melania-skill-master-administrator v2.19.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
  "total_eval_cases": 133,
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.18.0",
+   "version": "2.19.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "12c67336e54ae95c",
+    "SKILL.md": "1e2d013f839748aa",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [

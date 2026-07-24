@@ -23,7 +23,7 @@
 | `projects/` | Самостійні проєкти-зразки (з `project-template/`) |
 | `experiments/` | Маленькі експерименти-гіпотези |
 | `skills/`, `.claude/skills/` | Навички Claude Code (індекс / канонічні активні) |
-| `melania-skills-ecosystem/` | Бібліотека 27 AI-навичок (активні через симлінки в `.claude/skills/`) |
+| `melania-skills-ecosystem/` | Бібліотека 28 AI-навичок (активні через симлінки в `.claude/skills/`) |
 | `automations/`, `scripts/` | Хуки, пайплайни, утиліти |
 | `security/`, `.github/` | Конфіги безпеки, CI/CD, CODEOWNERS, шаблони |
 
@@ -41,7 +41,7 @@
 
 ## Melania Skills Ecosystem
 Бібліотека [`melania-skills-ecosystem/`](melania-skills-ecosystem/README-FOR-HUMANS.md) —
-27 AI-навичок (керування навичками, валідація, оркестрація, браузерна автоматизація,
+28 AI-навичок (керування навичками, валідація, оркестрація, браузерна автоматизація,
 деплой, тестування, пам'ять між сесіями тощо) під master-протоколом
 `melania-skill-master-administrator`. Підключені як активні проєктні навички через
 симлінки в `.claude/skills/`, тож підхоплюються в цьому проєкті автоматично.
@@ -82,7 +82,7 @@ Apache License 2.0 — див. [`LICENSE`](LICENSE).
 | `projects/` | Standalone sample projects (with `project-template/`) |
 | `experiments/` | Small hypothesis experiments |
 | `skills/`, `.claude/skills/` | Claude Code skills (index / canonical active) |
-| `melania-skills-ecosystem/` | Library of 27 AI skills (active via symlinks in `.claude/skills/`) |
+| `melania-skills-ecosystem/` | Library of 28 AI skills (active via symlinks in `.claude/skills/`) |
 | `automations/`, `scripts/` | Hooks, pipelines, utilities |
 | `security/`, `.github/` | Security configs, CI/CD, CODEOWNERS, templates |
 
@@ -98,7 +98,7 @@ locally — **pre-commit**; dependencies — **Dependabot**. See [`SECURITY.md`]
 
 ### Melania Skills Ecosystem
 The [`melania-skills-ecosystem/`](melania-skills-ecosystem/README-FOR-HUMANS.md) library —
-27 AI skills (skill management, validation, orchestration, browser automation, deployment,
+28 AI skills (skill management, validation, orchestration, browser automation, deployment,
 testing, cross-session memory, etc.) governed by the `melania-skill-master-administrator`
 protocol. Wired as active project skills via symlinks in `.claude/skills/`, so they are
 picked up automatically in this project.
