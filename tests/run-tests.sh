@@ -168,6 +168,27 @@ assert len(d['hookSpecificOutput']['additionalContext'])>50
   || bad "віддає валідний JSON hookSpecificOutput" "валідний JSON" "невалідний/порожній"
 
 echo ""
+echo "════════ 6. Проєкт: кишеньковий агент (projects/mobile-agent) ════════"
+cd "$REPO" || exit 1
+if command -v node >/dev/null 2>&1; then
+  ma_out=$(node tests/mobile-agent-tests.mjs 2>&1); ma_rc=$?
+  # Вивід підпорядкованого набору показуємо як є (він у тому ж форматі ✅/❌),
+  # а його лічильники додаємо до загальних, щоб підсумок був чесний.
+  sed -e '/^TOTALS /d' -e '/^Впали:/,$d' <<<"$ma_out"
+  ma_totals=$(grep -o 'TOTALS pass=[0-9]* fail=[0-9]*' <<<"$ma_out" | tail -1)
+  ma_pass=$(sed -n 's/.*pass=\([0-9]*\).*/\1/p' <<<"$ma_totals")
+  ma_fail=$(sed -n 's/.*fail=\([0-9]*\).*/\1/p' <<<"$ma_totals")
+  if [[ -z "$ma_totals" ]]; then
+    bad "набір тестів проєкту завершився коректно" "рядок TOTALS" "rc=$ma_rc, без підсумку"
+  else
+    PASS=$((PASS + ma_pass)); FAIL=$((FAIL + ma_fail))
+    while IFS= read -r line; do FAILED+=("${line#  - }"); done < <(sed -n '/^Впали:/,$p' <<<"$ma_out" | tail -n +2)
+  fi
+else
+  echo "  ⏭  node недоступний — тести проєкту пропущено (не падіння)"
+fi
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then
