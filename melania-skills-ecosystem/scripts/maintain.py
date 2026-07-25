@@ -11,6 +11,13 @@
                                #   MELANIA-BOOTSTRAP.md. Версії/дата білду беруться з
                                #   frontmatter/пакета — не вигадуються. Наприкінці — verify.
 
+  python3 maintain.py package [skill|all]
+                               # upload-safe .skill-пакети для скіл-стору claude.ai:
+                               #   folder-at-root, БЕЗ крапкових шляхів (.snapshots тощо —
+                               #   завантажувач їх відхиляє) і БЕЗ evals/ (пакувальник
+                               #   стору їх усе одно вирізає — source-істина лишається
+                               #   в цьому репо/zip). Кладе у dist/.
+
 Запускати з будь-якої теки: шляхи визначаються відносно розташування скрипта.
 """
 import json, hashlib, re, sys, subprocess, os
@@ -292,8 +299,49 @@ def resync() -> int:
     return verify()
 
 
+# ---------------------------------------------------------------- package
+def package(target: str = "all") -> int:
+    """Upload-safe .skill для скіл-стору: folder-at-root, без крапкових шляхів і без evals/.
+
+    Урок (емпірично): завантажувач стору відхиляє шляхи, що починаються з крапки
+    (`.snapshots/…` є в КОЖНОМУ скілі) — установка падає з помилкою про недопустимі
+    символи. Пакувальник стору також вирізає `evals/`, тож source-істина тестів
+    лишається тут, у репо/повному zip.
+    """
+    import zipfile
+    dist = ROOT / "dist"; dist.mkdir(exist_ok=True)
+    names = skill_dirs() if target == "all" else [target]
+    made, skipped = [], []
+    for name in names:
+        d = SKILLS / name
+        if not (d / "SKILL.md").exists():
+            skipped.append(f"{name}: немає SKILL.md"); continue
+        out = dist / f"{name}.skill"
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in sorted(d.rglob("*")):
+                if not f.is_file():
+                    continue
+                rel = f.relative_to(d)
+                # відкидаємо крапкові сегменти (.snapshots, .DS_Store…) і evals/
+                if any(part.startswith(".") for part in rel.parts) or rel.parts[0] == "evals":
+                    continue
+                z.write(f, f"{name}/{rel.as_posix()}")
+            bad = [n for n in z.namelist() if any(p.startswith(".") for p in n.split("/"))]
+        if bad:
+            skipped.append(f"{name}: лишились крапкові шляхи {bad[:2]}"); out.unlink(missing_ok=True)
+        else:
+            made.append(f"{name}.skill")
+    print(f"package: зібрано {len(made)} → {dist.relative_to(ROOT.parent)}/")
+    for m in made: print(f"  · {m}")
+    for s in skipped: print(f"  ✗ {s}")
+    print("  (evals/ навмисно виключені — source-істина в репо; крапкових шляхів: 0)")
+    return 1 if skipped else 0
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "verify"
+    if cmd == "package":
+        sys.exit(package(sys.argv[2] if len(sys.argv) > 2 else "all"))
     if cmd == "verify":
         sys.exit(verify())
     elif cmd == "resync":
