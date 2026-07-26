@@ -3,14 +3,14 @@ name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
 license: Apache-2.0 — повні умови в LICENSE.txt кореня екосистеми
 metadata:
-  version: 1.4.1
+  version: 1.5.0
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Building LLM-Powered Applications with Claude — v1.4.1
+# Building LLM-Powered Applications with Claude — v1.5.0
 > Пояснення — українською за замовчуванням (українською-перша); код, ідентифікатори та поля API лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -19,6 +19,16 @@ metadata:
 
 Стисло: re-read диску → порівняти версії (диск новіший → диск база) → integrity-diff → validation-mesh → safety-compliance-gate (перед пакуванням/публікацією) → backup/snapshot → merge-not-replace → bump+CHANGELOG → показати diff і чекати явного схвалення MA (Закон II).
 
+---
+
+## Critical Facts
+- **[C] Streaming потрібен для довгих входів/виходів — рятує від request timeouts.** За замовчуванням для запитів з потенційно довгим входом, виходом чи високим `max_tokens` вживай streaming; SDK-хелпер `.get_final_message()` / `.finalMessage()` збирає повну відповідь.
+- **[C] `budget_tokens` на поточних флагманських моделях deprecated** — там діє `thinking: {type: "adaptive"}` без бюджету. Параметр лишається валідним для старіших поколінь; актуальну поведінку звіряй у docs.
+- **[C] Tool Search Tool дає −85% контексту для великих tool-бібліотек.** Замість вантажування всіх визначень інструментів у контекст (77K) підвантажуй їх пошуком (8.7K); механіка — у Advanced Tool Use.
+- **[C] Programmatic Tool Calling дає −37% токенів на складних research-задачах.** Модель викликає інструменти з code-execution середовища, фільтруючи проміжні дані (43.6K→27.3K); beta-можливість для агентів з великими наборами інструментів.
+- **[C] Стиснення/edits щотурну вбивають prompt-cache.** Тримай system+інструменти незмінними й стискай лише хвіст конверсації; інакше cache-підтримка втрачається.
+
+---
 
 ## Вибір поверхні (Surface Decision)
 
@@ -198,6 +208,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.5.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.4.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): ліцензійний покажчик виправлено на корінь екосистеми (локального LICENSE.txt не існувало) [#25/#44]; H1-банер з версією [#21/#45-клас]. Лише метадані.
 - **v1.4.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** Секцію «Поточні моделі» де-піновано: таблиця конкретних ID/цін → покажчик на спільний датований снапшот у `multi-provider` (DRY) + правило «найновіша доступна». **(B)** Compaction розширено (агностично): `context_management.edits`, конфігурований поріг, `pause_after_compaction`, попередження про кеш-префікс. **(C)** НОВА секція Memory Tool: sandbox-патерн, path-traversal захист, емпірика +39%/−84%, pre-compaction flush — без прив'язки до поколінь. **(D)** НОВА секція Advanced Tool Use: Programmatic Tool Calling (−37% токенів), Tool Search Tool (−85% контексту), Tool Use Examples (72→90%). **(E)** Pitfalls: +Batch довгий output (beta, звір хедер у docs). Лише додавання/де-пін; API-ідентифікатори (tool-типи, beta-хедери) збережені — це документація API, не пін моделей. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 - **v1.3.0** (2026-06-26) — Повна UA-локалізація (Task 1): технічну прозу (Defaults, Language Detection, Architecture, Reading Guide, Pitfalls, таблиці) перекладено українською; код / API / ідентифікатори лишаються англійською. +власні `evals/` (5, канон-схема). **S-1:** знімок моделей оновлено (Opus 4.6→4.8, `claude-opus-4-8`); version-tied claims генералізовано на «поточні флагмани» + verify-нота (без вигадування цін 4.8). **S-2:** дубльовану секцію «Зміни» + дубль v1.2.0 консолідовано (вміст збережено). Переклад + додавання; функціонал не змінено.

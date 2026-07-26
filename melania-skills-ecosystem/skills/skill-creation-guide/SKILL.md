@@ -3,14 +3,14 @@ name: skill-creation-guide
 description: "Step-by-step guide for creating Claude Skills in SKILL.md format. ALWAYS use this skill when user wants to create a new skill, write a SKILL.md file, package a .skill file, add instructions as a skill, or asks how to structure skill instructions. Also triggers for: створити скіл, написати інструкції скіл, як зробити skill, як упакувати skill, формат skill, SKILL.md шаблон, додати скіл. Includes: YAML frontmatter rules, body patterns, evals template, guard script, progressive disclosure, token-efficient structure, and coordination with skill-creator, validation-mesh, semantic-router, continuation-memory. DO NOT use for: governance/версії/затвердження та авторитет пакування (melania-skill-master-administrator); дистрибуція в маркетплейси (skill-marketplace-distribution); легкий лабораторний стандарт ai-lab з мінімальним frontmatter (skill-new); аудит екосистеми (skill-ecosystem-auditor)."
 license: Proprietary
 metadata:
-  version: 1.10.0
+  version: 1.11.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-05-27
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Skill Creation Guide — v1.10.0
+# Skill Creation Guide — v1.11.0
 > Меланія · оновлено 2026-07-19 · Для деталей читай `references/full-guide.md`
 > Працює українською за замовчуванням (українською-перша).
 
@@ -30,6 +30,15 @@ metadata:
 4. Тести: 4–6 `evals.json` кейсів з конкретними assertions
 5. **Decision Gate:** спершу онови НАЯВНИЙ скіл; новий створюй ЛИШЕ якщо оновлення неможливе/нелогічне
 6. **Українською-перша:** тригери + поведінка за замовчуванням + приклади — українською
+
+---
+
+## Critical Facts
+- **[C] `description` обмежено 1024 символами.** Перевищення ліміту блокує збереження SKILL.md — це технічне обмеження платформи, а не рекомендація.
+- **[C] Пакувальник вирізає `evals/` з `.skill`-архіву.** Інсталяція готового скіла через `.skill`-файл не переносить тестові кейси — джерело evals потрібно тримати окремо (наприклад, у git).
+- **[C] Схема evals цієї екосистеми несумісна з офіційною.** Тут канон — поля `name`+`assertions`+`version`, тоді як офіційний `skill-creator/schemas.md` очікує `expectations` — формати різні й напряму не конвертуються.
+- **[C] Дослідження ETH Zurich (138 задач) виміряло шкоду роздутого контексту.** Дубльовані/об'ємні контекстні файли знижували success-rate і підвищували вартість більш ніж на 20% (14–22% reasoning-токенів) порівняно з коротким або відсутнім контекстом.
+- **[C] `SKILL.md` має лежати в корені `.skill`-архіву.** Вкладена структура на кшталт `name/name/SKILL.md` не відповідає очікуваному формату пакета.
 
 ---
 
@@ -286,6 +295,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.11.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.10.0** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18): (A) P1 №26/№32 — +DO NOT-межі в description (governance → melania-SMA; маркетплейс → skill-marketplace-distribution; лаб-стандарт ai-lab → skill-new; аудит → skill-ecosystem-auditor) — дзеркально до SMA v2.16.0; закриває відсутність DO NOT, яку вимагає власний Core Rule 3. (B) №30 — синхронізовано банер (v1.1→v1.10.0) і last_updated (2026-06-13→2026-07-19) з frontmatter/changelog. Лише уточнення меж і синхронізація.
 - **v1.9.3** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (5, канон-схема). **S-2** примітка про дубль v1.4.0. Додавання + примітка.
 - **v1.9.2** (2026-06-26) — GSRE-інтеграція: +канон-нота схеми evals (`name`+`assertions`+`version`, НЕ `expectations` офіційного skill-creator) + правило «evals не потрапляють у .skill → тримати source окремо» після шаблону evals. Лише додавання.

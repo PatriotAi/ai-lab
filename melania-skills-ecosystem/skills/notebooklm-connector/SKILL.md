@@ -3,14 +3,14 @@ name: notebooklm-connector
 description: "Full integration with Google NotebookLM: read sources, add URLs and files, merge all sources into one document, generate Audio Overview, Video Overview, Briefing Doc, Study Guide, FAQ, Timeline, Mind Map, Slide Deck, Infographic, Flashcards, Quizzes, Deep Research, and Chat with citations. ALWAYS use this skill when user mentions notebook or notebooklm, shares a notebooklm.google.com link, or says dodai do notebook, vytahny z notebook, obiednai dzherela, analizui notebook. Even without the word notebooklm: use when user wants to merge research sources, generate a podcast from documents, build a knowledge base, or analyze sources with cited answers. DO NOT use for: plain Google Docs tasks with no NotebookLM involvement; запуск спільного браузера — «відкрий браузер»/collaborative browser (collaborative-browser; MODE F делегує туди); синтез неочевидних зв'язків поверх власних нотаток поза NotebookLM (knowledge-synthesizer)."
 license: Proprietary
 metadata:
-  version: 4.3.0
+  version: 4.4.0
   author: Melania (Master Administrator)
   category: knowledge
   created: 2026-03-20
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# NotebookLM Connector — v4.3.0
+# NotebookLM Connector — v4.4.0
 > Українською-перша: відповіді, пояснення й нотатки — українською за замовчуванням; UI-шляхи NotebookLM лишаються як є. Перемикання мови лише слідом за користувачем.
 >
 > **Неофіційний.** Не пов'язаний з, не схвалений і не спонсорований Google. «NotebookLM» — продукт і торгова марка Google; назва вжита суто референційно (опис сумісності).
@@ -26,6 +26,14 @@ metadata:
 ## Core Rule
 
 NotebookLM has no public API. Known constant — never stop to explain it. Cascade.
+
+---
+
+## Critical Facts
+- **[C] NotebookLM не має публічного API.** Це причина каскаду методів доступу (MCP-емуляція, Browserbase, артефакт, ручний спосіб) замість прямого виклику офіційного API.
+- **[C] Ліміт вставки джерела як тексту — приблизно 500 000 символів.** Понад цей обсяг джерело потрібно ділити на частини з перехресними посиланнями (cross-refs), а не вставляти одним шматком.
+- **[C] Slide Deck на безкоштовному тарифі виходить із водяним знаком.** Studio → Slide deck → Generate додає watermark, якщо акаунт не на платному плані.
+- **[C] Персона чату обмежена 10 000 символів.** Налаштування Chat → ⚙ → persona prompt приймає текст довжиною до 10 000 символів.
 
 ---
 
@@ -320,6 +328,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v4.4.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v4.3.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): MODE F більше не генерує власний `collaborative-browser.jsx` (мертвий референс на «already built» артефакт) — тонке делегування у скіл `collaborative-browser` з передачею NotebookLM-контексту; Behavior-рядок «відкрий браузер» відповідно [#9]; з опису знято перехоплювальні тригери «відкрий браузер/спільний браузер» (канон — collaborative-browser) і додано межу з `knowledge-synthesizer` [#11]; синхрон H1-банера (був v4). Делегування; власна NotebookLM-механіка незмінна.
 - **v4.2.3** (2026-06-26) — Stage 3: **S-3** `evals/` відновлено (6 реальних кейсів v3.0.0 з форензик-пошуку: read-notebook-url, add-multiple-sources, feature-generator-survey, mobile-friendly-instructions, deep-research-new-feature, context-chat-export; канон-схема). **S-2** дубльовану секцію «Зміни» + дубль v4.2.0 консолідовано (вміст збережено). Відновлення + консолідація.
 - **v4.2.2** (2026-06-15) — B2 (safety-compliance-gate): дисклеймер неприналежності — NotebookLM (Google).

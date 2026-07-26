@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:14:21.761573+00:00",
-  "md5": "7117424f4a6345b66575fd9e115d7399",
-  "total_lines": 449,
+  "timestamp": "2026-07-26T19:52:48.861215+00:00",
+  "md5": "1b9d703443386eeadc9d43cae1882bdf",
+  "total_lines": 459,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## При активації",
     "## Layout",
     "## Критичні правила — ОБОВ'ЯЗКОВО читати",
@@ -30,6 +31,7 @@
     "Auth",
     "Autopilot Research",
     "Builder iframe",
+    "Critical Facts",
     "Keyboard shortcuts",
     "Layout",
     "Toolbar",

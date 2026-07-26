@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-11T19:16:57.214657+00:00",
-  "md5": "b1cf30e0d2ddeda45b0527dbaf6d8883",
-  "total_lines": 226,
+  "timestamp": "2026-07-26T19:52:49.093002+00:00",
+  "md5": "7ff68613b43fd839812f7da7601f6ca6",
+  "total_lines": 234,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
+    "## Critical Facts",
     "## Pattern 1 — Provider Chain з мульти-ключем",
     "## Pattern 2 — Failover з rate-limit детекцією",
     "## Pattern 3 — Task-based routing",
@@ -27,6 +28,7 @@
     "Coordinates with",
     "Core Rule",
     "Cost Estimation",
+    "Critical Facts",
     "Pattern 1",
     "Pattern 2",
     "Pattern 3",

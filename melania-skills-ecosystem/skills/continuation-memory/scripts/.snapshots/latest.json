@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:53:43.999364+00:00",
-  "md5": "1d9d4a4149a855b6f742c9698295785f",
-  "total_lines": 344,
+  "timestamp": "2026-07-26T19:52:48.895518+00:00",
+  "md5": "ae595b6fd70eccb1a7af400840465cd6",
+  "total_lines": 352,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Purpose",
     "## When to Generate a Continuation Package",
     "## Continuation Package Format",
@@ -38,6 +39,7 @@
     "CONTINUATION_PACKAGE",
     "Compression Workflow",
     "Continuation Package Format",
+    "Critical Facts",
     "Current Architecture",
     "Dependency Map",
     "G5 cold",

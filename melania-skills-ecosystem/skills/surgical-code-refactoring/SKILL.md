@@ -3,14 +3,14 @@ name: surgical-code-refactoring
 description: "Token-efficient, dependency-aware methodology for modifying large existing codebases without breaking working functionality. Patch over rewrite, validate BEFORE integrating, regression-check after every change. ALWAYS use when editing a large single-file app, adding features to working code, fixing bugs in a big file, or the user says: не зламай робоче, економ токени, хірургічно, patch not rewrite, додай функцію не переписуючи, перевір перед інтеграцією, surgical, regression check, audit before changes. Also triggers for: великий HTML/JS файл, refactor without breaking, incremental feature integration, dependency-aware edits. DO NOT use for greenfield projects from scratch, or tiny scripts under 100 lines."
 license: Proprietary
 metadata:
-  version: 1.5.3
+  version: 1.6.0
   author: Melania (Master Administrator)
   category: code-refactoring
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Surgical Code Refactoring — v1.5.3
+# Surgical Code Refactoring — v1.6.0
 > Метод напрацьований на проєкті AI Gateway (2670-рядковий single-file React/HTML застосунок). Дозволяє додавати складні функції у великий робочий код без регресій і без перевитрати токенів.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -24,6 +24,14 @@ metadata:
 
 ## Core Rule
 НІКОЛИ не переписуй робочий код цілком. Патч точкових місць через `str_replace`. ЗАВЖДИ перевіряй (синтаксис + симуляція) ПЕРЕД інтеграцією. Після кожної зміни — регрес-тест що старі функції цілі.
+
+---
+
+## Critical Facts
+- **[C] Метод виник емпірично на проєкті AI Gateway (2670 рядків, single-file React/HTML).** Це не абстрактна теорія, а практика, перевірена на конкретному великому файлі.
+- **[C] Heredoc/copy-вставка може непомітно підмінити ASCII-символи на фулвідз-варіанти.** `()` перетворюється на `（）`, кома — на `，`; тому після кожної вставки обов'язковий grep-пошук цих символів.
+- **[C] Сигнали, що React-компонент пора розбити: >150 рядків JSX, >3 `useState`, >2 `useEffect`.** Перевищення будь-якого порогу — привід виділити Container/Presentational/Custom Hooks.
+- **[C] Скіл не призначений для проєктів з нуля чи скриптів менше 100 рядків.** Метод оптимізований під редагування великого наявного коду, а не під написання коду з нуля.
 
 ---
 
@@ -190,6 +198,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.3** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): синхрон H1-банера (був v1.0 при 1.5.2) + `last_updated` [#21/#45-клас]. Лише метадані.
 - **v1.5.2** (2026-06-26) — Stage 3 S-2: примітка про дубль v1.3.0 у changelog (вміст збережено, нумерацію не переписано). Лише додавання примітки.
 - **v1.5.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

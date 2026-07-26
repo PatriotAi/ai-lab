@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:25:45.174576+00:00",
-  "md5": "d24994af100a5ec205b4bfc373bfc991",
-  "total_lines": 206,
+  "timestamp": "2026-07-26T19:52:49.028686+00:00",
+  "md5": "81d9e4191b7cf3607d25baa478436eba",
+  "total_lines": 217,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Вибір поверхні (Surface Decision)",
     "## Замовчування (Defaults)",
     "## Визначення мови (Language Detection)",
@@ -24,6 +25,7 @@
   "key_terms": [
     "Advanced Tool Use",
     "Compaction",
+    "Critical Facts",
     "Memory Tool",
     "Thinking & Effort",
     "Архітектура",

@@ -3,14 +3,14 @@ name: webapp-testing
 description: "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs. Use this skill when testing web applications, running browser automation, debugging frontend UI, or capturing screenshots of local apps. Також використовуй, коли користувач хоче: протестувати веб-застосунок, налаштувати Playwright-автоматизацію браузера, перевірити UI / доступність / мобільні вьюпорти, зробити visual regression чи скриншоти локального застосунку. НЕ використовувати для не-браузерних юніт-тестів чи бекенд-логіки без UI, ані для спільного інтерактивного веб-серфінгу з агентом (collaborative-browser) — тут лише автоматизовані Playwright-тести."
 license: Apache-2.0 — повні умови в LICENSE.txt кореня екосистеми
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   author: Melania (Master Administrator)
   category: testing
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Web Application Testing — v1.5.0
+# Web Application Testing — v1.6.0
 > Пояснення — українською за замовчуванням (українською-перша); код, селектори та команди лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -19,6 +19,13 @@ metadata:
 
 Стисло: re-read диску → порівняти версії (диск новіший → диск база) → integrity-diff → validation-mesh → safety-compliance-gate (перед пакуванням/публікацією) → backup/snapshot → merge-not-replace → bump+CHANGELOG → показати diff і чекати явного схвалення MA (Закон II).
 
+## Critical Facts
+- **[C] Інспекція DOM до `networkidle` дає неповний/помилковий результат.** На динамічних застосунках JS ще не встиг відпрацювати — рендерений вміст і селектори, зняті до `page.wait_for_load_state('networkidle')`, не відповідають фінальному стану сторінки.
+- **[C] `scripts/with_server.py` і `examples/` не лежать у цьому скілі локально.** Вони живуть у повному репозиторії `anthropics/skills` — без `web_fetch` цих файлів на диску немає.
+- **[C] Playwright має вбудований API-клієнт.** `page.request` дозволяє робити HTTP-запити (GET/POST з auth) без підключення окремої HTTP-бібліотеки.
+- **[C] Більшість багів походить від взаємодії двох факторів.** Це емпіричне обґрунтування pairwise-тестування: покриття всіх ПАР значень параметрів ловить переважну частину дефектів дешевше, ніж повний перебір комбінацій.
+
+---
 
 ## Дерево рішень: вибір підходу
 
@@ -210,6 +217,7 @@ for vp in VIEWPORTS:
 ---
 
 ## Зміни
+- **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Decision Tree більше не вдає локальний `with_server.py` — явний крок web_fetch перед викликом (файл живе в anthropics/skills; Нотатка була, дерево їй суперечило) [#43]; сирітських/мертвих references не виявлено — `e2e-patterns.md` підключений [#15 перевірено]; межа з `collaborative-browser` у описі [#41]; ліцензійний покажчик на корінь екосистеми [#25/#44]; H1 з версією. Лише документація/межі.
 - **v1.4.0** (2026-06-26) — Повна UA-локалізація (Task 1): ранню прозу (Decision Tree, with_server, Reconnaissance, Common Pitfall, Best Practices, Reference-файли) перекладено українською; код / селектори / команди лишаються англійською. +власні `evals/` (5, канон-схема). **S-2:** дубль v1.2.0 у changelog консолідовано + впорядковано (вміст збережено). Переклад + додавання; функціонал не змінено.
 - **v1.3.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна.

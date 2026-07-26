@@ -58,7 +58,7 @@ melania-skills-ecosystem/
 
 ## Версія пакета
 
-Дата збірки: 2026-07-25 · Скілів: 28 · Eval-кейсів: 134 · Governance: melania v2.21.0
+Дата збірки: 2026-07-26 · Скілів: 28 · Eval-кейсів: 134 · Governance: melania v2.22.0
 Повний перелік версій — у `MANIFEST.json`.
 
 > v4 (2026-07-05): відновлено скіл **source-research-browser→harvest** (мета-оркестратор дослідження джерел), який губився між сесіями; повернуто всі evals; collaborative-browser оновлено до 3.0.0.

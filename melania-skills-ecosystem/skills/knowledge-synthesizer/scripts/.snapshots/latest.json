@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-21T18:25:45.143619+00:00",
-  "md5": "b1a8dfbc78b81a3d2ef1513ff95554b9",
-  "total_lines": 72,
+  "timestamp": "2026-07-26T19:52:48.996520+00:00",
+  "md5": "b0f388e287eddc2e1b8d41c93ca86264",
+  "total_lines": 80,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
+    "## Critical Facts",
     "## Пайплайн (generator → critic → threshold)",
     "## Економія (обов'язково)",
     "## Поведінка",
@@ -15,6 +16,7 @@
   ],
   "key_terms": [
     "Core Rule",
+    "Critical Facts",
     "References",
     "Verify",
     "Економія",

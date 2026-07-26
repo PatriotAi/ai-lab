@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-21T18:25:45.519334+00:00",
-  "md5": "b2c453bf41599fdf5ecff136cdf34119",
-  "total_lines": 204,
+  "timestamp": "2026-07-26T19:52:49.460677+00:00",
+  "md5": "76654b94d7e3b482e71ba9c780bd5dc2",
+  "total_lines": 213,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
+    "## Critical Facts",
     "## Правила Karpathy (поведінкові дефолти)",
     "## Git-guardrails + diagnose",
     "## Чому цей метод (проблема яку вирішує)",
@@ -30,6 +31,7 @@
     "CSS/Tailwind",
     "Coordinates with",
     "Core Rule",
+    "Critical Facts",
     "Git",
     "PHASE 1",
     "PHASE 2",

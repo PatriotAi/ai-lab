@@ -125,6 +125,12 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None) -> li
     """
     root = root or REPO
     problems: list[str] = []
+    # Секція обов'язкова в КОЖНОМУ скілі. Без цієї вимоги гейт покривав лише ті скіли,
+    # де секція випадково була (2 з 28) — «у мене немає тверджень» ставало способом
+    # обійти правило, і решта проходила порожньо.
+    if not re.search(r"^##+ +Critical Facts", txt, re.M):
+        problems.append(f"{name}: немає секції «Critical Facts» — нема чого пред'явити гейту")
+        return problems
     for sec in re.finditer(r"^##+ +Critical Facts[^\n]*$", txt, re.M):
         start = sec.end()
         nxt = re.search(r"^##+ ", txt[start:], re.M)
