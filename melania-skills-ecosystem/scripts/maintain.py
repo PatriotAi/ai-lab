@@ -24,6 +24,7 @@ import json, hashlib, re, sys, subprocess, os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent          # melania-skills-ecosystem/
+REPO = ROOT.parent                                     # корінь ai-lab (для вказівників [E])
 SKILLS = ROOT / "skills"
 MANIFEST = ROOT / "MANIFEST.json"
 BOOTSTRAP = ROOT / "MELANIA-BOOTSTRAP.md"
@@ -101,7 +102,7 @@ def skill_dirs():
 
 
 # ---------------------------------------------------------------- verify
-def claim_evidence_problems(name: str, txt: str) -> list[str]:
+def claim_evidence_problems(name: str, txt: str, root: Path | None = None) -> list[str]:
     """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S].
 
     Чому саме секція «Critical Facts», а не «Core Rule»: правило-директива не буває
@@ -111,9 +112,18 @@ def claim_evidence_problems(name: str, txt: str) -> list[str]:
     [E] вимагає ВКАЗІВНИКА на перевірку (шлях до тесту, файл або дата) — інакше
     «перевірено» лишається словом, а це і є той дефект, який гейт закриває.
 
-    Винесено окремою функцією, щоб canary-тести ганяли її на тимчасовому тексті,
-    а не мутували робочі файли репозиторію (урок 2026-07-21).
+    Формат вказівника ще НЕ доказ. Випадок №5 із брифу (скіли декларували evals
+    з v1.2.1, артефакту не існувало) проходив би формат-перевірку без проблем,
+    тому [E] мусить назвати шлях, який РЕАЛЬНО існує в репозиторії: доказ має
+    бути знаходжуваним, а не правдоподібно виглядати. Дата лишається дозволеним
+    додатковим контекстом, але сама по собі доказом не є — зовнішній прогін
+    оформлюється записом у docs/ і цитується як шлях.
+
+    Винесено окремою функцією (root — параметр), щоб canary-тести ганяли її на
+    тимчасовому тексті й тимчасовому корені, а не мутували робочі файли
+    репозиторію (урок 2026-07-21).
     """
+    root = root or REPO
     problems: list[str] = []
     for sec in re.finditer(r"^##+ +Critical Facts[^\n]*$", txt, re.M):
         start = sec.end()
@@ -123,9 +133,21 @@ def claim_evidence_problems(name: str, txt: str) -> list[str]:
             tag = re.search(r"\[(E|C|S)\]", bullet)
             if not tag:
                 problems.append(f"{name}: факт без тега доказовості — {bullet[2:60].strip()}")
-            elif tag.group(1) == "E" and not re.search(
-                    r"\d{4}-\d{2}-\d{2}|\.(py|mjs|js|sh|md|html)\b|tests/", bullet):
+                continue
+            if tag.group(1) != "E":
+                continue
+            # Кандидати-шляхи: беремо ВСІ, вимагаємо, щоб ХОЧА Б ОДИН існував.
+            # (У тексті факту поруч живуть не-файлові згадки на кшталт `sw.js` —
+            # вимагати існування кожної було б хибною тривогою.)
+            paths = re.findall(r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
+            has_date = re.search(r"\d{4}-\d{2}-\d{2}", bullet)
+            if not paths and not has_date:
                 problems.append(f"{name}: [E] без вказівника на перевірку — {bullet[2:60].strip()}")
+            elif not any((root / p.lstrip("./")).exists() for p in paths):
+                problems.append(
+                    f"{name}: [E] без доказу, який існує на диску "
+                    f"({'шляхи: ' + ', '.join(sorted(set(paths))) if paths else 'лише дата'}) "
+                    f"— {bullet[2:60].strip()}")
     return problems
 
 
@@ -257,7 +279,8 @@ def verify() -> int:
         ok = False; print(f"\n❌ доказовість тверджень (Core Rule 14) — {len(claim_problems)}:")
         for c in claim_problems: print(f"  ✗ {c}")
     else:
-        print("✅ усі фактичні твердження несуть тег доказовості ([E] — з вказівником)")
+        print("✅ усі фактичні твердження несуть тег доказовості "
+              "([E] — з доказом, який існує на диску)")
     if guard_fail:
         ok = False; print(f"\n❌ regression-guard — {len(guard_fail)} не пройшли:")
         for g in guard_fail: print(f"  ✗ {g}")
