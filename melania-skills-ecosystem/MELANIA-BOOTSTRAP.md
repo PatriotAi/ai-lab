@@ -1,6 +1,6 @@
 # MELANIA-BOOTSTRAP — миттєва інтеграція скіл-екосистеми в нову сесію
 <!-- machine-priority: цей файл адресовано AI. Одного цього файлу достатньо — НЕ проси інших файлів для старту. -->
-<!-- Стан зафіксовано: 2026-07-25 · пакет melania-skills-ecosystem · governance melania v2.20.0 -->
+<!-- Стан зафіксовано: 2026-07-25 · пакет melania-skills-ecosystem · governance melania v2.21.0 -->
 
 ## Для AI: що зробити після отримання цього файлу (і ЧОГО НЕ робити)
 
@@ -51,7 +51,7 @@
 | Скіл | v | Активувати коли |
 |---|---|---|
 | semantic-router | 1.15.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
-| melania-skill-master-administrator | 2.20.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
+| melania-skill-master-administrator | 2.21.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
 | ai-core-runtime | 3.12.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
 | rlm-harness | 0.5.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.5.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
@@ -62,8 +62,8 @@
 | source-research-harvest | 0.2.0 | «досліди це джерело для оновлення»: будь-яке джерело → дослідження → покращення екосистеми → валідація |
 | skill-marketplace-distribution | 0.2.1 | публікація/продаж власного скіла в маркетплейси, .skill-пакування, монетизація |
 | safety-compliance-gate | 1.1.2 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
-| pre-delivery-gate | 1.1.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
-| validation-mesh | 1.6.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
+| pre-delivery-gate | 1.2.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
+| validation-mesh | 1.7.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
 | continuation-memory | 1.10.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.1.0 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
 | knowledge-synthesizer | 1.1.0 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
@@ -71,12 +71,12 @@
 | auth-session-manager | 1.4.3 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
 | collaborative-browser | 3.1.0 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
 | notebooklm-connector | 4.3.0 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |
-| browser-local-ai-webllm | 1.2.4 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
+| browser-local-ai-webllm | 1.2.5 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
 | webapp-testing | 1.5.0 | Playwright-тестування локальних веб-застосунків, скриншоти, UI-дебаг |
 | n8n-orchestrator | 2.9.0 | будь-що про n8n: workflow JSON, вебхуки, автоматизації, пайплайни |
 | vercel-mcp-connector | 1.1.0 | робота з Vercel: деплой, build/runtime логи, "чому впав білд", домени |
 | github-collab | 1.0.0 | GitHub без знання термінів: біль своїми словами → PR/Issues/CI/releases/Pages через MCP; цикли checkup/compact/rewind; merge у main — лише за згодою власника |
-| pwa-to-android-app | 1.4.0 | упакувати HTML/JS-застосунок як PWA/APK, авто-оновлення, встановлення на смартфон |
+| pwa-to-android-app | 1.4.1 | упакувати HTML/JS-застосунок як PWA/APK, авто-оновлення, встановлення на смартфон |
 | surgical-code-refactoring | 1.5.3 | правки великого робочого коду без поломок: patch over rewrite, regression-check |
 
 ## Стан пакета (довідково, не перевіряти повторно)

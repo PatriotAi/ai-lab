@@ -258,6 +258,56 @@ out=$(printf 'see https://evil.test/collect?token=abcdefghijklmnopqrstuvwxyz1234
   || bad "значення чутливого параметра запиту маскується у звіті" "token=***" "сире значення у звіті"
 
 echo ""
+echo "════════ 8. Гейт доказовості тверджень (Core Rule 14) ════════"
+cd "$REPO" || exit 1
+# Canary: гейт має ЛОВИТИ підробки, а не просто мовчати на чистому тексті.
+# Ганяємо чисту функцію на тимчасовому тексті — робочі файли не мутуємо (урок 2026-07-21).
+ce_case() { # ce_case <назва> <очікуємо-знахідку|-> <текст>
+  local name="$1" want="$2" txt="$3" out
+  out=$(MAINT_TXT="$txt" python3 -c "
+import os, sys
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import claim_evidence_problems
+print(' | '.join(claim_evidence_problems('t', os.environ['MAINT_TXT'])) or 'ЧИСТО')
+" 2>&1)
+  if [[ "$want" == "-" ]]; then
+    [[ "$out" == "ЧИСТО" ]] && ok "$name" || bad "$name" "чисто" "$out"
+  else
+    [[ "$out" == *"$want"* ]] && ok "$name" || bad "$name" "$want" "$out"
+  fi
+}
+
+GOOD=$'## Critical Facts\n- **[C] Твердження один.**\n- **[E] Друге.** (tests/foo.mjs, 2026-07-24)\n'
+ce_case "коректний текст → чисто" - "$GOOD"
+ce_case "канарка: факт без тега → спіймано" "без тега доказовості" \
+  $'## Critical Facts\n- **Твердження без тега.**\n'
+ce_case "канарка: [E] без вказівника → спіймано" "без вказівника на перевірку" \
+  $'## Critical Facts\n- **[E] Перевірено, чесне слово.**\n'
+ce_case "[E] з датою прогону → приймається" - \
+  $'## Critical Facts\n- **[E] Факт.** (браузерний прогін 2026-07-24)\n'
+ce_case "[E] зі шляхом до тесту → приймається" - \
+  $'## Critical Facts\n- **[E] Факт.** (tests/run-tests.sh)\n'
+ce_case "директива в Core Rule тега НЕ потребує" - \
+  $'## Core Rule\n- Ніколи не логуй секрети у відкритому вигляді.\n'
+ce_case "скіл без секції Critical Facts → чисто" - $'## Behavior\n- будь-що\n'
+ce_case "тег [S] (гіпотеза) приймається" - $'## Critical Facts\n- **[S] Припущення.**\n'
+
+# Гейт має бути справді ввімкнений у verify, а не лише існувати функцією.
+grep -q "claim_evidence_problems" melania-skills-ecosystem/scripts/maintain.py \
+  && grep -q "доказовість тверджень" melania-skills-ecosystem/scripts/maintain.py \
+  && ok "гейт підключений у maintain.py verify" \
+  || bad "гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
+# Реальний стан екосистеми має відповідати правилу (не лише тестові рядки).
+real=$(python3 -c "
+import sys, pathlib
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import claim_evidence_problems
+n = sum(len(claim_evidence_problems(p.parent.name, p.read_text(encoding='utf-8')))
+        for p in pathlib.Path('melania-skills-ecosystem/skills').glob('*/SKILL.md'))
+print(n)")
+check "усі 28 скілів проходять гейт доказовості" "0" "$real"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then

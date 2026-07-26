@@ -3,14 +3,14 @@ name: browser-local-ai-webllm
 description: "Run local LLMs directly in the browser via WebLLM (WebGPU) with NO middleware app — no Ollama, no PocketPal, no PC. Covers lazy-loading the ESM lib, WebGPU/HTTPS requirements, device analysis (RAM/VRAM), model-fit ranking, the Chrome 8GB deviceMemory cap, and OpenAI-compatible call/stream. ALWAYS use when adding in-browser local AI, running models client-side without a server, or the user says: локальний AI у браузері, WebLLM, без посередників, модель прямо в застосунку, WebGPU AI, браузерний AI, офлайн модель у браузері, run model in browser, on-device browser inference. Also triggers for: device analysis for model fit, VRAM detection, prebuiltAppConfig, MLCEngine. DO NOT use for server-side inference, native mobile inference, or when Ollama/LM Studio is the intended runtime (those are external providers)."
 license: Proprietary
 metadata:
-  version: 1.2.4
+  version: 1.2.5
   author: Melania (Master Administrator)
   category: browser-ai
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Browser-Local AI via WebLLM — v1.2.4
+# Browser-Local AI via WebLLM — v1.2.5
 > Напрацьовано на AI Gateway. Реальне рішення локального AI БЕЗ посередників: модель працює прямо в браузері/застосунку через WebGPU. Підтверджено тестуванням @mlc-ai/web-llm v0.2.84 (163 моделі, OpenAI-сумісний API).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 >
@@ -30,10 +30,10 @@ WebLLM працює ТІЛЬКИ в secure context (HTTPS або localhost) бо
 ---
 
 ## Critical Facts (підтверджено, не припущення)
-- **PocketPal НЕ має локального API-сервера** (open feature request) — не може бути middleware. WebLLM — реальна альтернатива.
-- **window.ai / Gemini Nano НЕ працює на Android** (desktop/ChromeOS only).
-- **Chrome навмисне обмежує `navigator.deviceMemory` до МАКС 8GB** (приватність). Це НЕ баг. Дай користувачу ручне коригування. У нативному APK буде справжнє значення.
-- Список моделей фіксований версією WebLLM (тільки MLC-конвертовані). Довільну модель додати НЕ можна — для широкого вибору потрібні зовнішні Ollama/LM Studio або нативний застосунок.
+- **[C] PocketPal НЕ має локального API-сервера** (open feature request) — не може бути middleware. WebLLM — реальна альтернатива.
+- **[C] window.ai / Gemini Nano НЕ працює на Android** (desktop/ChromeOS only).
+- **[C] Chrome навмисне обмежує `navigator.deviceMemory` до МАКС 8GB** (приватність). Це НЕ баг. Дай користувачу ручне коригування. У нативному APK буде справжнє значення.
+- [C] Список моделей фіксований версією WebLLM (тільки MLC-конвертовані). Довільну модель додати НЕ можна — для широкого вибору потрібні зовнішні Ollama/LM Studio або нативний застосунок.
 
 ---
 
@@ -219,6 +219,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.2.5** (2026-07-26) — Core Rule 14 Claim-evidence: 4 факти в Critical Facts отримали теги **[C]** (PocketPal без API-сервера, window.ai не на Android, cap deviceMemory 8GB, фіксований список моделей) — усі із зовнішніх джерел, власного прогону під них нема. Лише тегування, тіло незмінне.
 - **v1.2.4** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): дубль secure-context правила замінено покажчиком на канон у `pwa-to-android-app` Core Rule (WebGPU-специфічна перевірка лишилась тут) [#46]; синхрон H1-банера (був v1.0 при 1.2.3) + `last_updated` [#21/#45]. Лише де-дублювання/метадані.
 - **v1.2.3** (2026-06-26) — Stage 3 S-2: примітка про дубль v1.2.0 у changelog (вміст збережено, нумерацію не переписано). Лише додавання примітки.
 - **v1.2.2** (2026-06-15) — B2 (safety-compliance-gate): дисклеймер неприналежності — WebLLM (MLC AI).

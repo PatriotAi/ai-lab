@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-07-21T18:53:44.120444+00:00",
-  "md5": "4f3c6537beff4ea2f5f5d8e124b5ad24",
-  "total_lines": 240,
+  "timestamp": "2026-07-26T15:22:10.095150+00:00",
+  "md5": "bfac1d450697833811f9ba0c82601cdc",
+  "total_lines": 264,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Principle",
@@ -12,6 +12,7 @@
     "## Confidence Scoring Guide",
     "## Hallucination Detection Checklist",
     "## Architecture Validation Checklist",
+    "## Claim-Evidence Layer",
     "## Security Validation Layer",
     "## API Contract Validation",
     "## Prompt Quality Validation",
@@ -22,6 +23,7 @@
   "key_terms": [
     "API Contract Validation",
     "Architecture Validation Checklist",
+    "Claim",
     "Confidence Scoring Guide",
     "Core Principle",
     "Hallucination Detection Checklist",

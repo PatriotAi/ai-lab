@@ -101,6 +101,34 @@ def skill_dirs():
 
 
 # ---------------------------------------------------------------- verify
+def claim_evidence_problems(name: str, txt: str) -> list[str]:
+    """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S].
+
+    Чому саме секція «Critical Facts», а не «Core Rule»: правило-директива не буває
+    істинним чи хибним — воно обов'язкове, тег там був би театром. Тегуємо лише те,
+    що можна спростувати фактом.
+
+    [E] вимагає ВКАЗІВНИКА на перевірку (шлях до тесту, файл або дата) — інакше
+    «перевірено» лишається словом, а це і є той дефект, який гейт закриває.
+
+    Винесено окремою функцією, щоб canary-тести ганяли її на тимчасовому тексті,
+    а не мутували робочі файли репозиторію (урок 2026-07-21).
+    """
+    problems: list[str] = []
+    for sec in re.finditer(r"^##+ +Critical Facts[^\n]*$", txt, re.M):
+        start = sec.end()
+        nxt = re.search(r"^##+ ", txt[start:], re.M)
+        body = txt[start:start + (nxt.start() if nxt else len(txt))]
+        for bullet in re.findall(r"^[-*] +.*", body, re.M):
+            tag = re.search(r"\[(E|C|S)\]", bullet)
+            if not tag:
+                problems.append(f"{name}: факт без тега доказовості — {bullet[2:60].strip()}")
+            elif tag.group(1) == "E" and not re.search(
+                    r"\d{4}-\d{2}-\d{2}|\.(py|mjs|js|sh|md|html)\b|tests/", bullet):
+                problems.append(f"{name}: [E] без вказівника на перевірку — {bullet[2:60].strip()}")
+    return problems
+
+
 def verify() -> int:
     man = json.loads(MANIFEST.read_text(encoding="utf-8"))
     problems, total_evals = [], 0
@@ -175,6 +203,18 @@ def verify() -> int:
         for name in set(man["skills"]) - set(rows):
             problems.append(f"BOOTSTRAP: немає рядка маршрутизації для {name}")
 
+    # ── Гейт доказовості (Core Rule 14 Claim-evidence) ────────────────────
+    # Клас дефекту: текст скіла стверджує ширше, ніж підтверджено (5 випадків,
+    # 2026-07-19…26; жоден не спіймано самоперевіркою). Тегуємо ФАКТИЧНІ
+    # твердження — секція «Critical Facts». Директиви («Core Rule») НЕ тегуються:
+    # правило не буває істинним чи хибним, воно обов'язкове — тег там був би театром.
+    #   [E] перевірено ділом → ОБОВ'ЯЗКОВИЙ вказівник (шлях/файл/дата)
+    #   [C] обґрунтоване, машинно не перевірене   [S] гіпотеза
+    claim_problems = []
+    for name in dirs:
+        txt = (SKILLS / name / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        claim_problems += claim_evidence_problems(name, txt)
+
     # Guards. Деякі guard (notebooklm) дописують runtime-лог audit.jsonl —
     # verify має лишатись read-only, тож зберігаємо й відновлюємо такі логи.
     logs = {p: p.read_bytes() for p in SKILLS.rglob("audit.jsonl")}
@@ -213,6 +253,11 @@ def verify() -> int:
         for p in problems: print(f"  ✗ {p}")
     else:
         print("✅ MANIFEST цілісний (хеші, версії, лічильники збігаються)")
+    if claim_problems:
+        ok = False; print(f"\n❌ доказовість тверджень (Core Rule 14) — {len(claim_problems)}:")
+        for c in claim_problems: print(f"  ✗ {c}")
+    else:
+        print("✅ усі фактичні твердження несуть тег доказовості ([E] — з вказівником)")
     if guard_fail:
         ok = False; print(f"\n❌ regression-guard — {len(guard_fail)} не пройшли:")
         for g in guard_fail: print(f"  ✗ {g}")
