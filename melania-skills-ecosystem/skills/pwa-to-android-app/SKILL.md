@@ -1,16 +1,16 @@
 ---
 name: pwa-to-android-app
-description: "Ship a single-file HTML/JS app as an installable PWA, then path to a real Android APK. Covers self-contained inlining (manifest as data URI, service worker as Blob, icons as base64), the content:// vs HTTPS limitation (mic/WebGPU need HTTPS), Netlify Drop for testing, one-button auto-update via version.json, and cloud APK builds via GitHub Actions when no PC is available. ALWAYS use when packaging a web app for phone install, making a PWA, building an APK, enabling auto-updates, or the user says: зробити аплікацію, інсталювати на смартфон, PWA, APK, авто-оновлення однією кнопкою, мікрофон не працює, content:// не працює, зібрати APK на телефоні, single file, self-contained HTML, Netlify, GitHub Actions build. Also triggers for: add to home screen, service worker, installable app, Capacitor, cloud build. DO NOT use for pure backend services, desktop-only apps, or iOS-native development."
+description: "Ship a single-file HTML/JS app as an installable PWA, then path to a real Android APK. Covers self-contained inlining (manifest as data URI, icons as base64), why offline needs a same-origin sw.js (blob: registration is rejected), the content:// vs HTTPS limitation (mic/WebGPU need HTTPS), Netlify Drop for testing, one-button auto-update via version.json, and cloud APK builds via GitHub Actions when no PC is available. ALWAYS use when packaging a web app for phone install, making a PWA, building an APK, enabling auto-updates, or the user says: зробити аплікацію, інсталювати на смартфон, PWA, APK, авто-оновлення однією кнопкою, мікрофон не працює, content:// не працює, зібрати APK на телефоні, single file, self-contained HTML, Netlify, GitHub Actions build. Also triggers for: add to home screen, service worker, installable app, Capacitor, cloud build. DO NOT use for pure backend services, desktop-only apps, or iOS-native development."
 license: Proprietary
 metadata:
-  version: 1.3.3
+  version: 1.4.0
   author: Melania (Master Administrator)
   category: packaging
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-25
 ---
 
-# PWA → Android App — v1.3.3
+# PWA → Android App — v1.4.0
 > Напрацьовано на AI Gateway. Шлях від single-file HTML до інсталюваної аплікації з авто-оновленнями, включно зі збіркою APK повністю з Android-телефону (без ПК).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -29,6 +29,7 @@ metadata:
 
 ## Critical Facts (часта плутанина)
 - **Проблема мікрофона ≠ упаковка.** Це secure-context. Netlify Drop (drag, миттєвий HTTPS, без акаунта) вирішує одразу.
+- **Service worker НЕ вбудовується в один файл.** `blob:`/`data:`-URL для реєстрації SW браузер відхиляє → офлайн вимагає окремого same-origin `sw.js` (див. Pattern 1). Без нього застосунок усе одно ставиться й працює — просто без офлайн-кешу.
 - **Android Studio НЕ існує для Android.** Збірка APK на самому телефоні — тільки через Termux (важко) або **хмару (GitHub Actions, реально)**.
 - **PWABuilder** (TWA) — найлегший APK, але мікрофон тільки через Chrome, ламається на не-Google пристроях. **Capacitor** надійніше (нативний доступ), але потребує збірки.
 - **Код браузерного JS завжди видно** (View Source). Реальний захист логіки = серверна частина, не клієнт. Мініфікація ускладнює, але не приховує.
@@ -47,15 +48,30 @@ mdu = "data:application/manifest+json;base64," + base64.b64encode(json.dumps(man
 html = html.replace('<link rel="manifest" href="manifest.json"/>', f'<link rel="manifest" href="{mdu}"/>')
 # icons як base64
 html = html.replace('href="icon-192.png"', f'href="data:image/png;base64,{b64("icon-192.png")}"')
-# service worker як Blob (inline, без зовнішнього sw.js)
 ```
+
+**⚠️ Межа «одного файлу»: service worker вбудувати НЕ можна.** Реєстрація SW із
+`blob:`-URL (як і з `data:`) браузером **відхиляється**: `The URL protocol of the script
+('blob:…') is not supported` (перевірено браузерним прогоном 2026-07-24, Chromium).
+Скрипт SW має бути **same-origin файлом**. Отже «повністю один файл» і справжній офлайн —
+несумісні: обирай свідомо.
+
 ```javascript
-if("serviceWorker" in navigator && location.protocol==="https:"){
-  const blob=new Blob([swCode],{type:"text/javascript"});
-  navigator.serviceWorker.register(URL.createObjectURL(blob));
+// Роздача теки (є офлайн): sw.js лежить поруч; один файл — просто без офлайн-кешу.
+const secureOrigin = location.protocol==="https:" || ["localhost","127.0.0.1"].includes(location.hostname);
+if("serviceWorker" in navigator && secureOrigin){
+  const probe = await fetch("./sw.js",{method:"HEAD",cache:"no-store"});   // нема — не помилка
+  if(probe.ok){
+    await navigator.serviceWorker.register("./sw.js");
+    await navigator.serviceWorker.ready;
+    // Інакше сторінка потрапить у кеш лише з ДРУГОГО відкриття:
+    // перше завантаження відбувається до того, як SW почав контролювати клієнта.
+    (await caches.open(`app-${APP_VERSION}`)).add(location.href).catch(()=>{});
+  }
 }
 ```
-> SW не повинен кешувати API-виклики (/v1/, api., localhost, esm.run) — тільки app shell.
+> SW не повинен кешувати API-виклики (/v1/, api., localhost, esm.run) і `version.json`
+> (інакше оновлення не буде видно) — тільки app shell.
 
 ## Pattern 2 — One-button auto-update (як професійні сервіси)
 
@@ -96,7 +112,8 @@ const UpdateChecker={
 |----------|-------|----------|
 | Мікрофон не працює на content:// | пояснити secure-context, направити на Netlify Drop | радити Termux-сервер як перше рішення |
 | Користувач хоче APK на телефоні | GitHub Actions хмарна збірка | обіцяти Android Studio на телефоні |
-| Роздати одним файлом | inline manifest+SW+icons | віддавати окремі файли |
+| Роздати одним файлом | inline manifest+icons; сказати, що офлайну не буде без `sw.js` | обіцяти офлайн з вбудованим blob-SW |
+| Потрібен офлайн | віддавати теку: HTML + `sw.js` поруч (same-origin) | вбудовувати SW у blob/data-URL — браузер відхилить |
 | Авто-оновлення | version.json + one-button apply | вимагати ручного перевстановлення |
 | Питання захисту коду | чесно: клієнт видно, секрет на сервері | обіцяти повний захист мініфікацією |
 | Тестування зараз | PWA на Netlify (швидкі оновлення) | блокувати на APK перед тестом |
@@ -209,6 +226,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.4.0** (2026-07-25) — **Виправлено Pattern 1: реєстрація SW із `blob:`-URL браузером відхиляється** (`The URL protocol of the script ('blob:…') is not supported`) — попередній фрагмент не працював. Джерело: реальний браузерний прогін (Chromium, емуляція Pixel 7) у `projects/mobile-agent` лабораторії ai-lab, 2026-07-24. Замість blob — same-origin `sw.js` із HEAD-пробою (нема файлу → застосунок працює далі без офлайн-кешу) + явний precache `location.href` (інакше сторінка кешується лише з другого відкриття). Зафіксовано межу: «повністю один файл» і справжній офлайн несумісні. Синхронізовано `description`, Critical Facts і Behavior (2 рядки); +заборона кешувати `version.json`. Виправлення хибного патерну, тіло інших патернів незмінне.
 - **v1.3.3** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Core Rule secure-context підтверджено як КАНОН правила для екосистеми (дубль у webllm v1.2.4 замінено покажчиком сюди) [#46]; синхрон H1-банера (був v1.0 при 1.3.2) + `last_updated` [#21/#45]. Лише метадані; тіло незмінне.
 - **v1.3.2** (2026-06-26) — Ре-верифікація: +примітка про дубль v1.2.0 (вміст збережено). Лише примітка.
 - **v1.3.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.
