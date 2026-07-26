@@ -147,10 +147,35 @@ INVISIBLE = {
 
 SECRET_LIKE = re.compile(r"\b(sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|AIza[A-Za-z0-9_-]{8,})")
 
+# Значення чутливих параметрів запиту. Знайдено рев'ю Codex 2026-07-26: звіт про
+# EXFIL_CHANNEL друкував сирий token=… — тобто інструмент, задуманий безпечним для
+# показу й логування, сам ставав каналом повторного витоку.
+SENSITIVE_PARAM = re.compile(
+    r"([?&](?:token|key|api[_-]?key|secret|password|passwd|access[_-]?token|auth|bearer|sig|signature)=)"
+    r"([^&\s)\]]{4,})",
+    re.I,
+)
+
+# Сплутувані символи (confusables): кирилиця й грека, що виглядають як латиниця.
+# NFKC їх НЕ зводить (перевірено: U+0456 «і» лишається собою), тому «іgnore» пройшов
+# би повз. Мапа строго 1 символ → 1 символ, щоб зміщення збігалися з оригіналом
+# і фрагменти у звіті лишались справжніми.
+CONFUSABLES = str.maketrans({
+    "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p",
+    "с": "c", "т": "t", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "һ": "h",
+    "ӏ": "l", "ԁ": "d", "ԛ": "q", "ԝ": "w", "ё": "e", "ї": "i",
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P",
+    "С": "C", "Т": "T", "У": "Y", "Х": "X", "І": "I", "Ј": "J", "Ѕ": "S",
+    "α": "a", "β": "b", "ε": "e", "ι": "i", "κ": "k", "μ": "m", "ν": "v", "ο": "o",
+    "ρ": "p", "τ": "t", "υ": "u", "χ": "x", "Α": "A", "Β": "B", "Ε": "E", "Ι": "I",
+    "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Χ": "X",
+})
+
 
 def redact(text: str) -> str:
     """Маскує схожі на секрети рядки, щоб звіт можна було показувати й логувати."""
-    return SECRET_LIKE.sub(lambda m: m.group(0)[:6] + "***", text)
+    text = SECRET_LIKE.sub(lambda m: m.group(0)[:6] + "***", text)
+    return SENSITIVE_PARAM.sub(lambda m: m.group(1) + "***", text)
 
 
 def snippet(text: str, start: int, end: int, width: int = 60) -> str:
@@ -164,19 +189,29 @@ def snippet(text: str, start: int, end: int, width: int = 60) -> str:
 
 
 def scan(text: str) -> list[dict]:
-    """Повертає список знахідок. Порядок стабільний: висока вагомість — перша."""
+    """Повертає список знахідок. Порядок стабільний: висока вагомість — перша.
+
+    Скануємо ДВІ версії тексту: оригінал (щоб працювали україномовні маркери) і
+    копію зі зведеними омоглифами (щоб «іgnore» з кириличною «і» не проходив повз).
+    Зведення лише для пошуку — у звіт іде фрагмент з оригіналу.
+    """
     findings: list[dict] = []
+    folded = text.translate(CONFUSABLES)
 
     for code, severity, explain, pattern in PATTERNS:
         match = pattern.search(text)
+        via_homoglyph = False
+        if not match:
+            match = pattern.search(folded)
+            via_homoglyph = bool(match)
         if match:
             findings.append(
                 {
                     "code": code,
                     "severity": severity,
-                    "explain": explain,
+                    "explain": explain + (" [через омоглифи]" if via_homoglyph else ""),
                     "snippet": snippet(text, match.start(), match.end()),
-                    "count": len(pattern.findall(text)),
+                    "count": len(pattern.findall(folded if via_homoglyph else text)),
                 }
             )
 
