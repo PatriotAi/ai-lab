@@ -1,7 +1,7 @@
 {
  "package": "melania-skills-ecosystem",
  "built": "2026-07-25",
- "governance": "melania-skill-master-administrator v2.20.0",
+ "governance": "melania-skill-master-administrator v2.21.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
  "total_eval_cases": 134,
@@ -54,10 +54,10 @@
    ]
   },
   "browser-local-ai-webllm": {
-   "version": "1.2.4",
+   "version": "1.2.5",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "27c892e6cab7b69e",
+    "SKILL.md": "30000f0baed04c3e",
     "evals/evals.json": "b78bf5d515e4d0bd"
    },
    "files": [
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.20.0",
+   "version": "2.21.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "c55b8716068dfb36",
+    "SKILL.md": "3e391caf03d90562",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -214,10 +214,10 @@
    ]
   },
   "pre-delivery-gate": {
-   "version": "1.1.0",
+   "version": "1.2.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "c65772e250ac3825",
+    "SKILL.md": "90975d2b3f5decb5",
     "evals/evals.json": "07f5158b582ddaf5"
    },
    "files": [
@@ -227,10 +227,10 @@
    ]
   },
   "pwa-to-android-app": {
-   "version": "1.4.0",
+   "version": "1.4.1",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "278920674c6ba8c4",
+    "SKILL.md": "9e64f1b2d1db2545",
     "evals/evals.json": "9f855105ec9b0c6a"
    },
    "files": [
@@ -369,10 +369,10 @@
    ]
   },
   "validation-mesh": {
-   "version": "1.6.0",
+   "version": "1.7.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "d37925764685baea",
+    "SKILL.md": "3ba962a744e9c599",
     "evals/evals.json": "df970a015d3d5500"
    },
    "files": [

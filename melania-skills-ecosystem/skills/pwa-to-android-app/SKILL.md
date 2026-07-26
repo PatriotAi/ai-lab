@@ -3,14 +3,14 @@ name: pwa-to-android-app
 description: "Ship a single-file HTML/JS app as an installable PWA, then path to a real Android APK. Covers self-contained inlining (manifest as data URI, icons as base64), why offline needs a same-origin sw.js (blob: registration is rejected), the content:// vs HTTPS limitation (mic/WebGPU need HTTPS), Netlify Drop for testing, one-button auto-update via version.json, and cloud APK builds via GitHub Actions when no PC is available. ALWAYS use when packaging a web app for phone install, making a PWA, building an APK, enabling auto-updates, or the user says: зробити аплікацію, інсталювати на смартфон, PWA, APK, авто-оновлення однією кнопкою, мікрофон не працює, content:// не працює, зібрати APK на телефоні, single file, self-contained HTML, Netlify, GitHub Actions build. Also triggers for: add to home screen, service worker, installable app, Capacitor, cloud build. DO NOT use for pure backend services, desktop-only apps, or iOS-native development."
 license: Proprietary
 metadata:
-  version: 1.4.0
+  version: 1.4.1
   author: Melania (Master Administrator)
   category: packaging
   created: 2026-06-02
-  last_updated: 2026-07-25
+  last_updated: 2026-07-26
 ---
 
-# PWA → Android App — v1.4.0
+# PWA → Android App — v1.4.1
 > Напрацьовано на AI Gateway. Шлях від single-file HTML до інсталюваної аплікації з авто-оновленнями, включно зі збіркою APK повністю з Android-телефону (без ПК).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -28,12 +28,12 @@ metadata:
 ---
 
 ## Critical Facts (часта плутанина)
-- **Проблема мікрофона ≠ упаковка.** Це secure-context. Netlify Drop (drag, миттєвий HTTPS, без акаунта) вирішує одразу.
-- **Service worker НЕ вбудовується в один файл.** `blob:`/`data:`-URL для реєстрації SW браузер відхиляє → офлайн вимагає окремого same-origin `sw.js` (див. Pattern 1). Без нього застосунок усе одно ставиться й працює — просто без офлайн-кешу.
-- **Android Studio НЕ існує для Android.** Збірка APK на самому телефоні — тільки через Termux (важко) або **хмару (GitHub Actions, реально)**.
-- **PWABuilder** (TWA) — найлегший APK, але мікрофон тільки через Chrome, ламається на не-Google пристроях. **Capacitor** надійніше (нативний доступ), але потребує збірки.
-- **Код браузерного JS завжди видно** (View Source). Реальний захист логіки = серверна частина, не клієнт. Мініфікація ускладнює, але не приховує.
-- **Netlify free**: 100GB трафіку/міс; приватність через невгадуваний URL. **GitHub Pages free** = публічний репо (приватний тільки Pro).
+- **[C] Проблема мікрофона ≠ упаковка.** Це secure-context. Netlify Drop (drag, миттєвий HTTPS, без акаунта) вирішує одразу.
+- **[E] Service worker НЕ вбудовується в один файл.** (перевірено браузерним прогоном `tests/mobile-agent-browser.mjs`, Chromium, 2026-07-24) `blob:`/`data:`-URL для реєстрації SW браузер відхиляє → офлайн вимагає окремого same-origin `sw.js` (див. Pattern 1). Без нього застосунок усе одно ставиться й працює — просто без офлайн-кешу.
+- **[C] Android Studio НЕ існує для Android.** Збірка APK на самому телефоні — тільки через Termux (важко) або **хмару (GitHub Actions, реально)**.
+- **[C] PWABuilder** (TWA) — найлегший APK, але мікрофон тільки через Chrome, ламається на не-Google пристроях. **Capacitor** надійніше (нативний доступ), але потребує збірки.
+- **[C] Код браузерного JS завжди видно** (View Source). Реальний захист логіки = серверна частина, не клієнт. Мініфікація ускладнює, але не приховує.
+- **[C] Netlify free**: 100GB трафіку/міс; приватність через невгадуваний URL. **GitHub Pages free** = публічний репо (приватний тільки Pro).
 
 ---
 
@@ -226,6 +226,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.4.1** (2026-07-26) — Core Rule 14 Claim-evidence: усі 6 фактів у Critical Facts отримали теги доказовості. Чесний розподіл: **[E] лише один** — «SW не вбудовується в один файл» (браузерний прогін `tests/mobile-agent-browser.mjs`, Chromium, 2026-07-24); решта — **[C]** (secure-context/Netlify, Android Studio, PWABuilder, видимість JS, ліміти планів): обґрунтовані, власного прогону під них нема. Лише тегування, тіло патернів незмінне.
 - **v1.4.0** (2026-07-25) — **Виправлено Pattern 1: реєстрація SW із `blob:`-URL браузером відхиляється** (`The URL protocol of the script ('blob:…') is not supported`) — попередній фрагмент не працював. Джерело: реальний браузерний прогін (Chromium, емуляція Pixel 7) у `projects/mobile-agent` лабораторії ai-lab, 2026-07-24. Замість blob — same-origin `sw.js` із HEAD-пробою (нема файлу → застосунок працює далі без офлайн-кешу) + явний precache `location.href` (інакше сторінка кешується лише з другого відкриття). Зафіксовано межу: «повністю один файл» і справжній офлайн несумісні. Синхронізовано `description`, Critical Facts і Behavior (2 рядки); +заборона кешувати `version.json`. Виправлення хибного патерну, тіло інших патернів незмінне.
 - **v1.3.3** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Core Rule secure-context підтверджено як КАНОН правила для екосистеми (дубль у webllm v1.2.4 замінено покажчиком сюди) [#46]; синхрон H1-банера (був v1.0 при 1.3.2) + `last_updated` [#21/#45]. Лише метадані; тіло незмінне.
 - **v1.3.2** (2026-06-26) — Ре-верифікація: +примітка про дубль v1.2.0 (вміст збережено). Лише примітка.
