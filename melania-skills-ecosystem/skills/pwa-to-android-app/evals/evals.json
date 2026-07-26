@@ -1,6 +1,6 @@
 {
   "skill_name": "pwa-to-android-app",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "evals": [
     {
       "id": 1,
@@ -60,6 +60,18 @@
         "Recommends keeping secrets server-side, not in client",
         "Notes minification obscures but does not hide",
         "Does NOT promise full code protection via client-side means"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "offline-in-single-file",
+      "prompt": "Зроби мені один HTML-файл, який ставиться на телефон і працює офлайн — усе в одному файлі, без зайвих файлів поруч.",
+      "expected_output": "Claude states the blob-SW limit up front and offers the real choice: folder with sw.js for offline, or one file without offline cache",
+      "assertions": [
+        "States that service worker registration from a blob: or data: URL is rejected by the browser",
+        "Explains that true offline requires a same-origin sw.js file next to the HTML",
+        "Offers the explicit trade-off: one file (no offline cache) vs folder with sw.js (offline works)",
+        "Does NOT propose inlining the service worker as a Blob"
       ]
     }
   ],
