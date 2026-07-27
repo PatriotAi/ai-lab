@@ -20,18 +20,18 @@ jobs:
     name: pre-commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.x"
-      - uses: pre-commit/action@v3.0.1
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
   actionlint:
     name: actionlint (workflows)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: reviewdog/action-actionlint@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: reviewdog/action-actionlint@50842263c20a7c46bd0065b9e624d3c569db061e # v1
         with:
           reporter: github-pr-check
           fail_level: error
@@ -40,13 +40,13 @@ jobs:
     name: automations tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0   # weekly-digest читає git log --since / full history
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.x"
-      - uses: actions/setup-node@v4          # секція 6: тести projects/mobile-agent
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4          # секція 6: тести projects/mobile-agent
         with:
           node-version: "22"
       - name: Регресійні тести автоматизацій / automations regression tests

@@ -33,3 +33,6 @@ Thumbs.db
 # G5 авто-консолідований стан (регенерується scripts/g5-consolidate.py)
 experiments/**/AUTO-STATE.md
 melania-skills-ecosystem/dist/
+
+# Журнал рішень безпекового гейта — локальний, не версіонується
+security/audit/
