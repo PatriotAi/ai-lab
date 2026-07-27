@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-24T13:13:52.513376+00:00",
-  "md5": "3a74d8a4c3c1fc8f6696d2c6687d41f4",
-  "total_lines": 374,
+  "timestamp": "2026-07-26T19:52:49.278722+00:00",
+  "md5": "255454fb645819989f199a6a21897396",
+  "total_lines": 383,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Responsibility",
     "## Routing Decision Process",
     "## Intent Classification",
@@ -31,6 +32,7 @@
     "Changelog",
     "Complex Tasks",
     "Confidence Scoring",
+    "Critical Facts",
     "Critical Rule",
     "Intent Classification",
     "Multi",

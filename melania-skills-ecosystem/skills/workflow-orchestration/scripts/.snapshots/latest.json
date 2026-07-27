@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:25:45.610704+00:00",
-  "md5": "82fa1b8787f269e778c9a672a4451a42",
-  "total_lines": 202,
+  "timestamp": "2026-07-26T19:52:49.588651+00:00",
+  "md5": "60c7c044e8d0f74563568eadcda4f391",
+  "total_lines": 212,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Mission",
     "## Autonomous Decision Algorithm",
     "## Decision Matrix",
@@ -25,6 +26,7 @@
   "key_terms": [
     "Advanced Patterns",
     "Autonomous Decision Algorithm",
+    "Critical Facts",
     "Decision Matrix",
     "Governance Checklist",
     "Mission",

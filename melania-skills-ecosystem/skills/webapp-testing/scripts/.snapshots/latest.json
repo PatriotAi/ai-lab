@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:25:45.580416+00:00",
-  "md5": "a7bdd23682bce2464d086757dfc7b26d",
-  "total_lines": 218,
+  "timestamp": "2026-07-26T19:52:49.553702+00:00",
+  "md5": "079b57efd9acca036a4fd7c73efcc84a",
+  "total_lines": 226,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Дерево рішень: вибір підходу",
     "## Приклад: використання with_server.py",
     "## Патерн Reconnaissance-Then-Action",
@@ -21,6 +22,7 @@
   "key_terms": [
     "API Testing",
     "Accessibility Testing",
+    "Critical Facts",
     "Mobile Viewport Testing",
     "Pairwise",
     "Reference",

@@ -51,3 +51,7 @@ jobs:
           node-version: "22"
       - name: Регресійні тести автоматизацій / automations regression tests
         run: bash tests/run-tests.sh
+      # Гейти екосистеми (цілісність MANIFEST, guard, anti-stale, доказовість тверджень)
+      # доти блокували лише локально — на PR вони не запускались узагалі.
+      - name: Гейт екосистеми melania / melania ecosystem gate
+        run: python3 melania-skills-ecosystem/scripts/maintain.py verify

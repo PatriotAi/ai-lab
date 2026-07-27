@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-21T18:14:21.872174+00:00",
-  "md5": "6f5d349f38f94f5bbfa9c755130e68f3",
-  "total_lines": 128,
+  "timestamp": "2026-07-26T19:52:49.378811+00:00",
+  "md5": "9d5e35808b5434a69c49ef11be0c1711",
+  "total_lines": 137,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
+    "## Critical Facts",
     "## Decision Gate — чому окремий скіл",
     "## 1. Карта маркетплейсів (2026) — обирай за ціллю",
     "## 2. Пакування",
@@ -27,6 +28,7 @@
     "6. Publish workflow",
     "Behavior",
     "Core Rule",
+    "Critical Facts",
     "Decision Gate",
     "Delegation Map",
     "References",

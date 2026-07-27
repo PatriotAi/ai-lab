@@ -23,12 +23,12 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.10.0
+  version: 1.11.0
   category: memory
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Continuation Memory — v1.10.0
+# Continuation Memory — v1.11.0
 > Працює українською за замовчуванням (українською-перша): пакети, нотатки й приклади — українською; перемикання лише слідом за користувачем.
 
 
@@ -36,6 +36,13 @@ metadata:
 Обов'язковий перед БУДЬ-ЯКОЮ зміною цього скіла. **Канонічне джерело (не дублювати тут):** `melania` — секції «🛡️ Протокол Збереження Перед Оновленням» + «Update Workflow» + «Core Rule 10 — Re-Read Before Update».
 
 Стисло: re-read диску → порівняти версії (диск новіший → диск база) → integrity-diff → validation-mesh → safety-compliance-gate (перед пакуванням/публікацією) → backup/snapshot → merge-not-replace → bump+CHANGELOG → показати diff і чекати явного схвалення MA (Закон II).
+
+---
+
+## Critical Facts
+- **[C] Claude не має стійкої пам'яті між сесіями.** Continuation-пакет замінює вбудовану пам'ять, зберігаючи архітектуру, активні роботи й TODO для відновлення в новій сесії без повтору.
+- **[C] Context editing + memory tool = +39% якості, −84% токенів на агентних задачах.** Емпірична комбінація: server-side компакція перед flush'ем, потім редагування старих turn-ів + memory-файли дають найкращий результат.
+- **[C] Стиснення/edits щотурну вбивають prompt-cache.** Важіль 2 (Стабільний кеш-префікс): тримай system+інструменти незмінними, стискай лише хвіст конверсації, інакше cache-підтримка втрачається.
 
 ---
 
@@ -325,6 +332,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.11.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.10.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `gsre-recovery` — «відновити прогрес/контекст» тут = стан ПОТОЧНОЇ лінії; forensic-пошук втраченого по чатах = gsre [#10]; H1-банер з версією + `last_updated` у metadata [#21/#45]. Лише опис/метадані. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v1.9.1** (2026-07-13) — G5 cold-start recovery gate: валідований патерн зовнішньої пам'яті проти прогалини G5 — self-contained critical refs (критичні URL/шляхи inline, не pointer-only) + recovery-checklist ДО тесту (об'єктивний вимір 100% критичних без повтору); крос-лінк `gmi-audit`. Лише додавання. _(Джерело: experiments/gmi-g5-memory — recovery 9/9.)_
 - **v1.9.0** (2026-07-11) — Compaction-дисципліна (frontier-research harvest): **(A)** 4-кроковий порядок навколо server-side стиснення: pre-compaction flush (durable ПЕРЕД стисненням; recall-first тюнінг проти poisoned summary), стабільний кеш-префікс (edits щотурну вбивають prompt-cache), context editing як другий важіль (емпірика +29% / +39% і −84% з memory), provider-agnostic fallback (STENO+hot/warm/cold = та сама дисципліна для будь-якої моделі). API-механіка — покажчик на `llm-api-builder` (DRY). **(B)** De-pin: згадка конкретних моделей у Compaction → «поточні топ-моделі (звір docs)» (правило агностичності MA). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_

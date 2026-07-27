@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-19T03:58:45.080422+00:00",
-  "md5": "213b8f1e15366ee9973bbcaf4a34a401",
-  "total_lines": 304,
+  "timestamp": "2026-07-26T19:52:49.312706+00:00",
+  "md5": "7e80c0a2a687ec6c3b3a51ecec6f4bda",
+  "total_lines": 314,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rules",
+    "## Critical Facts",
     "## Spec-driven: spec → evals → skill",
     "## TDD для навичок (Iron Law)",
     "## Decision Gate — оновити наявний чи створити новий?",
@@ -36,6 +37,7 @@
     "Checklist Перед Пакуванням",
     "Core Rule",
     "Core Rules",
+    "Critical Facts",
     "Decision Gate",
     "Description Optimization",
     "References",

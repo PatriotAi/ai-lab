@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:14:21.687163+00:00",
-  "md5": "66fe90b49fee71e4236bbf41dcb3b1b4",
-  "total_lines": 295,
+  "timestamp": "2026-07-26T19:52:48.761869+00:00",
+  "md5": "5dd16252a338931beb6fde23bd62236a",
+  "total_lines": 303,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Mission",
     "## Architecture Principles",
     "## Runtime Pipeline",
@@ -25,6 +26,7 @@
   "key_terms": [
     "Agent Activation Policy",
     "Architecture Principles",
+    "Critical Facts",
     "Critical Rules",
     "Extended Thinking Integration",
     "MCP Server Coordination",

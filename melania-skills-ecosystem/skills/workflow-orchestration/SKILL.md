@@ -15,13 +15,13 @@ compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Co
 license: MIT
 metadata:
   author: Melania (Master Administrator)
-  version: 1.5.0
+  version: 1.6.0
   category: orchestration
   created: 2026-06-13
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Workflow Orchestration — v1.5.0
+# Workflow Orchestration — v1.6.0
 Українською-перша: тригери/відповіді/приклади — українською; перемикання лише слідом за користувачем.
 Безпека/комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією).
 
@@ -30,6 +30,15 @@ metadata:
 
 Стисло: re-read диску → порівняти версії (диск новіший → диск база) → integrity-diff → validation-mesh → safety-compliance-gate (перед пакуванням/публікацією) → backup/snapshot → merge-not-replace → bump+CHANGELOG → показати diff і чекати явного схвалення MA (Закон II).
 
+## Critical Facts
+- **[C] Claude Code має жорстку серверну стелю вкладеності — 5 рівнів вниз.** На рівні L5 інструмент `Agent` більше не видається саб-агенту, тож спавн наступного рівня фізично неможливий; лічильник рахується вниз від поточного рівня (головна сесія = рівень 0).
+- **[C] `Agent(type)`-allowlist усередині визначення саб-агента ігнорується.** Обмежити, кого саб-агент може спавнити, звідти не вдається — реальна заборона працює лише через `permissions.deny: ["Agent(...)"]` у `.claude/settings.json`.
+- **[C] Ізоляція скіла через `context: fork` інколи ігнорується при виклику через Skill tool.** Це відомий баг — доводиться додавати явну Task-інструкцію, щоб ізоляція контексту реально спрацювала.
+- **[C] Мультиагентна оркестрація коштує приблизно ×15 токенів проти одного чату (за даними Anthropic).** Це виправдано лише для high-value добре паралелізованих задач — на research-eval прибуток становив +90.2%.
+- **[C] Патерн Evaluator-Optimizer дає до +10 п. task success проти простого prompting-циклу.** Найбільший виграш — на найважчих задачах; для file-generation приріст становив +8–10%.
+- **[C] Паралельні команди повних агент-інстансів із git-координацією тягнуть проєкти рівня 100K+ рядків.** Задокументований кейс: 16 паралельних агентів автономно зібрали робочий C-компілятор приблизно за 2 тижні.
+
+---
 
 ## Mission
 Playbook, як самостійно структурувати багатоагентний воркфлоу: обрати топологію → спланувати (E0) → передати контекст → виконати під governance. Дефолт — мінімально достатня кількість агентів; нарощуй лише коли реально покращує ізоляцію, паралелізм або трасування.
@@ -188,6 +197,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
+- **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `n8n-orchestrator` (побудова n8n-workflow/JSON поза скоупом) [#5]; депт-леддер перевірено — це коректне делегування механіки в `ai-core-runtime`, не дубль (без зміни) [#6]; H1-банер з версією. Лише опис/межі.
 - **v1.4.1** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, №1): де-хардкод мертвого посилання `product-self-knowledge` (скіл не існує) → «офіційні docs» у SKILL.md (Stack Mapping) і `references/topology-taxonomy.md`. Правило «не пінь» незмінне.
 - **v1.4.0** (2026-07-11) — Topology 4: Evaluator-Optimizer / Outcomes-патерн (frontier-research harvest): produce→grade→revise з grader-ом в ізольованому чистому контексті, rubric-verdict, bounded-цикл; емпірика (+10 п. success, file-gen +8-10%); анти-патерн self-grade; крос-лінки rlm-harness (клас judge-моделі) + ai-core-runtime (resilience-стеля). Підключено до Autonomous Decision Algorithm (анти-орфан, урок v1.3.1). +1 рядок емпірики масштабу в Topology 2 (16 паралельних агентів → 100K+ рядків, агностично). Лише додавання. _(Джерело: дослідницький звіт 2026-07-11.)_

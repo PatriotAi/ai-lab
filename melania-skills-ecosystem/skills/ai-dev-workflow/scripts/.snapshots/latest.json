@@ -1,10 +1,11 @@
 {
-  "timestamp": "2026-07-21T18:53:43.965855+00:00",
-  "md5": "eed05f9f8ffab08213be1bf6645bb5b6",
-  "total_lines": 163,
+  "timestamp": "2026-07-26T19:52:48.794790+00:00",
+  "md5": "f30ca3327307d03166b62445ff0225ae",
+  "total_lines": 171,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
+    "## Critical Facts",
     "## Pattern 1 — Захист ідеї (opsec при роботі з AI)",
     "## Pattern 2 — Розподіл задач між AI (хто за що)",
     "## Pattern 3 — Готові промпт-шаблони для інших AI",
@@ -20,6 +21,7 @@
     "Behavior",
     "Coordinates with",
     "Core Rule",
+    "Critical Facts",
     "Pattern 1",
     "Pattern 2",
     "Pattern 3",

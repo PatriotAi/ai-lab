@@ -3,14 +3,14 @@ name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
 license: Proprietary
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-07-11
+  last_updated: 2026-07-26
 ---
 
-# Multi-Provider AI Orchestration — v1.5.0
+# Multi-Provider AI Orchestration — v1.6.0
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -24,6 +24,13 @@ metadata:
 
 ## Core Rule
 Кожен провайдер і кожен його ключ — окремий вузол у ланцюгу. При помилці (особливо rate-limit 429/quota) переходь до наступного вузла автоматично. Це дає безперервність і безкоштовне використання через ротацію.
+
+---
+
+## Critical Facts
+- **[C] Провайдери у ланцюгу впорядковані за tier: менше число = вищий пріоритет.** Дефолтний порядок класів вузлів — платні якісні (tier 0) → безкоштовні швидкі (tier 1-3) → custom (tier 5) → браузерний WebLLM (tier 9) → локальні (tier 10-12); task-routing може це перевизначити.
+- **[C] Rate-limit детектується за підрядком у тексті помилки.** Failover-логіка (Pattern 2) розпізнає вичерпання ліміту за наявністю в повідомленні про помилку одного з рядків «429», «rate», «quota» або «limit».
+- **[C] Деякі провайдери приймають Anthropic-формат запитів напряму.** Достатньо змінити `base_url` і ключ у наявному Anthropic-клієнті — такі воркери стають drop-in замінюваними в ланцюгу без окремого адаптера.
 
 ---
 
@@ -212,6 +219,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** НОВИЙ замінний файл `references/model-snapshot-2026-07.md` — ЄДИНЕ місце конкретики (матриця 15 моделей із верифікованими цінами, COSTS-конфіг з фіксом Opus 4.8 15/75→5/25, reasoning-поля по провайдерах, Anthropic-сумісні endpoints, per-role приклади для rlm-harness). **(B)** SKILL.md де-пінований: матриця→структура+класи вузлів, COSTS→loadFromSnapshot(), reasoning→capability-атрибут вузла, endpoints→патерн без URL. Скіл працює з будь-якими майбутніми моделями; застарівання = заміна снапшот-файлу. **(C)** Фікс розсинхрону заголовка (v1.0→актуальна). Знання старої матриці збережені в CHANGELOG-історії; merge-not-replace. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
 - **v1.4.2** (2026-06-26) — Stage 3: **S-1** застарілу модель оновлено (`claude-opus-4-5`→`claude-opus-4-8`, ×2; ціни звіряти в docs). **S-2** примітка про дубль v1.2.0 (вміст збережено). Корекція + примітка.

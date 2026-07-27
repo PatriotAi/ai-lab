@@ -24,6 +24,7 @@ import json, hashlib, re, sys, subprocess, os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent          # melania-skills-ecosystem/
+REPO = ROOT.parent                                     # корінь ai-lab (для вказівників [E])
 SKILLS = ROOT / "skills"
 MANIFEST = ROOT / "MANIFEST.json"
 BOOTSTRAP = ROOT / "MELANIA-BOOTSTRAP.md"
@@ -101,7 +102,8 @@ def skill_dirs():
 
 
 # ---------------------------------------------------------------- verify
-def claim_evidence_problems(name: str, txt: str) -> list[str]:
+def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
+                            skill_dir: Path | None = None) -> list[str]:
     """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S].
 
     Чому саме секція «Critical Facts», а не «Core Rule»: правило-директива не буває
@@ -111,10 +113,29 @@ def claim_evidence_problems(name: str, txt: str) -> list[str]:
     [E] вимагає ВКАЗІВНИКА на перевірку (шлях до тесту, файл або дата) — інакше
     «перевірено» лишається словом, а це і є той дефект, який гейт закриває.
 
-    Винесено окремою функцією, щоб canary-тести ганяли її на тимчасовому тексті,
-    а не мутували робочі файли репозиторію (урок 2026-07-21).
+    Формат вказівника ще НЕ доказ. Випадок №5 із брифу (скіли декларували evals
+    з v1.2.1, артефакту не існувало) проходив би формат-перевірку без проблем,
+    тому [E] мусить назвати шлях, який РЕАЛЬНО існує в репозиторії: доказ має
+    бути знаходжуваним, а не правдоподібно виглядати. Дата лишається дозволеним
+    додатковим контекстом, але сама по собі доказом не є — зовнішній прогін
+    оформлюється записом у docs/ і цитується як шлях.
+
+    Вказівник резолвиться від кореня репо АБО від теки самого скіла: посилання на
+    власний `references/…` — законний доказ, і вимагати для нього повний шлях від
+    кореня означало б хибну тривогу (знайдено аудитом до появи реального випадку).
+
+    Винесено окремою функцією (root — параметр), щоб canary-тести ганяли її на
+    тимчасовому тексті й тимчасовому корені, а не мутували робочі файли
+    репозиторію (урок 2026-07-21).
     """
+    root = root or REPO
     problems: list[str] = []
+    # Секція обов'язкова в КОЖНОМУ скілі. Без цієї вимоги гейт покривав лише ті скіли,
+    # де секція випадково була (2 з 28) — «у мене немає тверджень» ставало способом
+    # обійти правило, і решта проходила порожньо.
+    if not re.search(r"^##+ +Critical Facts", txt, re.M):
+        problems.append(f"{name}: немає секції «Critical Facts» — нема чого пред'явити гейту")
+        return problems
     for sec in re.finditer(r"^##+ +Critical Facts[^\n]*$", txt, re.M):
         start = sec.end()
         nxt = re.search(r"^##+ ", txt[start:], re.M)
@@ -123,9 +144,151 @@ def claim_evidence_problems(name: str, txt: str) -> list[str]:
             tag = re.search(r"\[(E|C|S)\]", bullet)
             if not tag:
                 problems.append(f"{name}: факт без тега доказовості — {bullet[2:60].strip()}")
-            elif tag.group(1) == "E" and not re.search(
-                    r"\d{4}-\d{2}-\d{2}|\.(py|mjs|js|sh|md|html)\b|tests/", bullet):
+                continue
+            if tag.group(1) != "E":
+                continue
+            # Кандидати-шляхи: беремо ВСІ, вимагаємо, щоб ХОЧА Б ОДИН існував.
+            # (У тексті факту поруч живуть не-файлові згадки на кшталт `sw.js` —
+            # вимагати існування кожної було б хибною тривогою.)
+            paths = re.findall(r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
+            has_date = re.search(r"\d{4}-\d{2}-\d{2}", bullet)
+            if not paths and not has_date:
                 problems.append(f"{name}: [E] без вказівника на перевірку — {bullet[2:60].strip()}")
+            elif not any((root / p.lstrip("./")).exists()
+                         or (skill_dir and (skill_dir / p.lstrip("./")).exists())
+                         for p in paths):
+                problems.append(
+                    f"{name}: [E] без доказу, який існує на диску "
+                    f"({'шляхи: ' + ', '.join(sorted(set(paths))) if paths else 'лише дата'}) "
+                    f"— {bullet[2:60].strip()}")
+    return problems
+
+
+def version_triad_problems(name: str, txt: str, manifest_version: str | None = None) -> list[str]:
+    """Крок «bump + H1-синхрон» звітується словами — тут він стає перевіркою.
+
+    Інцидент: melania лишалась `# … — v2.20.0` при банері `> **v2.21.0**`, хоч хвиля
+    чесно звітувала «H1-синхрон». Звіт був щирий — виконавець вірив, що зробив крок.
+    Версія мусить збігатися в УСІХ місцях: frontmatter · H1 · банер · MANIFEST ·
+    верхній запис CHANGELOG.
+
+    Толерантність до `- **1.1.0** (…)` без префікса `v` обов'язкова: це усталена
+    конвенція github-collab, і сувора регулярка дала б хибну тривогу (перевірено).
+    """
+    problems: list[str] = []
+    fm = re.search(r'^\s*version:\s*["\']?([\d.]+)', txt, re.M)
+    if not fm:
+        return [f"{name}: у frontmatter немає version"]
+    v = fm.group(1)
+    h1 = re.search(r"^# .*$", txt, re.M)
+    if h1:
+        got = re.findall(r"v(\d+\.\d+\.\d+)", h1.group(0))
+        if got and got[0] != v:
+            problems.append(f"{name}: H1 v{got[0]} != frontmatter {v}")
+    ban = re.search(r"^> \*\*v?(\d+\.\d+\.\d+)\*\*", txt, re.M)
+    if ban and ban.group(1) != v:
+        problems.append(f"{name}: банер v{ban.group(1)} != frontmatter {v}")
+    ch = re.search(r"^## (?:Зміни|Changelog)\s*\n(?:_.*\n)?[-*]\s*\*\*v?([\d.]+)\*\*", txt, re.M)
+    if not ch:
+        problems.append(f"{name}: не знайдено верхнього запису CHANGELOG")
+    elif ch.group(1) != v:
+        problems.append(f"{name}: верхній CHANGELOG v{ch.group(1)} != frontmatter {v}")
+    if manifest_version and manifest_version != v:
+        problems.append(f"{name}: MANIFEST {manifest_version} != frontmatter {v}")
+    return problems
+
+
+def crossref_problems(name: str, txt: str) -> list[str]:
+    """Посилання «П.N» мусить вести на ТОЙ пункт, який обіцяє.
+
+    Інцидент: у чек-лист вставили новий пункт 6, нумерація з'їхала, і рядок
+    «П.7: continuation-memory snapshot» став вказувати на пункт про повноту доставки.
+    Перевірка «чи існує пункт N» цього НЕ ловила — пункт 7 існував. Тому звіряємо
+    змістовий ідентифікатор: латинський токен після посилання має бути в пункті N.
+    Хвіст обрізаємо перед наступним «П.» — інакше багатопосилальні рядки шумлять.
+
+    Секції історії не перевіряються з тієї ж причини, що й лічильники: запис у
+    CHANGELOG цитує МИНУЛИЙ стан («посилання П.6/П.7/П.8 з'їхали»), а не робить
+    живе посилання. Без цього виключення власний опис виправлення дає хибну тривогу.
+    """
+    txt = re.split(r"^## (?:Зміни|Changelog)", txt, flags=re.M)[0]
+    items = {int(m.group(1)): m.group(2) for m in re.finditer(r"^(\d+)\.\s+(.*)$", txt, re.M)}
+    problems: list[str] = []
+    for m in re.finditer(r"П\.(\d+)", txt):
+        n = int(m.group(1))
+        if n not in items:
+            problems.append(f"{name}: посилання П.{n}, а пункту {n} у файлі немає")
+            continue
+        tail = txt[m.end():m.end() + 90]
+        tail = re.split(r"П\.\d|\|", tail)[0]          # до наступного посилання/комірки
+        toks = re.findall(r"[a-zA-Z][\w-]{4,}", tail)
+        if toks and not any(t in items[n] for t in toks):
+            problems.append(f"{name}: П.{n} обіцяє «{toks[0]}», але пункт {n} про інше "
+                            f"— {items[n][:50]}")
+    return problems
+
+
+# Лічильники, що описують ВМІСТ ІНШОГО ФАЙЛУ. Реєстр навмисно крихітний:
+# новий запис додається лише за реальним інцидентом, не «про запас».
+COUNTER_REGISTRY = [
+    (r"(\d+)\s+дисциплін", "skills/rlm-harness/references/conductor-standard.md",
+     r"^(\d+)\.\s+\*\*"),
+]
+
+
+def counter_problems(name: str, txt: str, root: Path | None = None) -> list[str]:
+    """Число, що описує інший файл, мусить збігатися з фактом у тому файлі.
+
+    Інцидент: `rlm-harness` роками казав «8 дисциплін», тоді як у стандарті їх 10.
+    Гейт актуальності це не ловив: він звіряв лічильники в README/BOOTSTRAP, а не
+    згадки про вміст сусіднього файлу.
+
+    Секції історії (`## Зміни` / `## Changelog`) НЕ перевіряються: там числа —
+    цитати минулого стану, і перевірка їх дала б 3 хибні тривоги (виміряно).
+    """
+    root = root or ROOT
+    live = re.split(r"^## (?:Зміни|Changelog)", txt, flags=re.M)[0]
+    problems: list[str] = []
+    for pat, rel, count_pat in COUNTER_REGISTRY:
+        target = root / rel
+        if not target.exists():
+            continue
+        actual = len({m.group(1) for m in
+                      re.finditer(count_pat, target.read_text(encoding="utf-8"), re.M)})
+        for m in re.finditer(pat, live):
+            if int(m.group(1)) != actual:
+                problems.append(f"{name}: «{m.group(0)}» != фактичних {actual} у {rel}")
+    return problems
+
+
+# Літери, яких в українському тексті бути не може, і польська діакритика.
+FOREIGN_LETTERS = re.compile(r"[ыъэёЫЪЭЁłążźśćńĄĘŁŻŹŚĆŃ]")
+_CYR = re.compile(r"[а-яіїєґА-ЯІЇЄҐ]")
+_LAT = re.compile(r"[a-zA-Z]")
+
+
+def text_hygiene_problems(name: str, txt: str) -> list[str]:
+    """Омоглифи й чужомовні літери в тексті скіла.
+
+    Інцидент: партія суб-агентів принесла полонізм «zespołу» і кириличну «е»
+    всередині слова `evals` — тобто РІВНО той омоглиф-клас, який лабораторія вже
+    ловила у зовнішньому вході, але у власному тексті не перевіряла. Ця ж перевірка
+    знайшла успадкований дефект «aдаптовано» з латинською `a`.
+
+    Код і бектики виключено: там латиниця легітимна. Ділимо на не-літерах, тому
+    складені слова на кшталт «MCP-інструменти» хибної тривоги не дають (0 на 28 скілах).
+    """
+    clean = re.sub(r"```.*?```", "", txt, flags=re.S)
+    clean = re.sub(r"`[^`]*`", "", clean)
+    problems: list[str] = []
+    for i, line in enumerate(clean.splitlines(), 1):
+        if FOREIGN_LETTERS.search(line):
+            bad = "".join(sorted(set(FOREIGN_LETTERS.findall(line))))
+            problems.append(f"{name}: чужомовні літери [{bad}] — {line.strip()[:60]}")
+        for tok in re.split(r"[^\wЀ-ӿ]+", line):
+            for sub in re.split(r"[_\d]+", tok):
+                if len(sub) > 2 and _CYR.search(sub) and _LAT.search(sub):
+                    problems.append(f"{name}: змішані абетки в слові «{sub}» (омоглиф?)")
     return problems
 
 
@@ -211,9 +374,20 @@ def verify() -> int:
     #   [E] перевірено ділом → ОБОВ'ЯЗКОВИЙ вказівник (шлях/файл/дата)
     #   [C] обґрунтоване, машинно не перевірене   [S] гіпотеза
     claim_problems = []
+    # ── Самоперевірний протокол (Core Rule 15) ────────────────────────────
+    # Кроки, які досі звітувались словами (bump/H1-синхрон, крос-посилання,
+    # лічильники про інші файли, чистота тексту), стають машинними. Підстава —
+    # чотири дрейфи, що пережили попередню хвилю попри чесні звіти про виконання.
+    self_check_problems = []
     for name in dirs:
-        txt = (SKILLS / name / "SKILL.md").read_text(encoding="utf-8", errors="replace")
-        claim_problems += claim_evidence_problems(name, txt)
+        d = SKILLS / name
+        txt = (d / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        claim_problems += claim_evidence_problems(name, txt, skill_dir=d)
+        self_check_problems += version_triad_problems(
+            name, txt, man["skills"].get(name, {}).get("version"))
+        self_check_problems += crossref_problems(name, txt)
+        self_check_problems += counter_problems(name, txt)
+        self_check_problems += text_hygiene_problems(name, txt)
 
     # Guards. Деякі guard (notebooklm) дописують runtime-лог audit.jsonl —
     # verify має лишатись read-only, тож зберігаємо й відновлюємо такі логи.
@@ -257,7 +431,14 @@ def verify() -> int:
         ok = False; print(f"\n❌ доказовість тверджень (Core Rule 14) — {len(claim_problems)}:")
         for c in claim_problems: print(f"  ✗ {c}")
     else:
-        print("✅ усі фактичні твердження несуть тег доказовості ([E] — з вказівником)")
+        print("✅ усі фактичні твердження несуть тег доказовості "
+              "([E] — з доказом, який існує на диску)")
+    if self_check_problems:
+        ok = False; print(f"\n❌ самоперевірний протокол (Core Rule 15) — {len(self_check_problems)}:")
+        for s in self_check_problems: print(f"  ✗ {s}")
+    else:
+        print("✅ самоперевірний протокол: версії синхронні, крос-посилання ведуть "
+              "куди обіцяють, лічильники збігаються, текст без омоглифів")
     if guard_fail:
         ok = False; print(f"\n❌ regression-guard — {len(guard_fail)} не пройшли:")
         for g in guard_fail: print(f"  ✗ {g}")

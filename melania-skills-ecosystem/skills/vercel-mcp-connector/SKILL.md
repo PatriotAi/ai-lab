@@ -21,14 +21,14 @@ allowed-tools:
   - Read
 license: Proprietary
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   author: Melania (Master Administrator)
   category: connector
   created: 2026-06-12
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Vercel MCP Connector — v1.1.0
+# Vercel MCP Connector — v1.2.0
 > Меланія · українською-перша · скіл-компаньйон для офіційного Vercel MCP (`mcp.vercel.com`).
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією/комерціалізацією).
 >
@@ -41,6 +41,13 @@ metadata:
 Обов'язковий перед БУДЬ-ЯКОЮ зміною цього скіла. **Канонічне джерело (не дублювати тут):** `melania` — секції «🛡️ Протокол Збереження Перед Оновленням» + «Update Workflow» + «Core Rule 10 — Re-Read Before Update».
 
 Стисло: re-read диску → порівняти версії (диск новіший → диск база) → integrity-diff → validation-mesh → safety-compliance-gate (перед пакуванням/публікацією) → backup/snapshot → merge-not-replace → bump+CHANGELOG → показати diff і чекати явного схвалення MA (Закон II).
+
+---
+
+## Critical Facts
+- **[C] Vercel MCP переважно read-only.** На старті з'єднання дає здебільшого доступ на читання; будь-яка дія зі side-effect (напр. `deploy_to_vercel`) вимагає окремого human-confirm перед викликом.
+- **[C] Підключення Vercel MCP вимагає OAuth-згоди.** Під'єднання відбувається через OAuth-consent (`mcp.vercel.com`), а не через статичний API-ключ.
+- **[C] Депт-леддер має 4 рівні зростання глибини аналізу.** Від миттєвого `quick_status` (рівень 1) до глибокого `debug_deployment_issues`/`fix_recent_build` (рівень 4) — кожен наступний рівень тягне більше даних.
 
 ---
 
@@ -114,6 +121,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.2.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): голі тригери «deploy/хостинг» кваліфіковано контекстом Vercel — без згадки платформи скіл не перехоплює запит [#42]; синхрон H1-банера (був v1.0 при version 1.0.2) [#34-клас]. Лише опис/метадані.
 - **v1.0.2** (2026-06-26) — Ре-верифікація: +guard-скрипт (snapshot/validate, additive-only) — паритет з екосистемою. Лише додавання.
 - **v1.0.1** (2026-06-15) — DRY: «Протокол Збереження» → тонкий міст на канон у `melania` (де-дублювання + усунення 8-варіантного дрейфу). Поведінка незмінна — гейт той самий, джерело єдине.

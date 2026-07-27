@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-21T18:25:45.270341+00:00",
-  "md5": "a31b971870a4b09a263a38473efc257f",
-  "total_lines": 339,
+  "timestamp": "2026-07-26T19:52:49.124694+00:00",
+  "md5": "0f10ad668980fb322e7535bd7d69103d",
+  "total_lines": 348,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Design Methodology",
     "## Standard Workflow Pattern",
     "## Node Reference",
@@ -35,6 +36,7 @@
     "Architecture",
     "Common Automation Patterns",
     "Connections",
+    "Critical Facts",
     "Design Methodology",
     "Error Handling Requirements",
     "Integration Nodes",

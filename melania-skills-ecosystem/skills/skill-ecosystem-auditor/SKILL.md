@@ -28,17 +28,17 @@ allowed-tools:
   - Write
 license: Proprietary
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-06-02
-  last_updated: 2026-07-19
+  last_updated: 2026-07-26
 ---
 
-# Skill Ecosystem Auditor — v1.7.0
+# Skill Ecosystem Auditor — v1.8.0
 > Меланія · MA-керований · детальна методологія в `references/methodology.md`
 > Працює під владою `melania-skill-master-administrator` (Три Закони, авторитет MA, Self-Dev Engine).
-> Claude Code hooks: `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`
+> Claude Code hooks (опційний патерн — діє лише там, де НАЛАШТОВАНО в settings; не вшитий факт): `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`. У лабораторії ai-lab еквівалент — `maintain.py verify` перед комітом.
 
 
 ## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)
@@ -53,6 +53,14 @@ metadata:
 За замовчуванням **оновлюй наявний скіл**; **новий скіл створюй ЛИШЕ** коли оновлення
 неможливе або нелогічне (див. Decision Gate). Кожен повторюваний фікс вбудовуй у
 *керівні* скіли як постійний gate, щоб не повторювати його щоразу.
+
+## Critical Facts
+- **[C] Guard/snapshot-аналіз залежить від Python.** `skill_guard.py`/`audit_scan.py` працюють лише там, де доступний Python; на платформах без файлового доступу аудит деградує до ручного заповнення ледера.
+- **[C] Claude Code hooks — опційний патерн, а не вшита обв'язка.** `pre-edit → --validate` / `post-edit → --snapshot` працюють лише там, де їх НАЛАШТОВАНО в settings; у лабораторії ai-lab гарантований еквівалент — `maintain.py verify` перед комітом.
+- **[C] Шлях до диска зі скілами різниться за середовищем.** У claude.ai це `/mnt/skills/user`, у лабораторії ai-lab — `melania-skills-ecosystem/skills/`; аудит звіряє обидва варіанти джерела.
+- **[C] Поріг «патерну» — щонайменше 2 повторення.** Проблема, що трапилась ≥2 рази в різних скілах, кваліфікується як патерн (не локальний баг) і вимагає постійного gate, а не разового фіксу.
+
+---
 
 ## Мова
 Працюй і звітуй **українською за замовчуванням** (українською-перша). Перемикайся
@@ -191,6 +199,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.8.0** (2026-07-26) — Anti-overclaim: рядок про Claude Code hooks стверджував наявну обв'язку, тоді як канон melania (аудит #13) фіксує їх як ОПЦІЙНИЙ патерн — формулювання звужено до фактичного, в банері й у факті. Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.7.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): полагоджено зламані code-fences у Stage 5 (дубль рядка + осиротіла ```-обгортка) [#23]; шлях диска скілів узагальнено на обидва середовища claude.ai/ai-lab (SKILL.md + дефолт `audit_scan.py`) [#22/#29]; у Координацію додано межу з `pre-delivery-gate` (гейт артефакту ≠ ревізія екосистеми) [#20] і зворотний покажчик на `safety-compliance-gate` як канон harvest-mode B [#19]; синхрон H1-банера (був v1.0 при 1.6.2). Формат/межі; методологія незмінна. Рев'ю Codex PR #29: прибрано другий осиротілий fence (після Re-read-нотатки) + `realpath` в audit_scan.py (symlink-виклик через .claude/skills).
 - **v1.6.2** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (5, канон-схема). **S-2** примітка про дубль v1.3.0. Додавання + примітка.
 

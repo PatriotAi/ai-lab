@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-07-26T15:22:10.095150+00:00",
-  "md5": "bfac1d450697833811f9ba0c82601cdc",
-  "total_lines": 264,
+  "timestamp": "2026-07-26T19:52:49.493714+00:00",
+  "md5": "e16d767dfb21b0d6f5d52bc5b9cfaa16",
+  "total_lines": 274,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
+    "## Critical Facts",
     "## Core Principle",
     "## Validation Types",
     "## Validation Flow",
@@ -26,6 +27,7 @@
     "Claim",
     "Confidence Scoring Guide",
     "Core Principle",
+    "Critical Facts",
     "Hallucination Detection Checklist",
     "Output Format",
     "Prompt Quality Validation",
