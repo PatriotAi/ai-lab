@@ -24,6 +24,7 @@
 | `experiments/` | Маленькі експерименти-гіпотези |
 | `skills/`, `.claude/skills/` | Навички Claude Code (індекс / канонічні активні) |
 | `melania-skills-ecosystem/` | Бібліотека 28 AI-навичок (активні через симлінки в `.claude/skills/`) |
+| `.claude-plugin/`, `plugins/` | Маркетплейс плагінів `patriotai-lab` — 6 бандлів (28 навичок melania + 7 лабораторних) ([`docs/marketplace.md`](docs/marketplace.md)) |
 | `automations/`, `scripts/` | Хуки, пайплайни, утиліти |
 | `security/`, `.github/` | Конфіги безпеки, CI/CD, CODEOWNERS, шаблони |
 
@@ -83,6 +84,7 @@ Apache License 2.0 — див. [`LICENSE`](LICENSE).
 | `experiments/` | Small hypothesis experiments |
 | `skills/`, `.claude/skills/` | Claude Code skills (index / canonical active) |
 | `melania-skills-ecosystem/` | Library of 28 AI skills (active via symlinks in `.claude/skills/`) |
+| `.claude-plugin/`, `plugins/` | `patriotai-lab` plugin marketplace — 6 bundles (28 skills from melania + 7 lab ones) ([`docs/marketplace.md`](docs/marketplace.md)) |
 | `automations/`, `scripts/` | Hooks, pipelines, utilities |
 | `security/`, `.github/` | Security configs, CI/CD, CODEOWNERS, templates |
 

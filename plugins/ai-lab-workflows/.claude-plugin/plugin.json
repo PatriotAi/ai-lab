@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ai-lab-workflows",
+  "displayName": "AI Lab Workflows",
+  "version": "0.1.0",
+  "description": "Робочі процеси лабораторії ai-lab: експерименти, контент-пайплайн, двомовність UA/EN, публікація, GMI-аудит, тижнева ретроспектива.",
+  "author": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "repository": "https://github.com/PatriotAi/ai-lab",
+  "keywords": [
+    "workflow",
+    "experiment",
+    "content",
+    "bilingual",
+    "review"
+  ]
+}

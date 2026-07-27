@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "melania-knowledge",
+  "displayName": "Melania Knowledge",
+  "version": "0.1.0",
+  "description": "Робота зі знанням: синтез неочевидних зв'язків, NotebookLM, пам'ять сесій, відновлення втраченого, harvest зовнішніх джерел.",
+  "author": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "repository": "https://github.com/PatriotAi/ai-lab",
+  "keywords": [
+    "knowledge",
+    "memory",
+    "research",
+    "notebooklm",
+    "recovery"
+  ]
+}

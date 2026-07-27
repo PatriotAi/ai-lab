@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "melania-connect",
+  "displayName": "Melania Connect",
+  "version": "0.1.0",
+  "description": "Інтеграції та конектори: GitHub, Vercel, n8n, авторизація/сесії, спільний браузер з агентом.",
+  "author": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "repository": "https://github.com/PatriotAi/ai-lab",
+  "keywords": [
+    "integrations",
+    "github",
+    "vercel",
+    "n8n",
+    "browser",
+    "auth"
+  ]
+}

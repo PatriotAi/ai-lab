@@ -393,23 +393,28 @@ grep -q "self_check_problems" melania-skills-ecosystem/scripts/maintain.py \
   || bad "самоперевірний гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
 
 # ── Фальсифікація на РЕАЛЬНОМУ старому стані: перевірка, що мовчить на чистому,
-#    нічого не довела. Беремо стан із origin/main, де інцидент справді був.
-if git rev-parse --verify -q origin/main >/dev/null; then
-  fals=$(python3 -c "
-import subprocess, sys
+#    нічого не довела. Мішень припнута до НЕЗМІННОГО коміту зі зламаним станом:
+#    78e3a48 — останній стан pre-delivery-gate ДО того, як PR #44 виправив крос-посилання.
+#    Раніше тут стояла origin/main, і тест почав падати рівно тоді, коли PR #44 злився
+#    в main і інцидент зник — канарка припинала себе до рухомої гілки (дрейф 2026-07-27).
+BROKEN_STATE_REF="78e3a48"
+if git rev-parse --verify -q "$BROKEN_STATE_REF" >/dev/null; then
+  fals=$(BROKEN_STATE_REF="$BROKEN_STATE_REF" python3 -c "
+import os, subprocess, sys
 sys.path.insert(0, 'melania-skills-ecosystem/scripts')
 from maintain import crossref_problems
-old = subprocess.run(['git','show','origin/main:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
+ref = os.environ['BROKEN_STATE_REF']
+old = subprocess.run(['git','show',f'{ref}:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
                      capture_output=True, text=True).stdout
 print(len(crossref_problems('pdg', old)) if old else 'НЕМАЄ-СТАНУ')")
   if [[ "$fals" == "НЕМАЄ-СТАНУ" ]]; then
-    ok "фальсифікація на origin/main пропущена (стан недоступний)"
+    ok "фальсифікація на $BROKEN_STATE_REF пропущена (стан недоступний)"
   else
     [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
       || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
   fi
 else
-  ok "фальсифікація на origin/main пропущена (немає origin/main)"
+  ok "фальсифікація пропущена (коміт $BROKEN_STATE_REF недосяжний — мілкий клон)"
 fi
 
 # Реальний стан екосистеми має проходити всі самоперевірки.
@@ -426,6 +431,16 @@ for p in pathlib.Path('melania-skills-ecosystem/skills').glob('*/SKILL.md'):
     n += len(crossref_problems(nm, t)) + len(counter_problems(nm, t)) + len(text_hygiene_problems(nm, t))
 print(n)")
 check "усі 28 скілів проходять самоперевірний протокол" "0" "$real_sc"
+
+echo ""
+echo "════════ 10. Маркетплейс плагінів (patriotai-lab) ════════"
+# Структурний гейт каталогу: резолв симлінків, межі маркетплейсу, покриття без сиріт
+# і дублів, збіг версій каталог↔маніфест, похідні лічильники, зарезервовані імена.
+# Що гейт ЛОВИТЬ — доводять канарки tests/marketplace-gate-canary.py (11 поломок);
+# вони не в цьому наборі, бо кожен сценарій копіює репозиторій (~90 с сумарно).
+mp_out=$(python3 scripts/verify-marketplace.py 2>&1); mp_rc=$?
+[[ "$mp_rc" -eq 0 ]] && ok "гейт маркетплейсу проходить" \
+  || bad "гейт маркетплейсу проходить" "exit 0" "exit $mp_rc: $(echo "$mp_out" | grep '✗' | head -3)"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"

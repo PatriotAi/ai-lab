@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "melania-orchestration",
+  "displayName": "Melania Orchestration",
+  "version": "0.1.0",
+  "description": "Оркестрація: маршрутизація наміру в скіли, мета-гарнес важких процесів, топології суб-агентів, мульти-провайдерний роутинг.",
+  "author": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "repository": "https://github.com/PatriotAi/ai-lab",
+  "keywords": [
+    "orchestration",
+    "routing",
+    "multi-agent",
+    "runtime",
+    "providers"
+  ]
+}

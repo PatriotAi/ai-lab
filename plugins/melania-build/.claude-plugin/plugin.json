@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "melania-build",
+  "displayName": "Melania Build",
+  "version": "0.1.0",
+  "description": "Побудова застосунків: Claude API, хірургічний рефакторинг великих файлів, E2E-тести, PWA/APK, локальні моделі в браузері.",
+  "author": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "repository": "https://github.com/PatriotAi/ai-lab",
+  "keywords": [
+    "development",
+    "api",
+    "refactoring",
+    "testing",
+    "pwa"
+  ]
+}

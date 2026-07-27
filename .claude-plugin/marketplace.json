@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "patriotai-lab",
+  "version": "0.1.0",
+  "description": "Маркетплейс плагінів PatriotAI Lab — навички екосистеми Melania та робочі процеси ai-lab, згруповані в тематичні бандли.",
+  "owner": {
+    "name": "PatriotAI Lab",
+    "url": "https://github.com/PatriotAi"
+  },
+  "plugins": [
+    {
+      "name": "melania-governance",
+      "source": "./plugins/melania-governance",
+      "displayName": "Melania Governance",
+      "description": "Життєвий цикл навичок: створення, версії, аудит екосистеми, гейти безпеки та валідації перед видачею. (7 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "governance",
+        "skills",
+        "validation",
+        "safety",
+        "audit"
+      ],
+      "category": "governance",
+      "tags": [
+        "governance",
+        "skills",
+        "validation",
+        "safety",
+        "audit"
+      ]
+    },
+    {
+      "name": "melania-orchestration",
+      "source": "./plugins/melania-orchestration",
+      "displayName": "Melania Orchestration",
+      "description": "Оркестрація: маршрутизація наміру в скіли, мета-гарнес важких процесів, топології суб-агентів, мульти-провайдерний роутинг. (6 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "orchestration",
+        "routing",
+        "multi-agent",
+        "runtime",
+        "providers"
+      ],
+      "category": "orchestration",
+      "tags": [
+        "orchestration",
+        "routing",
+        "multi-agent",
+        "runtime",
+        "providers"
+      ]
+    },
+    {
+      "name": "melania-knowledge",
+      "source": "./plugins/melania-knowledge",
+      "displayName": "Melania Knowledge",
+      "description": "Робота зі знанням: синтез неочевидних зв'язків, NotebookLM, пам'ять сесій, відновлення втраченого, harvest зовнішніх джерел. (5 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "knowledge",
+        "memory",
+        "research",
+        "notebooklm",
+        "recovery"
+      ],
+      "category": "knowledge",
+      "tags": [
+        "knowledge",
+        "memory",
+        "research",
+        "notebooklm",
+        "recovery"
+      ]
+    },
+    {
+      "name": "melania-build",
+      "source": "./plugins/melania-build",
+      "displayName": "Melania Build",
+      "description": "Побудова застосунків: Claude API, хірургічний рефакторинг великих файлів, E2E-тести, PWA/APK, локальні моделі в браузері. (5 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "development",
+        "api",
+        "refactoring",
+        "testing",
+        "pwa"
+      ],
+      "category": "development",
+      "tags": [
+        "development",
+        "api",
+        "refactoring",
+        "testing",
+        "pwa"
+      ]
+    },
+    {
+      "name": "melania-connect",
+      "source": "./plugins/melania-connect",
+      "displayName": "Melania Connect",
+      "description": "Інтеграції та конектори: GitHub, Vercel, n8n, авторизація/сесії, спільний браузер з агентом. (5 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "integrations",
+        "github",
+        "vercel",
+        "n8n",
+        "browser",
+        "auth"
+      ],
+      "category": "integrations",
+      "tags": [
+        "integrations",
+        "github",
+        "vercel",
+        "n8n",
+        "browser",
+        "auth"
+      ]
+    },
+    {
+      "name": "ai-lab-workflows",
+      "source": "./plugins/ai-lab-workflows",
+      "displayName": "AI Lab Workflows",
+      "description": "Робочі процеси лабораторії ai-lab: експерименти, контент-пайплайн, двомовність UA/EN, публікація, GMI-аудит, тижнева ретроспектива. (7 скілів)",
+      "version": "0.1.0",
+      "author": {
+        "name": "PatriotAI Lab",
+        "url": "https://github.com/PatriotAi"
+      },
+      "repository": "https://github.com/PatriotAi/ai-lab",
+      "keywords": [
+        "workflow",
+        "experiment",
+        "content",
+        "bilingual",
+        "review"
+      ],
+      "category": "workflow",
+      "tags": [
+        "workflow",
+        "experiment",
+        "content",
+        "bilingual",
+        "review"
+      ]
+    }
+  ]
+}
