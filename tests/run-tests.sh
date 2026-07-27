@@ -393,23 +393,25 @@ grep -q "self_check_problems" melania-skills-ecosystem/scripts/maintain.py \
   || bad "самоперевірний гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
 
 # ── Фальсифікація на РЕАЛЬНОМУ старому стані: перевірка, що мовчить на чистому,
-#    нічого не довела. Беремо стан із origin/main, де інцидент справді був.
-if git rev-parse --verify -q origin/main >/dev/null; then
+#    нічого не довела. Беремо стан, у якому інцидент справді був.
+#
+#    Раніше стан брався з origin/main. Це зробило канарку самознищенною: щойно
+#    інцидент виправили й змержили (pre-delivery-gate v1.3.0, 2026-07-26), на
+#    origin/main лягла полагоджена версія, дефектів стало 0 — і тест став ВІЧНО
+#    червоним із причини, не пов'язаної з жодною регресією (дефект F-4,
+#    docs/security/findings-2026-07-27.md). Канарка мусить стояти на
+#    ЗАМОРОЖЕНІЙ фікстурі, а не на гілці, що рухається.
+FIXTURE="security/fixtures/crossref-drift.SKILL.md"
+if [[ -f "$FIXTURE" ]]; then
   fals=$(python3 -c "
-import subprocess, sys
+import sys, pathlib
 sys.path.insert(0, 'melania-skills-ecosystem/scripts')
 from maintain import crossref_problems
-old = subprocess.run(['git','show','origin/main:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
-                     capture_output=True, text=True).stdout
-print(len(crossref_problems('pdg', old)) if old else 'НЕМАЄ-СТАНУ')")
-  if [[ "$fals" == "НЕМАЄ-СТАНУ" ]]; then
-    ok "фальсифікація на origin/main пропущена (стан недоступний)"
-  else
-    [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
-      || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
-  fi
+print(len(crossref_problems('pdg', pathlib.Path('$FIXTURE').read_text(encoding='utf-8'))))")
+  [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у замороженій фікстурі ($fals)" \
+    || bad "фальсифікація: перевірка ловить інцидент у замороженій фікстурі" "≥1" "$fals"
 else
-  ok "фальсифікація на origin/main пропущена (немає origin/main)"
+  bad "фальсифікація: заморожена фікстура на місці" "$FIXTURE" "файл відсутній"
 fi
 
 # Реальний стан екосистеми має проходити всі самоперевірки.
@@ -426,6 +428,36 @@ for p in pathlib.Path('melania-skills-ecosystem/skills').glob('*/SKILL.md'):
     n += len(crossref_problems(nm, t)) + len(counter_problems(nm, t)) + len(text_hygiene_problems(nm, t))
 print(n)")
 check "усі 28 скілів проходять самоперевірний протокол" "0" "$real_sc"
+
+echo ""
+echo "════════ 8. Безпековий вердикт: три стани, а не два ════════"
+# Інцидент F-2 (docs/security/findings-2026-07-27.md): security-check.sh друкував
+# «✓ Усі перевірки чисті» і виходив із кодом 0, фактично проганяючи ОДНУ перевірку
+# з трьох — бо відсутній інструмент не збільшував лічильник провалів. «Порожньо» і
+# «не перевіряли» друкувались однаково. Канарки нижче стоять на ЗЛАМАНИХ станах:
+# перевірка, що лише мовчить на чистому, нічого не доводить (Core Rule 15).
+SCBIN="$TMPROOT/scbin"; mkdir -p "$SCBIN"
+sc_exit() { # sc_exit <код-виходу-заглушки-pre-commit> [env...]
+  local rc="$1"; shift
+  printf '#!/bin/sh\nexit %s\n' "$rc" > "$SCBIN/pre-commit"; chmod +x "$SCBIN/pre-commit"
+  ( cd "$REPO" && env -i PATH="$SCBIN:/usr/bin:/bin" HOME="$HOME" "$@" \
+      bash scripts/security-check.sh >/dev/null 2>&1 ); echo $?
+}
+
+# Головна канарка: сканерів немає → НЕ можна звітувати «чисто».
+check "неповне покриття не дає зеленого вердикту (F-2)" "3" "$(sc_exit 0)"
+# Пропуск дозволено явно → зелено (свідоме рішення, а не мовчазне замовчування).
+check "явний дозвіл пропусків дає 0" "0" "$(sc_exit 0 SECURITY_CHECK_ALLOW_SKIPS=1)"
+# Справжнє падіння лишається падінням і має пріоритет над пропусками.
+check "справжнє падіння дає 1" "1" "$(sc_exit 1)"
+# Скрипт не має ДРУКУВАТИ старе беззастережне «Усі перевірки чисті».
+# Дивимось лише на рядки, що виводять текст (echo/printf), а не на коментарі:
+# історична цитата в пояснювальній шапці — легітимна, і хибна тривога на неї
+# дорожча за пропуск (той самий урок, що з цитатами П.N у CHANGELOG вище).
+grep -vE '^\s*#' "$REPO/scripts/security-check.sh" | grep -qE '(echo|printf).*Усі перевірки чисті' \
+  && bad "вердикт не друкує беззастережне «Усі перевірки чисті»" "відсутнє" "знайдено" \
+  || ok "вердикт не друкує беззастережне «Усі перевірки чисті»"
+cd "$REPO" || exit 1
 
 echo ""
 echo "════════ ПІДСУМОК ════════"
