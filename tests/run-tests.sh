@@ -323,6 +323,111 @@ print(n)")
 check "усі 28 скілів проходять гейт доказовості" "0" "$real"
 
 echo ""
+echo "════════ 9. Самоперевірний протокол (Core Rule 15) ════════"
+cd "$REPO" || exit 1
+# Кожна перевірка тут закриває КОНКРЕТНИЙ інцидент, що пережив попередню хвилю попри
+# чесний звіт про виконання. Канарка на кожен інцидент — покриття задає перелік, не число.
+sc_case() { # sc_case <назва> <функція> <очікуємо-підрядок|-> <текст> [аргумент3]
+  local name="$1" fn="$2" want="$3" txt="$4" extra="${5:-}" out
+  out=$(SC_TXT="$txt" SC_EX="$extra" python3 -c "
+import os, sys
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+import maintain
+fn = getattr(maintain, '$fn')
+a = [x for x in ['t', os.environ['SC_TXT']] ]
+if os.environ['SC_EX']: a.append(os.environ['SC_EX'])
+print(' | '.join(fn(*a)) or 'ЧИСТО')
+" 2>&1)
+  if [[ "$want" == "-" ]]; then
+    [[ "$out" == "ЧИСТО" ]] && ok "$name" || bad "$name" "чисто" "$out"
+  else
+    [[ "$out" == *"$want"* ]] && ok "$name" || bad "$name" "$want" "$out"
+  fi
+}
+
+# ── Інцидент: H1 лишався v2.20.0 при банері v2.21.0, хоч звіт казав «H1-синхрон» ──
+VER_OK=$'---\nversion: 1.2.0\n---\n# Скіл — v1.2.0\n> **v1.2.0** · банер\n## Зміни\n- **v1.2.0** (2026-07-26) — запис.\n'
+sc_case "версійна тріада: усе синхронно → чисто" version_triad_problems - "$VER_OK" "1.2.0"
+sc_case "канарка: H1 відстав від frontmatter" version_triad_problems "H1 v1.1.0 != frontmatter 1.2.0" \
+  $'---\nversion: 1.2.0\n---\n# Скіл — v1.1.0\n## Зміни\n- **v1.2.0** (2026-07-26) — запис.\n' "1.2.0"
+sc_case "канарка: банер відстав" version_triad_problems "банер v1.1.0" \
+  $'---\nversion: 1.2.0\n---\n# Скіл — v1.2.0\n> **v1.1.0** · банер\n## Зміни\n- **v1.2.0** (2026-07-26) — запис.\n' "1.2.0"
+sc_case "канарка: верхній CHANGELOG відстав" version_triad_problems "верхній CHANGELOG v1.1.0" \
+  $'---\nversion: 1.2.0\n---\n# Скіл — v1.2.0\n## Зміни\n- **v1.1.0** (2026-07-26) — запис.\n' "1.2.0"
+sc_case "канарка: MANIFEST розійшовся" version_triad_problems "MANIFEST 9.9.9" "$VER_OK" "9.9.9"
+# Регрес: github-collab пише версії БЕЗ префікса v — сувора регулярка дала б хибну тривогу.
+sc_case "конвенція без префікса v → чисто" version_triad_problems - \
+  $'---\nversion: 1.1.0\n---\n# Скіл\n## Changelog\n- **1.1.0** (2026-07-26) — запис.\n' "1.1.0"
+
+# ── Інцидент: вставили пункт 6 → «П.7: continuation-memory» стало вказувати на пункт 8 ──
+sc_case "канарка: П.N вказує не на той пункт" crossref_problems "але пункт 7 про інше" \
+  $'6. **Нове** — вставлений пункт.\n7. **ПОВНОТА доставки** — маніфест.\n8. **АНТИ-ВТРАТА** — continuation-memory snapshot.\n\n| Втрата | П.7: continuation-memory snapshot |\n'
+sc_case "крос-посилання веде куди обіцяє → чисто" crossref_problems - \
+  $'7. **ПОВНОТА доставки** — маніфест.\n8. **АНТИ-ВТРАТА** — continuation-memory snapshot.\n\n| Втрата | П.8: continuation-memory snapshot |\n'
+sc_case "історична цитата П.N у CHANGELOG → чисто" crossref_problems - \
+  $'## Зміни\n- **v1.0.0** — посилання П.6/П.7/П.8 з\'їхали після вставки пункту.\n'
+
+# ── Інцидент: «8 дисциплін» у покажчику при фактичних 10 у conductor-standard.md ──
+sc_case "канарка: лічильник про інший файл застарів" counter_problems "!= фактичних" \
+  $'Стандарт диригента — 3 дисципліни роботи оркестратора.\n'
+sc_case "історична цитата лічильника у CHANGELOG → чисто" counter_problems - \
+  $'## Зміни\n- **v0.5.0** — тоді було 3 дисципліни.\n'
+
+# ── Інцидент: партія суб-агентів принесла полонізм і кириличну «е» всередині evals ──
+sc_case "канарка: польська діакритика" text_hygiene_problems "чужомовні літери" \
+  $'Історія лишається спільною для zespołу.\n'
+sc_case "канарка: омоглиф усередині слова" text_hygiene_problems "змішані абетки" \
+  $'Тримай копії еvals окремо від пакета.\n'
+sc_case "канарка: російські літери" text_hygiene_problems "чужомовні літери" \
+  $'Этот текст не українською.\n'
+# Регрес на хибну тривогу: складені слова й код — легітимні.
+sc_case "складені слова MCP-інструменти → чисто" text_hygiene_problems - \
+  $'Використовуй MCP-інструменти, UA-конспект і git-гілки.\n'
+sc_case "латиниця в бектиках і фенсах → чисто" text_hygiene_problems - \
+  $'Запусти `maintain.py verify` ось так:\n```python\nimport os\n```\nі все.\n'
+
+# ── Гейт має бути справді ввімкнений у verify, а не лише існувати функціями ──
+grep -q "self_check_problems" melania-skills-ecosystem/scripts/maintain.py \
+  && grep -q "самоперевірний протокол" melania-skills-ecosystem/scripts/maintain.py \
+  && ok "самоперевірний гейт підключений у maintain.py verify" \
+  || bad "самоперевірний гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
+
+# ── Фальсифікація на РЕАЛЬНОМУ старому стані: перевірка, що мовчить на чистому,
+#    нічого не довела. Беремо стан із origin/main, де інцидент справді був.
+if git rev-parse --verify -q origin/main >/dev/null; then
+  fals=$(python3 -c "
+import subprocess, sys
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import crossref_problems
+old = subprocess.run(['git','show','origin/main:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
+                     capture_output=True, text=True).stdout
+print(len(crossref_problems('pdg', old)) if old else 'НЕМАЄ-СТАНУ')")
+  if [[ "$fals" == "НЕМАЄ-СТАНУ" ]]; then
+    ok "фальсифікація на origin/main пропущена (стан недоступний)"
+  else
+    [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
+      || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
+  fi
+else
+  ok "фальсифікація на origin/main пропущена (немає origin/main)"
+fi
+
+# Реальний стан екосистеми має проходити всі самоперевірки.
+real_sc=$(python3 -c "
+import sys, pathlib, json
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import (version_triad_problems, crossref_problems,
+                      counter_problems, text_hygiene_problems)
+man = json.loads(pathlib.Path('melania-skills-ecosystem/MANIFEST.json').read_text())
+n = 0
+for p in pathlib.Path('melania-skills-ecosystem/skills').glob('*/SKILL.md'):
+    t = p.read_text(encoding='utf-8'); nm = p.parent.name
+    n += len(version_triad_problems(nm, t, man['skills'].get(nm, {}).get('version')))
+    n += len(crossref_problems(nm, t)) + len(counter_problems(nm, t)) + len(text_hygiene_problems(nm, t))
+print(n)")
+check "усі 28 скілів проходять самоперевірний протокол" "0" "$real_sc"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then

@@ -1,6 +1,6 @@
 # MELANIA-BOOTSTRAP — миттєва інтеграція скіл-екосистеми в нову сесію
 <!-- machine-priority: цей файл адресовано AI. Одного цього файлу достатньо — НЕ проси інших файлів для старту. -->
-<!-- Стан зафіксовано: 2026-07-25 · пакет melania-skills-ecosystem · governance melania v2.22.0 -->
+<!-- Стан зафіксовано: 2026-07-25 · пакет melania-skills-ecosystem · governance melania v2.23.0 -->
 
 ## Для AI: що зробити після отримання цього файлу (і ЧОГО НЕ робити)
 
@@ -51,9 +51,9 @@
 | Скіл | v | Активувати коли |
 |---|---|---|
 | semantic-router | 1.16.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
-| melania-skill-master-administrator | 2.22.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
+| melania-skill-master-administrator | 2.23.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
 | ai-core-runtime | 3.13.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
-| rlm-harness | 0.6.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
+| rlm-harness | 0.7.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.6.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
 | multi-provider-ai-orchestration | 1.6.0 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.4.0 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
