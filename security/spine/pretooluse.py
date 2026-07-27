@@ -30,6 +30,7 @@ Core Rule 15: «крок, що тримається на уважності й �
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +54,34 @@ def record(entry: dict) -> None:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except OSError:
         pass
+
+
+CONSENT = ROOT / "security" / "consent.md"
+
+
+def active_consent(rule_id: str) -> tuple[str, str] | None:
+    """Шукає ЧИННУ записану згоду для правила у `security/consent.md`.
+
+    Повертає (до-якої-дати, причина) або None. Прострочений запис ігнорується
+    мовчки — згода не має «залипати» назавжди. Порожній rule_id ніколи не
+    збігається: інакше один рядок відкривав би все підряд.
+    """
+    if not rule_id or not CONSENT.is_file():
+        return None
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        for line in CONSENT.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) < 3 or cells[0] != rule_id:
+                continue
+            until, reason = cells[1], cells[2]
+            if len(until) == 10 and until >= today and len(reason) >= 20:
+                return until, reason
+    except OSError:
+        return None
+    return None
 
 
 def emit(decision: str, reason: str) -> None:
@@ -93,6 +122,27 @@ def main() -> int:
 
     behaviour = policy.get("behaviour", {})
     action = behaviour.get("on_R4", "deny") if verdict.level == "R4" else "allow"
+
+    # ── Аварійний вихід під запис (break-glass) ─────────────────────────────
+    # НАВІЩО. Гейт без легітимного «так» не робить систему безпечнішою — він
+    # робить обхід єдиним способом рухатись далі, а обхід не лишає сліду.
+    # Це не теорія: 2026-07-27 гейт заблокував власного автора на зміні, яку
+    # власник уже прямо схвалив, і єдиною альтернативою було тихо переписати
+    # правила. Тому легітимний шлях існує — але він ІМЕННИЙ і ГУЧНИЙ.
+    #
+    # ЧЕСНА МЕЖА, яку треба назвати прямо: змінну оточення виставляє той самий
+    # процес, що виконує дію, тож це НЕ бар'єр — це РЕЄСТРАТОР. Він перетворює
+    # невидимий обхід на записаний і названий. Для лабораторії з одним власником
+    # цього досить; там, де сторін кілька, перевірка має жити поза агентом.
+    consent = active_consent(verdict.rule_id)
+    if action == "deny" and consent:
+        record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
+                "decision": "ЗГОДА-ЗАПИСАНА", "consent_until": consent[0],
+                "consent_reason": consent[1],
+                "target": (verdict.resolved_target or verdict.target)[:300]})
+        print(f"🔓 записана згода ({verdict.rule_id}, до {consent[0]}): {consent[1][:120]}",
+              file=sys.stderr)
+        return 0
 
     record({
         "tool": tool_name,

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import re
 import sys
 import tomllib
 from dataclasses import dataclass, field
@@ -91,6 +92,39 @@ def _resolve_symlink(root: Path, raw: str) -> tuple[str, list[str]]:
         return raw, notes
 
 
+# Оператори, що перетворюють «читання» на запис або на ланцюжок дій.
+# Без цього переліку `cat > файл` вважався читанням (реальна дірка 2026-07-27).
+WRITE_OPS = (">", ">>", "|", "&&", "||", ";", "$(", "`", "<(", "tee ")
+
+
+def _write_targets(command: str) -> list[str]:
+    """Витягує з команди те, у що вона СПРАВДІ пише.
+
+    Перша версія просто питала «чи згадано захищений шлях у команді» — і це
+    виявилось непридатним: слово `secrets` у тексті будь-якого повідомлення
+    вмикало правило про ключі, а разом із крапкою з комою в python-однорядковику
+    давало R4 на порожньому місці (спіймано 2026-07-27, тричі поспіль).
+    Перевірка, що кричить на згадку, швидко навчає її ігнорувати — тому тут
+    береться саме ЦІЛЬ запису, а не наявність слова.
+    """
+    targets: list[str] = []
+    # Перенаправлення: `> файл`, `>> файл` (але не `2>&1` і не `>&`).
+    targets += re.findall(r">>?\s*(?!&)([^\s;|&<>]+)", command)
+    # Команди, чий аргумент — ціль запису.
+    targets += re.findall(r"\b(?:tee|truncate|install)\s+(?:-\S+\s+)*([^\s;|&<>]+)", command)
+    # Друга ціль копіювання/переміщення.
+    targets += re.findall(r"\b(?:cp|mv)\s+(?:-\S+\s+)*\S+\s+([^\s;|&<>]+)", command)
+    return [t.strip("'\"") for t in targets if t.strip("'\"")]
+
+
+def _command_touches_path(command: str, pattern: str) -> bool:
+    """Чи пише команда в захищений шлях."""
+    for target in _write_targets(command):
+        if _match_path(pattern, target.lstrip("./"), target):
+            return True
+    return False
+
+
 def _rel(root: Path, target: str) -> str:
     """Шлях відносно кореня репо — правила написані у відносній формі."""
     try:
@@ -135,8 +169,22 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
 
     # ── Крок 1. Явні правила R4 мають найвищий пріоритет ────────────────────
     # Спершу найсуворіше: якщо дія збігається з чимось незворотним — далі не дивимось.
+    #
+    # ВАЖЛИВО: правила на ШЛЯХИ перевіряються і для Bash-команд, не лише для
+    # Write/Edit. Інакше весь захист шляхів обходиться однією командою:
+    # `cat > .github/workflows/evil.yml` — і це не гіпотеза, а дірка, знайдена
+    # 2026-07-27 у момент, коли гейт заблокував власного автора на Write, а той
+    # мав під рукою Bash. Гейт, який захищає один спосіб дії з двох, не захищає.
     for rule in rules:
         for pattern in rule.get("match_paths", []):
+            if command and _command_touches_path(command, pattern):
+                return Verdict(
+                    level=rule.get("level", "R4"),
+                    reason=f"команда пише у захищений шлях «{pattern}» (правило «{rule['id']}»)",
+                    rule_id=rule["id"], why=rule.get("why", ""),
+                    alternatives=rule.get("alternatives", ""),
+                    target=command, resolved_target=command, notes=notes,
+                )
             if raw_path and _match_path(pattern, rel_target, raw_path):
                 return Verdict(
                     level=rule.get("level", "R4"),
@@ -172,8 +220,9 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         stripped = command.strip()
         for prefix in levels.get("R0", {}).get("bash_prefixes", []):
             if stripped == prefix or stripped.startswith(prefix + " "):
-                # Ланцюжок (`&&`, `|`, `;`) може ховати дію за читанням.
-                if any(sep in stripped for sep in ("&&", "||", ";", "|", "$(", "`")):
+                # Ланцюжок АБО перенаправлення можуть ховати запис за читанням:
+                # `cat > файл` — це запис, хоч і починається з `cat`.
+                if any(op in stripped for op in WRITE_OPS):
                     break
                 return Verdict("R0", f"команда читання ({prefix})", notes=notes)
 

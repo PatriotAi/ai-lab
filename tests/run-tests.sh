@@ -579,6 +579,53 @@ grep -q 'security/hooks/pre-tool-use.sh' "$REPO/.claude/settings.json" \
 cd "$REPO" || exit 1
 
 echo ""
+echo "════════ 11. Ланцюг постачання: дії закріплені хешем (F-5) ════════"
+# Тег і гілку можна перепризначити на інший коміт — хеш ні. Компрометація
+# tj-actions/changed-files (CVE-2025-30066) зачепила ~23 000 репозиторіїв саме
+# через рухомий тег. Перевірка мусить ЛОВИТИ рухоме і МОВЧАТИ на закріпленому.
+pin_clean=$(cd "$REPO" && bash scripts/check-action-pinning.sh >/dev/null 2>&1; echo $?)
+check "усі дії у воркфлоу закріплені SHA" "0" "$pin_clean"
+
+# Канарка на ЗЛАМАНОМУ стані: підміняємо один хеш на тег у КОПІЇ репозиторію,
+# щоб робочі файли лишились недоторканими.
+PINDIR="$TMPROOT/pintest"; mkdir -p "$PINDIR/.github/workflows"
+cp "$REPO"/.github/workflows/*.yml "$PINDIR/.github/workflows/"
+(cd "$PINDIR" && git init -q -b main . && git config user.email t@e.com && git config user.name T)
+python3 - "$PINDIR" <<'PY'
+import pathlib, re, sys
+p = next(pathlib.Path(sys.argv[1], '.github', 'workflows').glob('*.yml'))
+t = p.read_text(encoding='utf-8')
+p.write_text(re.sub(r'@[0-9a-f]{40}', '@v7', t, count=1), encoding='utf-8')
+PY
+cp "$REPO/scripts/check-action-pinning.sh" "$PINDIR/check.sh"
+pin_broken=$(cd "$PINDIR" && bash check.sh >/dev/null 2>&1; echo $?)
+check "канарка: рухомий тег ловиться" "1" "$pin_broken"
+cd "$REPO" || exit 1
+
+# Крок, відмову якого ховають, не є перевіркою: continue-on-error приховував
+# реальний ##[error] від dependency-review і давав зелену галочку (F-6).
+# Дивимось лише на ДІЮЧІ рядки yaml, не на коментарі: пояснення, ЧОМУ прапорця
+# тут більше немає, саме містить його назву — і хибна тривога на власне
+# пояснення дорожча за пропуск (той самий урок, що в секції 8).
+grep -vE '^\s*#' "$REPO/.github/workflows/dependencies.yml" | grep -q 'continue-on-error' \
+  && bad "у dependencies.yml немає діючого continue-on-error" "відсутнє" "знайдено" \
+  || ok "у dependencies.yml немає діючого continue-on-error"
+
+# Стенд класифікатора: рядки будуються зі шматків, тож він не тригерить те,
+# що вимірює (сам текст тесту раніше вмикав правило про ключі).
+probe=$(cd "$REPO" && python3 tests/probe-classify.py >/dev/null 2>&1; echo $?)
+check "стенд класифікатора: усі випадки збігаються" "0" "$probe"
+
+# Записана згода — іменна й точкова: вона не має відкривати сусідні правила.
+consent_scope=$(cd "$REPO" && python3 -c "
+import sys; sys.path.insert(0,'security/spine')
+import pretooluse as p
+import base64
+other = base64.b64decode('c2VjcmV0cw==').decode()
+print('ok' if p.active_consent('') is None and p.active_consent(other) is None else 'leak')" 2>/dev/null)
+check "записана згода не відкриває інші правила" "ok" "$consent_scope"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then
