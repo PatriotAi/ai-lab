@@ -393,23 +393,27 @@ grep -q "self_check_problems" melania-skills-ecosystem/scripts/maintain.py \
   || bad "самоперевірний гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
 
 # ── Фальсифікація на РЕАЛЬНОМУ старому стані: перевірка, що мовчить на чистому,
-#    нічого не довела. Беремо стан із origin/main, де інцидент справді був.
-if git rev-parse --verify -q origin/main >/dev/null; then
-  fals=$(python3 -c "
-import subprocess, sys
+#    нічого не довела. Тут інцидент справді був: у 78e3a48 рядок таблиці казав
+#    «П.7: continuation-memory snapshot», тоді як continuation-memory — пункт 8.
+#
+#    Комміт ЗАФІКСОВАНО навмисно. Перша редакція цього тесту брала `origin/main`,
+#    і після злиття виправлення мітка поїхала на вже полагоджений стан — тест
+#    почав доводити протилежне тому, що обіцяв, і впав. Вказівник на доказ
+#    мусить бути НЕРУХОМИМ, інакше перевірка тихо змінює зміст (Core Rule 15).
+FALS_COMMIT="78e3a48"
+old_pdg=$(git show "$FALS_COMMIT:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md" 2>/dev/null)
+if [[ -z "$old_pdg" ]]; then
+  # Дрібний клон (CI з fetch-depth) може не мати цього обʼєкта — це не провал тесту,
+  # але й не мовчазний «успіх»: кажемо прямо, що доказ недосяжний.
+  ok "фальсифікація пропущена: комміт $FALS_COMMIT недосяжний у цьому клоні"
+else
+  fals=$(OLD_PDG="$old_pdg" python3 -c "
+import os, sys
 sys.path.insert(0, 'melania-skills-ecosystem/scripts')
 from maintain import crossref_problems
-old = subprocess.run(['git','show','origin/main:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
-                     capture_output=True, text=True).stdout
-print(len(crossref_problems('pdg', old)) if old else 'НЕМАЄ-СТАНУ')")
-  if [[ "$fals" == "НЕМАЄ-СТАНУ" ]]; then
-    ok "фальсифікація на origin/main пропущена (стан недоступний)"
-  else
-    [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
-      || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
-  fi
-else
-  ok "фальсифікація на origin/main пропущена (немає origin/main)"
+print(len(crossref_problems('pdg', os.environ['OLD_PDG'])))")
+  [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у $FALS_COMMIT ($fals)" \
+    || bad "фальсифікація: перевірка ловить інцидент у $FALS_COMMIT" "≥1" "$fals"
 fi
 
 # Реальний стан екосистеми має проходити всі самоперевірки.
