@@ -393,23 +393,27 @@ grep -q "self_check_problems" melania-skills-ecosystem/scripts/maintain.py \
   || bad "самоперевірний гейт підключений у maintain.py verify" "виклик + звіт" "не знайдено"
 
 # ── Фальсифікація на РЕАЛЬНОМУ старому стані: перевірка, що мовчить на чистому,
-#    нічого не довела. Беремо стан із origin/main, де інцидент справді був.
-if git rev-parse --verify -q origin/main >/dev/null; then
+#    нічого не довела. Беремо коміт, у якому інцидент справді був.
+#
+#    ЯКІР — НЕЗМІННИЙ SHA, А НЕ ГІЛКА. Раніше тут стояв `origin/main`, і після
+#    злиття виправлення зламаний стан звідти зник: перевірка почала повертати 0
+#    і ТИХО втратила доказову силу, лишаючись «червоною» без пояснення чому.
+#    Рухомий якір для фальсифікації — та сама помилка, від якої застерігає
+#    Core Rule 15: доказ мусить спиратись на стан, який не може змінитись.
+FALS_COMMIT=b1637fc   # «Core Rule 14 Claim-evidence» — 2 крос-посилальні інциденти
+if git cat-file -e "$FALS_COMMIT:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md" 2>/dev/null; then
   fals=$(python3 -c "
 import subprocess, sys
 sys.path.insert(0, 'melania-skills-ecosystem/scripts')
 from maintain import crossref_problems
-old = subprocess.run(['git','show','origin/main:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
+old = subprocess.run(['git','show','$FALS_COMMIT:melania-skills-ecosystem/skills/pre-delivery-gate/SKILL.md'],
                      capture_output=True, text=True).stdout
 print(len(crossref_problems('pdg', old)) if old else 'НЕМАЄ-СТАНУ')")
-  if [[ "$fals" == "НЕМАЄ-СТАНУ" ]]; then
-    ok "фальсифікація на origin/main пропущена (стан недоступний)"
-  else
-    [[ "$fals" -ge 1 ]] && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
-      || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
-  fi
+  [[ "$fals" =~ ^[0-9]+$ && "$fals" -ge 1 ]] \
+    && ok "фальсифікація: перевірка ловить інцидент у старому стані ($fals)" \
+    || bad "фальсифікація: перевірка ловить інцидент у старому стані" "≥1" "$fals"
 else
-  ok "фальсифікація на origin/main пропущена (немає origin/main)"
+  bad "фальсифікація: якірний коміт $FALS_COMMIT недосяжний" "коміт у репо" "немає"
 fi
 
 # Реальний стан екосистеми має проходити всі самоперевірки.
@@ -426,6 +430,108 @@ for p in pathlib.Path('melania-skills-ecosystem/skills').glob('*/SKILL.md'):
     n += len(crossref_problems(nm, t)) + len(counter_problems(nm, t)) + len(text_hygiene_problems(nm, t))
 print(n)")
 check "усі 28 скілів проходять самоперевірний протокол" "0" "$real_sc"
+
+echo ""
+echo "════════ 10. Профіль можливостей виконавця (Фаза 8) ════════"
+cd "$REPO" || exit 1
+PROBE="$REPO/automations/capability-probe/capability-probe.sh"
+SCAN="$REPO/scripts/capability-scan.py"
+PAYLOAD='{"hook_event_name":"SessionStart","model":"claude-opus-5","agent_type":"root"}'
+
+# Самотести сканера і вимірювача — вони покривають гейти й арифметику,
+# тут перевіряємо ІНТЕГРАЦІЮ: shell-шар хука, якого самотести не бачать.
+python3 "$SCAN" --validate >/dev/null 2>&1
+check "capability-scan: самотест" "0" "$?"
+python3 "$REPO/scripts/token-ledger.py" --validate >/dev/null 2>&1
+check "token-ledger: самотест" "0" "$?"
+
+probe_out="$(printf '%s' "$PAYLOAD" | bash "$PROBE" 2>/dev/null || true)"
+
+# ── Форма виводу: хук, що віддає невалідний JSON, тихо втрачає весь профіль ──
+ctx=$(printf '%s' "$probe_out" | python3 -c '
+import json,sys
+try: print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])
+except Exception: print("<НЕВАЛІДНО>")' 2>/dev/null)
+check "хук віддає валідний hookSpecificOutput" "0" \
+  "$([[ "$ctx" == "<НЕВАЛІДНО>" ]] && echo 1 || echo 0)"
+
+# ── C1: реальний зламаний стан цієї лабораторії ──
+# Харнес ПІДТРИМУЄ авто-пам'ять, але середовище її гасить. Наївний висновок
+# «модель уміє → наші G5-хуки зайві» зламав би пам'ять саме тут. Профіль
+# зобов'язаний назвати auto_memory як «НЕ діє», а не змовчати.
+if CLAUDE_CODE_REMOTE=true python3 -c '
+import sys, json, os
+sys.path.insert(0, "scripts")
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+env = dict(os.environ); env.pop("CLAUDE_CODE_REMOTE_MEMORY_DIR", None)
+p = cs.build_profile(env, model="claude-opus-5")
+am = next(c for c in p["capabilities"] if c["id"] == "auto_memory")
+sys.exit(0 if am["effective"] is False and "auto_memory" not in p["skippable"] else 1)' 2>/dev/null
+then ok "C1: авто-пам'ять вимкнена середовищем → skip заборонено"
+else bad "C1: авто-пам'ять вимкнена середовищем → skip заборонено" "effective=False, не в skippable" "інше"
+fi
+
+# ── C4: невпізнаний харнес → нуль skip-ів (fail-closed) ──
+if python3 -c '
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+p = cs.build_profile({"PATH": "/nonexistent"}, model="unknown-model")
+sys.exit(0 if p["skippable"] == [] and not p["harness"]["trusted"] else 1)' 2>/dev/null
+then ok "C4: невпізнаний харнес → нуль skip-ів"
+else bad "C4: невпізнаний харнес → нуль skip-ів" "skippable=[]" "інше"
+fi
+
+# Той самий стан має дійти до КОНТЕКСТУ як гучне попередження, а не як мовчання:
+# сесія мусить знати, що працює на повних правилах.
+warn_ctx="$(printf '%s' "$PAYLOAD" | PATH=/nonexistent:/usr/bin:/bin bash "$PROBE" 2>/dev/null \
+  | python3 -c 'import json,sys
+try: print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])
+except Exception: print("")' 2>/dev/null || true)"
+check "C4: невпізнаний харнес чутно в контексті" "0" \
+  "$([[ -z "$warn_ctx" || "$warn_ctx" == *"не впізнано"* ]] && echo 0 || echo 1)"
+
+# ── C5: ключ кешу реагує на зміну версії харнесу ──
+k_a=$(python3 -c '
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print(cs.cache_key({}, "m", {"version_running": "2.1.220"}))')
+k_b=$(python3 -c '
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print(cs.cache_key({}, "m", {"version_running": "2.2.0"}))')
+check "C5: зміна версії харнесу міняє ключ кешу" "0" \
+  "$([[ "$k_a" != "$k_b" ]] && echo 0 || echo 1)"
+
+# ── Економія як МАШИННА перевірка, а не як обіцянка ──
+# Профіль лежить у кешованому префіксі й перечитується щоходу. Якщо він
+# розростеться, то з'їсть саме те, заради чого існує. Ліміт тримає машина,
+# бо на уважність цей клас дрейфу не ловиться (Core Rule 15).
+probe_bytes=$(printf '%s' "$ctx" | wc -c | tr -d ' ')
+check "профіль не перевищує бюджет 900 байтів" "0" \
+  "$([[ "$probe_bytes" -le 900 ]] && echo 0 || echo 1)"
+[[ "$probe_bytes" -le 900 ]] || printf '     фактично: %s байтів\n' "$probe_bytes"
+
+# ── Хук не має права ламати старт сесії ──
+for broken in '' 'не-JSON' '{"hook_event_name":"SessionStart"}'; do
+  printf '%s' "$broken" | bash "$PROBE" >/dev/null 2>&1
+  rc=$?
+  check "хук не падає на вході «${broken:0:20}»" "0" "$rc"
+done
+
+# Нема сканера — хук мусить тихо вийти, а не впасти й не вигадати профіль.
+tmp_probe="$TMPROOT/probe-no-scan"; mkdir -p "$tmp_probe/automations/capability-probe"
+cp "$PROBE" "$tmp_probe/automations/capability-probe/"
+out_no_scan="$(printf '%s' "$PAYLOAD" | CLAUDE_PROJECT_DIR="$tmp_probe" \
+  bash "$tmp_probe/automations/capability-probe/capability-probe.sh" 2>/dev/null || true)"
+rc_no_scan=$?
+cd "$REPO" || exit 1
+check "без сканера хук виходить тихо" "0" "$rc_no_scan"
+check "без сканера хук нічого не вигадує" "" "$out_no_scan"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"
