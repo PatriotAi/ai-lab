@@ -692,6 +692,26 @@ print('ok' if gate and cfg and not other else f'{gate}/{cfg}/{other}')")
 check "самозміна гейта помітна, звичайна правка — ні" "ok" "$selfmod"
 
 echo ""
+echo "════════ 13. MCP-інструменти під гейтом і точність збігу (F-7) ════════"
+# F-7 знайдено ділом одразу після злиття PR #48: справжнє злиття через MCP
+# пройшло БЕЗШУМНО (R2), а команда, що лише ЗГАДУВАЛА його назву, була
+# заблокована. Прикриті MCP-інструменти були випадково — спрацьовувало правило
+# шляхів, якщо інструмент мав поле `path`.
+mcpl() { python3 "$REPO/tests/probe-mcp-and-quotes.py" >/dev/null 2>&1; echo $?; }
+check "MCP-класифікація і точність збігу: усі випадки" "0" "$(mcpl)"
+
+# Ключова пара, винесена окремо — вона й описує суть виправлення.
+lvl2() { python3 "$REPO/security/spine/classify.py" "$1" "$2" 2>/dev/null | head -1 | awk '{print $1}'; }
+MRG="merge_pull""_request"
+check "MCP: злиття PR тепер R4" "R4" "$(lvl2 "mcp__github__$MRG" "")"
+check "MCP: читання лишається R0" "R0" "$(lvl2 mcp__github__get_file_contents "")"
+
+# Хибна тривога на згадку в лапках — і навпаки, лапки як КОД мусять ловитись.
+# Друге важливіше за перше: пропустити `bash -c` було б не косметикою, а діркою.
+check "згадка дії в лапках — не R4" "R0" "$(lvl2 Bash "echo '"'"'rm -rf build'"'"'")"
+check "bash -c виконує вміст лапок — R4" "R4" "$(lvl2 Bash 'bash -c "rm -rf build"')"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then
