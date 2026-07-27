@@ -26,6 +26,16 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/security/hooks/pre-tool-use.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -44,6 +54,15 @@
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(ls:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/id_rsa*)",
+      "Read(**/.ssh/**)",
+      "Read(**/secrets/**)"
     ]
   }
 }
