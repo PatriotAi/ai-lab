@@ -117,6 +117,22 @@ def _write_targets(command: str) -> list[str]:
     return [t.strip("'\"") for t in targets if t.strip("'\"")]
 
 
+def _tool_managed(resolved: str, policy: dict) -> bool:
+    """Чи лежить шлях у теці, якою керує сам Claude Code.
+
+    Свідомо вузько: збіг лише за явними шаблонами з `[workspace]`. Це не
+    «дозволити все поза репо» — решта зовнішніх шляхів лишається R4.
+    """
+    patterns = policy.get("workspace", {}).get("tool_managed_paths", [])
+    for pattern in patterns:
+        if fnmatch.fnmatch(resolved, pattern) or fnmatch.fnmatch(resolved, pattern + "/*"):
+            return True
+        base = pattern.rstrip("/*")
+        if base and resolved.startswith(base + "/"):
+            return True
+    return False
+
+
 def _command_touches_path(command: str, pattern: str) -> bool:
     """Чи пише команда в захищений шлях."""
     for target in _write_targets(command):
@@ -232,6 +248,10 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             rel_target.startswith("..") or Path(resolved).is_absolute()
             and not str(Path(resolved)).startswith(str(root))
         )
+        # Теки, якими керує сам інструмент, — не «вихід за межі проєкту».
+        if outside and _tool_managed(resolved, pol):
+            return Verdict("R1", "тека, якою керує сам інструмент",
+                           target=raw_path, resolved_target=resolved, notes=notes)
         if outside:
             return Verdict("R4", "запис ПОЗА межами репозиторію",
                            rule_id="outside-repo",

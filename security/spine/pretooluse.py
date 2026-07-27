@@ -29,8 +29,8 @@ Core Rule 15: «крок, що тримається на уважності й �
 """
 from __future__ import annotations
 
+import fnmatch
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +57,23 @@ def record(entry: dict) -> None:
 
 
 CONSENT = ROOT / "security" / "consent.md"
+
+
+def is_self_modification(target: str, policy: dict) -> bool:
+    """Чи це правка коду/конфіга самого гейта."""
+    if not target:
+        return False
+    try:
+        rel = str(Path(target).resolve().relative_to(ROOT.resolve()))
+    except (ValueError, OSError):
+        rel = target
+    for pattern in policy.get("self_watch", {}).get("paths", []):
+        if fnmatch.fnmatch(rel, pattern):
+            return True
+        base = pattern.rstrip("/*")
+        if base and rel.startswith(base + "/"):
+            return True
+    return False
 
 
 def active_consent(rule_id: str) -> tuple[str, str] | None:
@@ -134,25 +151,40 @@ def main() -> int:
     # процес, що виконує дію, тож це НЕ бар'єр — це РЕЄСТРАТОР. Він перетворює
     # невидимий обхід на записаний і названий. Для лабораторії з одним власником
     # цього досить; там, де сторін кілька, перевірка має жити поза агентом.
+    # Прапорець самозміни рахується ДО згоди: правка власного гейта має бути
+    # видимою й тоді, коли вона дозволена — інакше найцікавіші випадки
+    # (зміна політики за згодою) губилися б саме там, де важливі найбільше
+    # (спіймано канаркою 2026-07-27: policy.toml виходив без прапорця).
+    target_path = verdict.resolved_target or verdict.target
+    self_mod = is_self_modification(target_path, policy)
+
     consent = active_consent(verdict.rule_id)
     if action == "deny" and consent:
         record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
                 "decision": "ЗГОДА-ЗАПИСАНА", "consent_until": consent[0],
-                "consent_reason": consent[1],
-                "target": (verdict.resolved_target or verdict.target)[:300]})
+                "consent_reason": consent[1], "self_modification": self_mod,
+                "target": target_path[:300]})
         print(f"🔓 записана згода ({verdict.rule_id}, до {consent[0]}): {consent[1][:120]}",
               file=sys.stderr)
         return 0
 
+    # Самозміна гейта: записуємо гучно, але не блокуємо (рішення власника).
+    # Сенс не в тому, щоб зупинити — агент однаково може виписати собі згоду.
+    # Сенс у тому, щоб правка власного гейта НЕ проходила тихо, як звичайна.
     record({
         "tool": tool_name,
         "level": verdict.level,
         "rule": verdict.rule_id,
         "decision": action,
-        "target": (verdict.resolved_target or verdict.target)[:300],
+        "target": target_path[:300],
         "reason": verdict.reason,
         "notes": verdict.notes,
+        "self_modification": self_mod,
     })
+
+    if self_mod and tool_name in ("Write", "Edit", "NotebookEdit"):
+        print(f"🔧 САМОЗМІНА ГЕЙТА: {target_path} — записано в журнал "
+              "(не блокується за рішенням власника)", file=sys.stderr)
 
     if action == "allow":
         # Тиша = не втручаємось. Жодного зайвого токена в контекст.

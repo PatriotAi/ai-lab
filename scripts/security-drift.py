@@ -29,6 +29,8 @@ import json
 import shutil
 import subprocess
 import sys
+import tomllib
+from datetime import datetime, timezone
 from pathlib import Path
 
 OK, DRIFT, UNKNOWN = "✅", "⚠️", "❓"
@@ -43,6 +45,15 @@ def repo_root() -> Path:
         return Path(out)
     except (subprocess.CalledProcessError, FileNotFoundError):
         return Path.cwd()
+
+
+def stale_limit(root: Path) -> int:
+    """Скільки днів контроль лишається підтвердженим. Джерело — та сама політика."""
+    try:
+        pol = tomllib.loads((root / "security" / "policy.toml").read_text(encoding="utf-8"))
+        return int(pol.get("levels", {}).get("R3", {}).get("stale_after_days", 30))
+    except (OSError, tomllib.TOMLDecodeError, ValueError):
+        return 30
 
 
 def check_tool(name: str, why: str) -> tuple[str, str, str]:
@@ -121,6 +132,59 @@ def check_action_pinning(root: Path) -> tuple[str, str, str]:
     return OK, "закріплення дій GitHub", "усі закріплені хешем коміту"
 
 
+def check_last_verified(root: Path, limit_days: int) -> tuple[str, str, str]:
+    """Коли контролі востаннє підтверджували ділом (S3.3).
+
+    Контроль, який давно не прогоняли, — НЕ робочий контроль, а непідтверджений.
+    Різниця та сама, що між «чисто» і «не перевіряли»: виглядає однаково,
+    означає протилежне. Мітку пише `tests/run-tests.sh` при успішному прогоні.
+    """
+    marker = root / "security" / "audit" / "last-verified.json"
+    if not marker.is_file():
+        return (
+            DRIFT, "підтвердження контролів",
+            "НІКОЛИ не прогонялось у цьому середовищі — статус контролів "
+            "нижче не підтверджений. Прогін: bash tests/run-tests.sh",
+        )
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+        stamp = datetime.fromisoformat(data["ts"].replace("Z", "+00:00"))
+        passed = data.get("passed", "?")
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        return DRIFT, "підтвердження контролів", f"мітка не читається ({exc})"
+
+    days = (datetime.now(timezone.utc) - stamp).days
+    when = stamp.strftime("%Y-%m-%d %H:%M UTC")
+    if days > limit_days:
+        return (
+            DRIFT, "підтвердження контролів",
+            f"НЕПІДТВЕРДЖЕНО — останній прогін {when} ({days} дн. тому, "
+            f"межа {limit_days}). Прогін: bash tests/run-tests.sh",
+        )
+    return OK, "підтвердження контролів", f"{when} · {passed} перевірок · {days} дн. тому"
+
+
+def check_self_modification(root: Path) -> tuple[str, str, str]:
+    """Скільки разів агент правив код власного гейта (рішення власника: записувати, не блокувати)."""
+    log = root / "security" / "audit" / "decisions.jsonl"
+    if not log.is_file():
+        return UNKNOWN, "самозміни гейта", "журнал порожній — записів немає"
+    count = 0
+    try:
+        for line in log.read_text(encoding="utf-8").splitlines():
+            if '"self_modification": true' in line or '"self_modification":true' in line:
+                count += 1
+    except OSError as exc:
+        return UNKNOWN, "самозміни гейта", f"журнал не читається ({exc})"
+    if count:
+        return (
+            OK, "самозміни гейта",
+            f"{count} у журналі цього середовища — це НЕ помилка, а видимість: "
+            "правки власного гейта не блокуються, але й не проходять тихо",
+        )
+    return OK, "самозміни гейта", "жодної в журналі цього середовища"
+
+
 def check_remote_only() -> list[tuple[str, str, str]]:
     return [
         (UNKNOWN, "Dependency graph на GitHub", "не перевіряється звідси — лише в налаштуваннях репо"),
@@ -145,6 +209,8 @@ def main(argv: list[str]) -> int:
     rows += check_claude_hooks(root)
     rows.append(check_pretooluse(root))
     rows.append(check_action_pinning(root))
+    rows.append(check_last_verified(root, stale_limit(root)))
+    rows.append(check_self_modification(root))
     rows += check_remote_only()
 
     drifted = [r for r in rows if r[0] == DRIFT]

@@ -626,6 +626,72 @@ print('ok' if p.active_consent('') is None and p.active_consent(other) is None e
 check "записана згода не відкриває інші правила" "ok" "$consent_scope"
 
 echo ""
+echo "════════ 12. Переносимість, старіння, самозміна ════════"
+# S4.3 — README обіцяє, що теку security/ можна скопіювати в інший проєкт.
+# Обіцянка без прогону — заявка, а не доказ: цей набір ніколи не виходить за
+# межі ai-lab і тому переносимості довести не може. Довести її може лише
+# прогін у ПОРОЖНІЙ теці — він у security/tests/test-standalone.sh.
+standalone=$(cd "$REPO" && bash security/tests/test-standalone.sh >/dev/null 2>&1; echo $?)
+check "пакет працює в теці без файлів ai-lab" "0" "$standalone"
+
+# S3.3 — контроль, який давно не прогоняли, має показуватись НЕПІДТВЕРДЖЕНИМ,
+# а не робочим. Різниця та сама, що між «чисто» і «не перевіряли».
+DRIFTDIR="$TMPROOT/driftrepo"; mkdir -p "$DRIFTDIR/security/audit" "$DRIFTDIR/scripts"
+cp "$REPO/security/policy.toml" "$DRIFTDIR/security/"
+cp "$REPO/scripts/security-drift.py" "$DRIFTDIR/scripts/"
+stale_missing=$(cd "$DRIFTDIR" && python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.check_last_verified(pathlib.Path('.'), 30)[0])")
+check "мітки немає → непідтверджено" "⚠️" "$stale_missing"
+
+python3 - "$DRIFTDIR" <<'PY'
+import json, pathlib, sys
+from datetime import datetime, timedelta, timezone
+old = (datetime.now(timezone.utc) - timedelta(days=99)).strftime('%Y-%m-%dT%H:%M:%SZ')
+p = pathlib.Path(sys.argv[1], 'security', 'audit', 'last-verified.json')
+p.write_text(json.dumps({"ts": old, "passed": 1, "failed": 0}), encoding='utf-8')
+PY
+stale_old=$(cd "$DRIFTDIR" && python3 -c "
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.check_last_verified(pathlib.Path('.'), 30)[0])")
+check "мітка старша за межу → непідтверджено" "⚠️" "$stale_old"
+
+python3 - "$DRIFTDIR" <<'PY'
+import json, pathlib, sys
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+p = pathlib.Path(sys.argv[1], 'security', 'audit', 'last-verified.json')
+p.write_text(json.dumps({"ts": now, "passed": 200, "failed": 0}), encoding='utf-8')
+PY
+stale_fresh=$(cd "$DRIFTDIR" && python3 -c "
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.check_last_verified(pathlib.Path('.'), 30)[0])")
+check "свіжа мітка → підтверджено" "✅" "$stale_fresh"
+cd "$REPO" || exit 1
+
+# Самозміна гейта: рішення власника — записувати гучно, НЕ блокувати. Тому
+# перевіряємо саме видимість, а не блок. Прапорець має стояти й тоді, коли
+# правка дозволена записаною згодою: інакше найцікавіший випадок (зміна самої
+# політики) губився б там, де він найважливіший.
+selfmod=$(cd "$REPO" && python3 -c "
+import sys, tomllib, pathlib
+sys.path.insert(0, 'security/spine')
+import pretooluse as p
+pol = tomllib.loads(pathlib.Path('security/policy.toml').read_text(encoding='utf-8'))
+gate  = p.is_self_modification('security/spine/classify.py', pol)
+cfg   = p.is_self_modification('security/policy.toml', pol)
+other = p.is_self_modification('docs/learnings.md', pol)
+print('ok' if gate and cfg and not other else f'{gate}/{cfg}/{other}')")
+check "самозміна гейта помітна, звичайна правка — ні" "ok" "$selfmod"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
 if (( FAIL > 0 )); then
@@ -633,3 +699,19 @@ if (( FAIL > 0 )); then
   exit 1
 fi
 printf "  ✅ Усі тести автоматизацій пройдено\n"
+
+# Мітка «коли контролі востаннє підтверджували ділом». Її читає
+# scripts/security-drift.py: контроль, який давно не прогоняли, показується як
+# НЕПІДТВЕРДЖЕНИЙ, а не як робочий — та сама логіка трьох станів, що вже діє
+# в security-check.sh. Пишеться лише при успіху: червоний прогін нічого не
+# підтверджує. Файл свідомо поза git (security/audit/ у .gitignore) — питання
+# «чи прогоняли» стосується ЦЬОГО середовища, і в свіжому контейнері чесна
+# відповідь саме «не прогоняли», а не успадкована з чужої машини мітка.
+mkdir -p "$REPO/security/audit" 2>/dev/null && cat > "$REPO/security/audit/last-verified.json" <<JSON
+{
+  "ts": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "passed": $PASS,
+  "failed": $FAIL,
+  "suite": "tests/run-tests.sh"
+}
+JSON
