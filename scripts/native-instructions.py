@@ -262,8 +262,10 @@ def main() -> int:
         return 1 if (d["added"] or d["removed"]) else 0
 
     if args.snapshot:
+        # Завершальний перевід рядка обов'язковий: `end-of-file-fixer` у
+        # pre-commit інакше валить CI на згенерованому знімку.
         pathlib.Path(args.snapshot).write_text(
-            json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+            json.dumps(snap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"Знімок збережено: {args.snapshot} "
               f"({len(snap['rules'])} інструкцій, sha {snap['corpus_sha']})")
         return 0
