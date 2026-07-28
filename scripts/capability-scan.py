@@ -389,6 +389,7 @@ def render(profile: dict) -> str:
 
 def validate() -> int:
     failures: list[str] = []
+    skipped: list[str] = []
 
     def check(name: str, expected, actual):
         if expected == actual:
@@ -396,6 +397,17 @@ def validate() -> int:
         else:
             failures.append(name)
             print(f"  ❌ {name}\n     очікували: {expected}\n     отримали:  {actual}")
+
+    def skip(name: str, why: str):
+        """«Перевірку не вдалося виконати» — це НЕ «перевірка пройшла».
+
+        Частина самотесту читає РЕАЛЬНИЙ бінарник харнесу, якого немає на
+        раннері CI. Мовчазне ✅ там перетворило б набір на декорацію: він
+        доповідав би про успіх, нічого не перевіривши. Тому пропуск гучний,
+        іменований і порахований окремо (Core Rule 15 — той самий клас
+        помилки, що «порожньо» проти «відфільтровано»)."""
+        skipped.append(name)
+        print(f"  ⏭️  {name} — ПРОПУЩЕНО: {why}")
 
     print("capability-scan самотест:")
 
@@ -461,28 +473,40 @@ def validate() -> int:
     live_no_obs = build_profile(model="claude-opus-5")
     hooks_entry = next(c for c in live_no_obs["capabilities"] if c["id"] == "hooks")
     check("хуки без спостереження — unknown", None, hooks_entry["effective"])
+
+    # Живі перевірки нижче читають бінарник харнесу. На раннері CI його немає —
+    # там ці твердження неперевірні, а не хибні. Логічні перевірки вище й нижче
+    # від цього не залежать і виконуються завжди.
+    harness_ok = bool(live_no_obs["harness"]["trusted"])
     live_obs = build_profile(model="claude-opus-5",
                              observations={"hook_event_name": "SessionStart"})
-    hooks_obs = next(c for c in live_obs["capabilities"] if c["id"] == "hooks")
-    check("хуки зі спостереженням — доведено", True, hooks_obs["effective"])
+    if harness_ok:
+        hooks_obs = next(c for c in live_obs["capabilities"] if c["id"] == "hooks")
+        check("хуки зі спостереженням — доведено", True, hooks_obs["effective"])
+        # 9. Спостереження не має «протікати» на інші можливості: доказ про хуки
+        #    не є доказом про пам'ять чи мислення.
+        check("спостереження не поширюється на інші можливості", ["hooks"],
+              live_obs["skippable"])
+    else:
+        skip("хуки зі спостереженням — доведено", "харнес недоступний")
+        skip("спостереження не поширюється на інші можливості", "харнес недоступний")
 
-    # 9. Спостереження не має «протікати» на інші можливості: доказ про хуки
-    #    не є доказом про пам'ять чи мислення.
-    check("спостереження не поширюється на інші можливості", ["hooks"],
-          live_obs["skippable"])
-
-    # 10. Чистий стан: на РЕАЛЬНОМУ середовищі скан має відпрацювати без падіння
-    #     і не заявити ✅ для жодної можливості без відповідного гейта.
+    # 10. Чистий стан: скан має відпрацювати без падіння і не заявити ✅ для
+    #     жодної можливості без відповідного гейта. Це справджується й без
+    #     харнесу (тоді просто нема чого заявляти), тому перевіряємо завжди.
     check("живий скан не падає", True, isinstance(live_no_obs["capabilities"], list))
-    check("живий скан не заявляє skip без гейта", True,
+    check("скан не заявляє skip без гейта", True,
           all(c["id"] in GATES or c["id"] in OBSERVED_GATES
               for c in live_obs["capabilities"] if c["effective"] is True))
 
     print()
+    if skipped:
+        print(f"⏭️  Пропущено {len(skipped)} (харнес недоступний): {', '.join(skipped)}")
     if failures:
         print(f"❌ Самотест упав: {len(failures)} перевірок — {', '.join(failures)}")
         return 1
-    print("✅ Самотест: усі перевірки пройшли")
+    print(f"✅ Самотест: перевірки пройшли"
+          f"{f' ({len(skipped)} пропущено)' if skipped else ''}")
     return 0
 
 

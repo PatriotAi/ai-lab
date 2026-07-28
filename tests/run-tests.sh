@@ -14,12 +14,16 @@ HOOK="$REPO/automations/stop-git-check/stop-hook-git-check.sh"
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
 
-PASS=0; FAIL=0; FAILED=()
+PASS=0; FAIL=0; SKIP=0; FAILED=(); SKIPPED=()
 
 ok()   { PASS=$((PASS+1)); printf '  ✅ %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); FAILED+=("$1"); printf '  ❌ %s\n     очікували: %s\n     отримали:  %s\n' "$1" "$2" "$3"; }
 check(){ # check <назва> <очікуване> <фактичне>
   [[ "$2" == "$3" ]] && ok "$1" || bad "$1" "$2" "$3"; }
+# skip <назва> <причина> — перевірка, яку НЕ БУЛО ЯК виконати в цьому середовищі.
+# Свідомо окремий лічильник: якби такі перевірки тихо зараховувались як ✅,
+# набір доповідав би про успіх, нічого не перевіривши (Core Rule 15).
+skip() { SKIP=$((SKIP+1)); SKIPPED+=("$1"); printf '  ⏭️  %s — ПРОПУЩЕНО: %s\n' "$1" "$2"; }
 
 # Тимчасовий git-репозиторій із фейковим remote (хук виходить тихо без remote).
 # ВАЖЛИВО: викликати БЕЗ підоболонки — `mk_repo name`, не `d=$(mk_repo name)`.
@@ -445,21 +449,40 @@ check "capability-scan: самотест" "0" "$?"
 python3 "$REPO/scripts/token-ledger.py" --validate >/dev/null 2>&1
 check "token-ledger: самотест" "0" "$?"
 
+python3 "$REPO/scripts/native-instructions.py" --validate >/dev/null 2>&1
+check "native-instructions: самотест" "0" "$?"
+
+# Чи є на цій машині РЕАЛЬНИЙ харнес? На раннері CI його немає, і перевірки,
+# що читають бінарник, там неперевірні — не хибні. Визначаємо один раз.
+HAS_HARNESS=$(python3 -c '
+import importlib.util, os
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print("1" if cs.find_harness(dict(os.environ)).get("trusted") else "0")' 2>/dev/null || echo 0)
+
 probe_out="$(printf '%s' "$PAYLOAD" | bash "$PROBE" 2>/dev/null || true)"
 
 # ── Форма виводу: хук, що віддає невалідний JSON, тихо втрачає весь профіль ──
-ctx=$(printf '%s' "$probe_out" | python3 -c '
+# Без харнесу проба свідомо виходить ТИХО (fail-closed), тож JSON-у нема і
+# перевіряти форму нема на чому — це пропуск, а не провал.
+if [[ "$HAS_HARNESS" == "1" ]]; then
+  ctx=$(printf '%s' "$probe_out" | python3 -c '
 import json,sys
 try: print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])
 except Exception: print("<НЕВАЛІДНО>")' 2>/dev/null)
-check "хук віддає валідний hookSpecificOutput" "0" \
-  "$([[ "$ctx" == "<НЕВАЛІДНО>" ]] && echo 1 || echo 0)"
+  check "хук віддає валідний hookSpecificOutput" "0" \
+    "$([[ "$ctx" == "<НЕВАЛІДНО>" ]] && echo 1 || echo 0)"
+else
+  skip "хук віддає валідний hookSpecificOutput" "харнес недоступний"
+fi
 
 # ── C1: реальний зламаний стан цієї лабораторії ──
 # Харнес ПІДТРИМУЄ авто-пам'ять, але середовище її гасить. Наївний висновок
 # «модель уміє → наші G5-хуки зайві» зламав би пам'ять саме тут. Профіль
 # зобов'язаний назвати auto_memory як «НЕ діє», а не змовчати.
-if CLAUDE_CODE_REMOTE=true python3 -c '
+if [[ "$HAS_HARNESS" != "1" ]]; then
+  skip "C1: авто-пам'ять вимкнена середовищем → skip заборонено" "харнес недоступний"
+elif CLAUDE_CODE_REMOTE=true python3 -c '
 import sys, json, os
 sys.path.insert(0, "scripts")
 import importlib.util
@@ -535,9 +558,13 @@ check "без сканера хук нічого не вигадує" "" "$out_n
 
 echo ""
 echo "════════ ПІДСУМОК ════════"
-printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
+printf "  пройдено: %d · впало: %d · пропущено: %d\n" "$PASS" "$FAIL" "$SKIP"
+if (( SKIP > 0 )); then
+  printf "  ⏭️  Пропущено (середовище не дозволило перевірити):\n"
+  printf "     - %s\n" "${SKIPPED[@]}"
+fi
 if (( FAIL > 0 )); then
   printf "  ❌ Впали:\n"; printf "     - %s\n" "${FAILED[@]}"
   exit 1
 fi
-printf "  ✅ Усі тести автоматизацій пройдено\n"
+printf "  ✅ Тести автоматизацій пройдено\n"

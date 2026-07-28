@@ -68,15 +68,26 @@ def find_transcripts(project_dir: str | None, session: str | None) -> list[pathl
     return sorted(root.glob("*/*.jsonl"))
 
 
+# Кошики накопичення контексту. Усе, що потрапляє в префікс, перечитується
+# КОЖНОГО наступного ходу — тому склад накопичення важливіший за його разовий
+# розмір. Вимір 2026-07-27 на цій лабораторії: трафік інструментів — 95%,
+# проза до власника — 4%. Тобто «менше пояснювати» дає стелю ~4%, а справжній
+# важіль — вужчі читання й менші записи.
+BUCKETS = ("tool_result_chars", "tool_arg_chars", "prose_chars", "owner_chars")
+
+
 def read_transcript(path: pathlib.Path) -> dict:
     """Зібрати лічильники однієї сесії. Незрозумілі рядки пропускаємо мовчки —
     транскрипт пишеться на льоту, останній рядок може бути обірваний."""
     totals = dict.fromkeys(USAGE_FIELDS, 0)
+    buckets = dict.fromkeys(BUCKETS, 0)
     models: dict[str, int] = {}
     efforts: dict[str, int] = {}
     versions: set[str] = set()
     turns = 0
     sidechain_turns = 0
+    prose_turns = 0
+    heavy: list[tuple[int, str]] = []   # (символів, що саме) — найбільші внески
 
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -87,10 +98,32 @@ def read_transcript(path: pathlib.Path) -> dict:
                 rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if rec.get("type") != "assistant":
-                continue
             msg = rec.get("message")
             if not isinstance(msg, dict):
+                continue
+            kind = rec.get("type")
+            content = msg.get("content")
+
+            if kind == "user":
+                # Результати інструментів приходять як user-повідомлення. Вони
+                # НЕ входять в output_tokens, але накопичуються в префіксі — тому
+                # рахувати їх окремо обов'язково, інакше майже половина
+                # накопичення лишиться невидимою.
+                if isinstance(content, str):
+                    buckets["owner_chars"] += len(content)
+                elif isinstance(content, list):
+                    for blk in content:
+                        if not isinstance(blk, dict):
+                            continue
+                        if blk.get("type") == "tool_result":
+                            size = len(json.dumps(blk.get("content"), ensure_ascii=False))
+                            buckets["tool_result_chars"] += size
+                            heavy.append((size, "результат інструмента"))
+                        elif blk.get("type") == "text":
+                            buckets["owner_chars"] += len(blk.get("text") or "")
+                continue
+
+            if kind != "assistant":
                 continue
             usage = msg.get("usage")
             if not isinstance(usage, dict):
@@ -109,41 +142,77 @@ def read_transcript(path: pathlib.Path) -> dict:
             if version := rec.get("version"):
                 versions.add(version)
 
+            if isinstance(content, list):
+                prose_here = 0
+                for blk in content:
+                    if not isinstance(blk, dict):
+                        continue
+                    if blk.get("type") == "text":
+                        prose_here += len(blk.get("text") or "")
+                    elif blk.get("type") == "tool_use":
+                        size = len(json.dumps(blk.get("input") or {}, ensure_ascii=False))
+                        buckets["tool_arg_chars"] += size
+                        heavy.append((size, f"виклик {blk.get('name') or '?'}"))
+                buckets["prose_chars"] += prose_here
+                if prose_here:
+                    prose_turns += 1
+
+    heavy.sort(reverse=True)
     return {
         "session": path.stem,
         "path": str(path),
         "turns": turns,
         "sidechain_turns": sidechain_turns,
+        "prose_turns": prose_turns,
         "models": models,
         "efforts": efforts,
         "cli_versions": sorted(versions),
+        "heavy": heavy[:10],
         **totals,
+        **buckets,
     }
 
 
 def aggregate(sessions: list[dict], label: str | None) -> dict:
     totals = dict.fromkeys(USAGE_FIELDS, 0)
-    turns = sidechain = 0
+    buckets = dict.fromkeys(BUCKETS, 0)
+    turns = sidechain = prose_turns = 0
     models: dict[str, int] = {}
+    heavy: list[tuple[int, str]] = []
     for s in sessions:
         for field in USAGE_FIELDS:
             totals[field] += s[field]
+        for bucket in BUCKETS:
+            buckets[bucket] += s.get(bucket, 0)
         turns += s["turns"]
         sidechain += s["sidechain_turns"]
+        prose_turns += s.get("prose_turns", 0)
+        heavy.extend(s.get("heavy") or [])
         for model, count in s["models"].items():
             models[model] = models.get(model, 0) + count
+    heavy.sort(reverse=True)
 
     # «Свіжий вхід» — те, на що впливає обсяг інструкцій у контексті. Кеш-читання
     # відображає ту саму інструкцію, вже закешовану, тому для оцінки ефекту від
     # скорочення контексту дивимось на обидва числа, а не на одну суму.
     fresh_input = totals["input_tokens"] + totals["cache_creation_input_tokens"]
 
+    accum = sum(buckets.values())
     return {
         "label": label,
         "sessions": len(sessions),
         "turns": turns,
         "sidechain_turns": sidechain,
+        "prose_turns": prose_turns,
         "models": models,
+        "heavy": heavy[:10],
+        **buckets,
+        "accumulated_chars": accum,
+        "accum_share": {
+            b: round(buckets[b] / accum * 100, 1) if accum else 0.0 for b in BUCKETS
+        },
+        "prose_per_prose_turn": round(buckets["prose_chars"] / prose_turns)
+        if prose_turns else 0,
         **totals,
         "fresh_input_tokens": fresh_input,
         "total_tokens": sum(totals.values()),
@@ -198,6 +267,103 @@ def render(summary: dict, sessions: list[dict], verbose: bool) -> str:
             fresh = s["input_tokens"] + s["cache_creation_input_tokens"]
             lines.append(f"| `{s['session'][:8]}` | {s['turns']} | {fresh:,} | "
                          f"{s['output_tokens']:,} | {s['cache_read_input_tokens']:,} |")
+    return "\n".join(lines)
+
+
+# ── Рівні пояснень і бюджет накопичення ───────────────────────────────────
+# Стелі виведені з ВИМІРУ, не з інтуїції (сесія 2026-07-27: 300 символів прози
+# на хід із прозою; трафік інструментів 1 347 символів на хід).
+#
+# ЧОМУ ДВІ РІЗНІ СТЕЛІ, А НЕ ОДНА: вимір показав, що проза — лише ~4% накопичення,
+# а трафік інструментів — ~95%. Одна спільна стеля дозволила б «зекономити» на
+# поясненнях і не помітити, що читання й записи роздулись удесятеро.
+DEFAULT_POLICY = {
+    "explain_level": "brief",
+    "prose_ceiling": {"minimal": 400, "brief": 800, "tutorial": 2500},
+    "tool_traffic_ceiling_per_turn": 2500,
+}
+
+
+def load_policy(project_dir: str | None = None) -> dict:
+    path = pathlib.Path(project_dir or os.getcwd()) / ".claude" / "ai-lab.json"
+    policy = dict(DEFAULT_POLICY)
+    if path.is_file():
+        try:
+            policy.update(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            pass          # зіпсований файл не має ламати вимір — діють дефолти
+    return policy
+
+
+def verbosity_check(summary: dict, policy: dict) -> tuple[int, str]:
+    """Машинна перевірка контракту рівня. Повертає (код виходу, звіт).
+
+    Це саме ПЕРЕВІРКА, а не порада: крок, що тримається на моїй уважності,
+    рано чи пізно буде пропущений, і звіт лишиться чесним (Core Rule 15).
+    """
+    level = policy.get("explain_level", "brief")
+    ceilings = policy.get("prose_ceiling") or DEFAULT_POLICY["prose_ceiling"]
+    prose_max = ceilings.get(level, DEFAULT_POLICY["prose_ceiling"]["brief"])
+    traffic_max = policy.get("tool_traffic_ceiling_per_turn",
+                             DEFAULT_POLICY["tool_traffic_ceiling_per_turn"])
+
+    prose_avg = summary.get("prose_per_prose_turn", 0)
+    turns = summary.get("turns", 0) or 1
+    traffic_avg = round(
+        (summary.get("tool_result_chars", 0) + summary.get("tool_arg_chars", 0)) / turns
+    )
+
+    lines = [f"# Контракт рівня «{level}»", ""]
+    lines.append("| Метрика | Факт | Стеля | |")
+    lines.append("|---|---:|---:|:--:|")
+    prose_ok = prose_avg <= prose_max
+    traffic_ok = traffic_avg <= traffic_max
+    lines.append(f"| Проза на хід із прозою | {prose_avg:,} | {prose_max:,} | "
+                 f"{'✅' if prose_ok else '❌'} |")
+    lines.append(f"| Трафік інструментів на хід | {traffic_avg:,} | {traffic_max:,} | "
+                 f"{'✅' if traffic_ok else '❌'} |")
+    lines.append("")
+
+    if summary.get("heavy"):
+        lines.append("Найбільші разові внески в контекст:")
+        for size, what in summary["heavy"][:5]:
+            lines.append(f"- {size:,} символів — {what}")
+        lines.append("")
+
+    if prose_ok and traffic_ok:
+        lines.append("Контракт дотримано.")
+        return 0, "\n".join(lines)
+    if not traffic_ok:
+        lines.append("**Трафік інструментів перевищив бюджет.** Це головний важіль: "
+                     "вимір показав, що читання й записи — ~95% накопичення, а проза ~4%. "
+                     "Вужчі читання, точковий grep, менші записи.")
+    if not prose_ok:
+        lines.append(f"**Проза перевищила стелю рівня «{level}».**")
+    return 1, "\n".join(lines)
+
+
+def render_breakdown(summary: dict) -> str:
+    lines = ["# Склад накопичення контексту", ""]
+    accum = summary.get("accumulated_chars", 0)
+    if not accum:
+        return "Накопичення не виміряне: у зрізі немає вмісту повідомлень."
+    lines.append(f"Усього накопичено **{accum:,}** символів за {summary['turns']} ходів.")
+    lines.append("")
+    lines.append("| Джерело | Символів | Частка |")
+    lines.append("|---|---:|---:|")
+    titles = {
+        "tool_arg_chars": "Аргументи інструментів (що пишу я)",
+        "tool_result_chars": "Результати інструментів (що повертається)",
+        "prose_chars": "Моя проза до власника",
+        "owner_chars": "Текст власника",
+    }
+    for bucket in sorted(BUCKETS, key=lambda b: -summary.get(b, 0)):
+        lines.append(f"| {titles[bucket]} | {summary.get(bucket, 0):,} | "
+                     f"{summary['accum_share'][bucket]:.1f}% |")
+    lines.append("")
+    lines.append("> Усе це перечитується КОЖНОГО наступного ходу. Тому оптимізувати "
+                 "треба найбільший кошик, а не найпомітніший: скорочення пояснень "
+                 "чіпає лише свій відсоток, яким би приємним воно не здавалося.")
     return "\n".join(lines)
 
 
@@ -257,7 +423,13 @@ def _fixture(records: list[dict]) -> str:
     return fh.name
 
 
-def _turn(inp=0, out=0, cc=0, cr=0, model="m", sidechain=False):
+def _turn(inp=0, out=0, cc=0, cr=0, model="m", sidechain=False,
+          prose="", tool_arg=None):
+    content = []
+    if prose:
+        content.append({"type": "text", "text": prose})
+    if tool_arg is not None:
+        content.append({"type": "tool_use", "name": "Bash", "input": {"command": tool_arg}})
     return {
         "type": "assistant",
         "isSidechain": sidechain,
@@ -266,6 +438,7 @@ def _turn(inp=0, out=0, cc=0, cr=0, model="m", sidechain=False):
         "message": {
             "role": "assistant",
             "model": model,
+            "content": content,
             "usage": {
                 "input_tokens": inp,
                 "output_tokens": out,
@@ -274,6 +447,11 @@ def _turn(inp=0, out=0, cc=0, cr=0, model="m", sidechain=False):
             },
         },
     }
+
+
+def _tool_result(payload: str):
+    return {"type": "user", "message": {"role": "user", "content": [
+        {"type": "tool_result", "content": payload}]}}
 
 
 def validate() -> int:
@@ -371,7 +549,54 @@ def validate() -> int:
     check("коротший вихід НЕ зараховується як економія", True,
           "НЕ пройдено" in compare(out_base, out_after))
 
-    for p in (path, path2, path3, path4, long_path):
+    # 10. Кошики накопичення. Головне, що тут доводиться: результати інструментів
+    #     приходять як user-повідомлення й НЕ входять в output_tokens. Якщо їх не
+    #     рахувати, ~46% накопичення лишиться невидимим — саме на цьому вимір
+    #     2026-07-27 ледь не дав хибний висновок «економити треба на поясненнях».
+    bucket_path = pathlib.Path(_fixture([
+        _turn(inp=1, prose="коротко", tool_arg="x" * 500),
+        _tool_result("y" * 900),
+    ]))
+    bs = aggregate([read_transcript(bucket_path)], None)
+    check("проза порахована", 7, bs["prose_chars"])
+    check("результати інструментів порахані", True, bs["tool_result_chars"] >= 900)
+    check("аргументи інструментів порахані", True, bs["tool_arg_chars"] >= 500)
+    check("частки в сумі дають 100%", True,
+          abs(sum(bs["accum_share"].values()) - 100.0) < 0.5)
+
+    # 11. Контракт рівня мусить ПАДАТИ на зламаному стані, інакше він декоративний.
+    verbose_path = pathlib.Path(_fixture([_turn(inp=1, prose="д" * 3000)]))
+    vs = aggregate([read_transcript(verbose_path)], None)
+    code, _ = verbosity_check(vs, {"explain_level": "minimal",
+                                   "prose_ceiling": {"minimal": 400},
+                                   "tool_traffic_ceiling_per_turn": 999999})
+    check("роздута проза валить рівень minimal", 1, code)
+    code, _ = verbosity_check(vs, {"explain_level": "tutorial",
+                                   "prose_ceiling": {"tutorial": 5000},
+                                   "tool_traffic_ceiling_per_turn": 999999})
+    check("та сама проза проходить рівень tutorial", 0, code)
+
+    # 12. Друга стеля — окрема. Скромна проза не має маскувати роздутий трафік:
+    #     саме так «економія на поясненнях» приховала б удесятеро більші читання.
+    traffic_path = pathlib.Path(_fixture([
+        _turn(inp=1, prose="ок", tool_arg="z" * 50),
+        _tool_result("w" * 40000),
+    ]))
+    ts = aggregate([read_transcript(traffic_path)], None)
+    code, report = verbosity_check(ts, {"explain_level": "minimal",
+                                        "prose_ceiling": {"minimal": 400},
+                                        "tool_traffic_ceiling_per_turn": 2500})
+    check("роздутий трафік валить перевірку попри коротку прозу", 1, code)
+    check("звіт називає саме трафік", True, "Трафік інструментів перевищив" in report)
+
+    # 13. Зіпсований файл політики не має ламати вимір — діють дефолти.
+    broken_dir = pathlib.Path(tempfile.mkdtemp()) / ".claude"
+    broken_dir.mkdir(parents=True)
+    (broken_dir / "ai-lab.json").write_text("{ це не json", encoding="utf-8")
+    check("зіпсована політика падає на дефолти", DEFAULT_POLICY["explain_level"],
+          load_policy(str(broken_dir.parent))["explain_level"])
+
+    for p in (path, path2, path3, path4, long_path, bucket_path, verbose_path, traffic_path):
         p.unlink(missing_ok=True)
 
     print()
@@ -392,6 +617,10 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true", help="таблиця посесійно")
     ap.add_argument("--compare", nargs=2, metavar=("BEFORE.json", "AFTER.json"),
                     help="порівняти два збережені зрізи")
+    ap.add_argument("--breakdown", action="store_true",
+                    help="склад накопичення контексту за джерелами")
+    ap.add_argument("--verbosity-check", action="store_true",
+                    help="машинна перевірка контракту рівня пояснень і бюджету трафіку")
     ap.add_argument("--validate", action="store_true", help="самотест на фікстурах")
     args = ap.parse_args()
 
@@ -420,6 +649,14 @@ def main() -> int:
 
     sessions = [read_transcript(p) for p in paths]
     summary = aggregate(sessions, args.label)
+
+    if args.verbosity_check:
+        code, report = verbosity_check(summary, load_policy(args.project))
+        print(report)
+        return code
+    if args.breakdown:
+        print(render_breakdown(summary))
+        return 0
     if args.json:
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     else:
