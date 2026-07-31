@@ -101,7 +101,11 @@ validation-mesh → content-pipeline → translate-uaen → pre-delivery-gate). 
 нова навичка `gmi-audit` (GMI-лінза) + крос-лінк у `ai-core-runtime`/`knowledge-synthesizer`
 (melania resync/verify ✅). Висновок — у `docs/learnings.md`. PR #16 (merge за згодою власника).
 **Ітерації 2–3** (PR #16, #17 змерджено): закрито прогалину G5 (пам'ять між сесіями) — **повний
-авто-цикл** `automations/g5-consolidate` (Stop) + `automations/g5-retrieve` (SessionStart) → **G5 ✅**;
+авто-цикл** `automations/g5-consolidate` (Stop) + `automations/g5-retrieve` (SessionStart) → **G5 🟡**;
+**УТОЧНЕНО 2026-07-27 перевіркою:** це НЕ замкнений цикл. Консолідація пише
+`AUTO-STATE.md` (git-метадані: час, гілка, HEAD, коміти, перелік файлів), а витяг читає
+`g5-package.md`, який ведеться вручну. `AUTO-STATE.md` **не читає ніхто** — перевірено
+пошуком по всьому репозиторію. Дві корисні автоматизації, але не цикл;
 `gmi-audit` розширено G5/G7-пробами. Відкриті лише P2-нитки (`experiments/gmi-g5-memory/g5-package.md`).
 
 ## Фаза 6 — Перший реальний проєкт: мобільний агент 🟡 (зріз ✅, продукт — попереду)
