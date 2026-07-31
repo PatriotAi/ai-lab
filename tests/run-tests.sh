@@ -14,12 +14,16 @@ HOOK="$REPO/automations/stop-git-check/stop-hook-git-check.sh"
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
 
-PASS=0; FAIL=0; FAILED=()
+PASS=0; FAIL=0; SKIP=0; FAILED=(); SKIPPED=()
 
 ok()   { PASS=$((PASS+1)); printf '  ✅ %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); FAILED+=("$1"); printf '  ❌ %s\n     очікували: %s\n     отримали:  %s\n' "$1" "$2" "$3"; }
 check(){ # check <назва> <очікуване> <фактичне>
   [[ "$2" == "$3" ]] && ok "$1" || bad "$1" "$2" "$3"; }
+# skip <назва> <причина> — перевірка, яку НЕ БУЛО ЯК виконати в цьому середовищі.
+# Свідомо окремий лічильник: якби такі перевірки тихо зараховувались як ✅,
+# набір доповідав би про успіх, нічого не перевіривши (Core Rule 15).
+skip() { SKIP=$((SKIP+1)); SKIPPED+=("$1"); printf '  ⏭️  %s — ПРОПУЩЕНО: %s\n' "$1" "$2"; }
 
 # Тимчасовий git-репозиторій із фейковим remote (хук виходить тихо без remote).
 # ВАЖЛИВО: викликати БЕЗ підоболонки — `mk_repo name`, не `d=$(mk_repo name)`.
@@ -691,14 +695,138 @@ other = p.is_self_modification('docs/learnings.md', pol)
 print('ok' if gate and cfg and not other else f'{gate}/{cfg}/{other}')")
 check "самозміна гейта помітна, звичайна правка — ні" "ok" "$selfmod"
 
+echo "════════ 13. Профіль можливостей виконавця (Фаза 8) ════════"
+cd "$REPO" || exit 1
+PROBE="$REPO/automations/capability-probe/capability-probe.sh"
+SCAN="$REPO/scripts/capability-scan.py"
+PAYLOAD='{"hook_event_name":"SessionStart","model":"claude-opus-5","agent_type":"root"}'
+
+# Самотести сканера і вимірювача — вони покривають гейти й арифметику,
+# тут перевіряємо ІНТЕГРАЦІЮ: shell-шар хука, якого самотести не бачать.
+python3 "$SCAN" --validate >/dev/null 2>&1
+check "capability-scan: самотест" "0" "$?"
+python3 "$REPO/scripts/token-ledger.py" --validate >/dev/null 2>&1
+check "token-ledger: самотест" "0" "$?"
+
+python3 "$REPO/scripts/native-instructions.py" --validate >/dev/null 2>&1
+check "native-instructions: самотест" "0" "$?"
+
+# Чи є на цій машині РЕАЛЬНИЙ харнес? На раннері CI його немає, і перевірки,
+# що читають бінарник, там неперевірні — не хибні. Визначаємо один раз.
+HAS_HARNESS=$(python3 -c '
+import importlib.util, os
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print("1" if cs.find_harness(dict(os.environ)).get("trusted") else "0")' 2>/dev/null || echo 0)
+
+probe_out="$(printf '%s' "$PAYLOAD" | bash "$PROBE" 2>/dev/null || true)"
+
+# ── Форма виводу: хук, що віддає невалідний JSON, тихо втрачає весь профіль ──
+# Без харнесу проба свідомо виходить ТИХО (fail-closed), тож JSON-у нема і
+# перевіряти форму нема на чому — це пропуск, а не провал.
+if [[ "$HAS_HARNESS" == "1" ]]; then
+  ctx=$(printf '%s' "$probe_out" | python3 -c '
+import json,sys
+try: print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])
+except Exception: print("<НЕВАЛІДНО>")' 2>/dev/null)
+  check "хук віддає валідний hookSpecificOutput" "0" \
+    "$([[ "$ctx" == "<НЕВАЛІДНО>" ]] && echo 1 || echo 0)"
+else
+  skip "хук віддає валідний hookSpecificOutput" "харнес недоступний"
+fi
+
+# ── C1: реальний зламаний стан цієї лабораторії ──
+# Харнес ПІДТРИМУЄ авто-пам'ять, але середовище її гасить. Наївний висновок
+# «модель уміє → наші G5-хуки зайві» зламав би пам'ять саме тут. Профіль
+# зобов'язаний назвати auto_memory як «НЕ діє», а не змовчати.
+if [[ "$HAS_HARNESS" != "1" ]]; then
+  skip "C1: авто-пам'ять вимкнена середовищем → skip заборонено" "харнес недоступний"
+elif CLAUDE_CODE_REMOTE=true python3 -c '
+import sys, json, os
+sys.path.insert(0, "scripts")
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+env = dict(os.environ); env.pop("CLAUDE_CODE_REMOTE_MEMORY_DIR", None)
+p = cs.build_profile(env, model="claude-opus-5")
+am = next(c for c in p["capabilities"] if c["id"] == "auto_memory")
+sys.exit(0 if am["effective"] is False and "auto_memory" not in p["skippable"] else 1)' 2>/dev/null
+then ok "C1: авто-пам'ять вимкнена середовищем → skip заборонено"
+else bad "C1: авто-пам'ять вимкнена середовищем → skip заборонено" "effective=False, не в skippable" "інше"
+fi
+
+# ── C4: невпізнаний харнес → нуль skip-ів (fail-closed) ──
+if python3 -c '
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+p = cs.build_profile({"PATH": "/nonexistent"}, model="unknown-model")
+sys.exit(0 if p["skippable"] == [] and not p["harness"]["trusted"] else 1)' 2>/dev/null
+then ok "C4: невпізнаний харнес → нуль skip-ів"
+else bad "C4: невпізнаний харнес → нуль skip-ів" "skippable=[]" "інше"
+fi
+
+# Той самий стан має дійти до КОНТЕКСТУ як гучне попередження, а не як мовчання:
+# сесія мусить знати, що працює на повних правилах.
+warn_ctx="$(printf '%s' "$PAYLOAD" | PATH=/nonexistent:/usr/bin:/bin bash "$PROBE" 2>/dev/null \
+  | python3 -c 'import json,sys
+try: print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])
+except Exception: print("")' 2>/dev/null || true)"
+check "C4: невпізнаний харнес чутно в контексті" "0" \
+  "$([[ -z "$warn_ctx" || "$warn_ctx" == *"не впізнано"* ]] && echo 0 || echo 1)"
+
+# ── C5: ключ кешу реагує на зміну версії харнесу ──
+k_a=$(python3 -c '
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print(cs.cache_key({}, "m", {"version_running": "2.1.220"}))')
+k_b=$(python3 -c '
+import importlib.util
+spec = importlib.util.spec_from_file_location("cs", "scripts/capability-scan.py")
+cs = importlib.util.module_from_spec(spec); spec.loader.exec_module(cs)
+print(cs.cache_key({}, "m", {"version_running": "2.2.0"}))')
+check "C5: зміна версії харнесу міняє ключ кешу" "0" \
+  "$([[ "$k_a" != "$k_b" ]] && echo 0 || echo 1)"
+
+# ── Економія як МАШИННА перевірка, а не як обіцянка ──
+# Профіль лежить у кешованому префіксі й перечитується щоходу. Якщо він
+# розростеться, то з'їсть саме те, заради чого існує. Ліміт тримає машина,
+# бо на уважність цей клас дрейфу не ловиться (Core Rule 15).
+probe_bytes=$(printf '%s' "$ctx" | wc -c | tr -d ' ')
+check "профіль не перевищує бюджет 900 байтів" "0" \
+  "$([[ "$probe_bytes" -le 900 ]] && echo 0 || echo 1)"
+[[ "$probe_bytes" -le 900 ]] || printf '     фактично: %s байтів\n' "$probe_bytes"
+
+# ── Хук не має права ламати старт сесії ──
+for broken in '' 'не-JSON' '{"hook_event_name":"SessionStart"}'; do
+  printf '%s' "$broken" | bash "$PROBE" >/dev/null 2>&1
+  rc=$?
+  check "хук не падає на вході «${broken:0:20}»" "0" "$rc"
+done
+
+# Нема сканера — хук мусить тихо вийти, а не впасти й не вигадати профіль.
+tmp_probe="$TMPROOT/probe-no-scan"; mkdir -p "$tmp_probe/automations/capability-probe"
+cp "$PROBE" "$tmp_probe/automations/capability-probe/"
+out_no_scan="$(printf '%s' "$PAYLOAD" | CLAUDE_PROJECT_DIR="$tmp_probe" \
+  bash "$tmp_probe/automations/capability-probe/capability-probe.sh" 2>/dev/null || true)"
+rc_no_scan=$?
+cd "$REPO" || exit 1
+check "без сканера хук виходить тихо" "0" "$rc_no_scan"
+check "без сканера хук нічого не вигадує" "" "$out_no_scan"
+
 echo ""
 echo "════════ ПІДСУМОК ════════"
-printf "  пройдено: %d · впало: %d\n" "$PASS" "$FAIL"
+printf "  пройдено: %d · впало: %d · пропущено: %d\n" "$PASS" "$FAIL" "$SKIP"
+if (( SKIP > 0 )); then
+  printf "  ⏭️  Пропущено (середовище не дозволило перевірити):\n"
+  printf "     - %s\n" "${SKIPPED[@]}"
+fi
 if (( FAIL > 0 )); then
   printf "  ❌ Впали:\n"; printf "     - %s\n" "${FAILED[@]}"
   exit 1
 fi
-printf "  ✅ Усі тести автоматизацій пройдено\n"
+printf "  ✅ Тести автоматизацій пройдено\n"
 
 # Мітка «коли контролі востаннє підтверджували ділом». Її читає
 # scripts/security-drift.py: контроль, який давно не прогоняли, показується як
@@ -712,6 +840,7 @@ mkdir -p "$REPO/security/audit" 2>/dev/null && cat > "$REPO/security/audit/last-
   "ts": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "passed": $PASS,
   "failed": $FAIL,
+  "skipped": $SKIP,
   "suite": "tests/run-tests.sh"
 }
 JSON
