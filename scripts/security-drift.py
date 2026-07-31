@@ -185,6 +185,66 @@ def check_self_modification(root: Path) -> tuple[str, str, str]:
     return OK, "самозміни гейта", "жодної в журналі цього середовища"
 
 
+def check_unwired_hooks(root: Path) -> list[tuple[str, str, str]]:
+    """Зворотний бік перевірки хуків: що ОГОЛОШУЄ себе хуком, але не підключене.
+
+    Наявна перевірка йшла від реєстрації до файлу («хук зареєстровано — чи є
+    файл?»). Цей напрямок ловить протилежне: файл є, у шапці написано «-хук»,
+    а в жодній події його немає. Саме так пройшли повз увагу F-12 і F-13 —
+    і третій випадок, від іншої сесії, знайшовся вже під час побудови цієї
+    перевірки. Тобто клас системний, а не разовий недогляд.
+
+    Спираємось на САМООГОЛОШЕННЯ скрипта: це чесніше за здогад по імені файлу
+    й не дає хибних тривог на допоміжні скрипти поруч.
+    """
+    try:
+        pol = tomllib.loads((root / "security" / "policy.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return [(DRIFT, "підключеність автоматизацій", f"політика не читається ({exc})")]
+
+    cfg = pol.get("wiring", {})
+    markers = cfg.get("hook_markers", ["-хук", "-hook"])
+    allowed = {line.split(":", 1)[0].strip(): line.split(":", 1)[1].strip()
+               for line in cfg.get("intentionally_unwired", []) if ":" in line}
+
+    settings = root / ".claude" / "settings.json"
+    registered = settings.read_text(encoding="utf-8") if settings.is_file() else ""
+
+    rows: list[tuple[str, str, str]] = []
+    for rel_dir in cfg.get("scan_dirs", []):
+        base = root / rel_dir
+        if not base.is_dir():
+            continue
+        for script in sorted(base.rglob("*.sh")):
+            try:
+                head = "\n".join(script.read_text(encoding="utf-8").splitlines()[:12])
+            except OSError:
+                continue
+            declares_hook = any(m in head for m in markers)
+            if not declares_hook:
+                continue                       # допоміжний скрипт — не наша справа
+            name = script.name
+            if name in registered:
+                continue                       # підключений — усе гаразд
+            try:
+                shown = str(script.relative_to(root))
+            except ValueError:
+                shown = str(script)
+            reason = allowed.get(name)
+            if reason:
+                rows.append((OK, f"не підключено свідомо: {shown}", reason))
+            else:
+                rows.append((
+                    DRIFT, f"НЕ ПІДКЛЮЧЕНО: {shown}",
+                    "скрипт називає себе хуком у власній шапці, але його немає в "
+                    "жодній події `.claude/settings.json`. Або підключи, або назви "
+                    "причину в `security/policy.toml` → [wiring].intentionally_unwired",
+                ))
+    if not rows:
+        rows.append((OK, "підключеність автоматизацій", "усі самооголошені хуки на місці"))
+    return rows
+
+
 def check_remote_only() -> list[tuple[str, str, str]]:
     return [
         (UNKNOWN, "Dependency graph на GitHub", "не перевіряється звідси — лише в налаштуваннях репо"),
@@ -209,6 +269,7 @@ def main(argv: list[str]) -> int:
     rows += check_claude_hooks(root)
     rows.append(check_pretooluse(root))
     rows.append(check_action_pinning(root))
+    rows += check_unwired_hooks(root)
     rows.append(check_last_verified(root, stale_limit(root)))
     rows.append(check_self_modification(root))
     rows += check_remote_only()
