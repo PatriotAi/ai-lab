@@ -1,0 +1,21 @@
+{
+  "label": "before",
+  "sessions": 1,
+  "turns": 168,
+  "sidechain_turns": 0,
+  "models": {
+    "claude-opus-5": 168
+  },
+  "input_tokens": 4216,
+  "output_tokens": 229946,
+  "cache_creation_input_tokens": 740317,
+  "cache_read_input_tokens": 23377629,
+  "fresh_input_tokens": 744533,
+  "total_tokens": 24352108,
+  "per_turn": {
+    "input_side": 143584.3,
+    "fresh_input": 4431.7,
+    "output": 1368.7,
+    "cache_read": 139152.6
+  }
+}
