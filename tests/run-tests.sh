@@ -857,7 +857,11 @@ echo "════════ 16. G5: чи справді замкнено ци
 consol_out=$(grep -oE '"[A-Z-]+\.md"' "$REPO/scripts/g5-consolidate.py" | head -1 | tr -d '"')
 check "консолідація пише AUTO-STATE.md" "AUTO-STATE.md" "$consol_out"
 
-readers=$(grep -rl "AUTO-STATE" --include="*.py" --include="*.sh" --include="*.toml" "$REPO" 2>/dev/null \
+# Шукаємо саме ЧИТАЧІВ — виконуваний код. `.toml` свідомо виключено: конфіг
+# нічого не читає, а згадка назви у ПРИЧИНІ винятку (`[wiring]`) — це
+# документація, не використання. Хибна тривога на власне пояснення — той самий
+# клас, що вже ловився двічі (секції 10 і 13).
+readers=$(grep -rl "AUTO-STATE" --include="*.py" --include="*.sh" "$REPO" 2>/dev/null \
           | grep -v "/.git/" | grep -v "g5-consolidate.py" | grep -v "run-tests.sh" | wc -l)
 check "AUTO-STATE.md не читає жоден інший скрипт (розрив зафіксовано)" "0" "$readers"
 
@@ -907,6 +911,39 @@ else
     check "E2E у справжньому браузері: 0 падінь ($e2e_pass перевірок)" "0" "$e2e_fail"
   fi
 fi
+
+echo ""
+echo "════════ 18. Фаза S5: властивості, мутації, фазинг ════════"
+# Три рівні доказовості, кожен відповідає на своє питання:
+#   S5.1 property-based — чи тримаються ІНВАРІАНТИ на входах, яких я не уявляв
+#   S5.2 мутаційне      — чи ловлять мої перевірки хоч що-небудь
+#   S5.3 фазинг         — чи не падає розбір недовіреного тексту
+# Усе на стандартній бібліотеці: pip install — це R4 у власній політиці, і в
+# репозиторії свідомо немає файлів залежностей.
+
+prop=$(cd "$REPO" && python3 tests/property-classify.py --cases 120 >/dev/null 2>&1; echo $?)
+check "S5.1 інваріанти класифікатора тримаються" "0" "$prop"
+
+# Найважливіша з трьох: зелений набір на цілому коді не доводить нічого.
+# Мутант, що вижив, — діра в ПЕРЕВІРКАХ, не в коді.
+mut=$(cd "$REPO" && python3 tests/mutation-classify.py >/dev/null 2>&1; echo $?)
+check "S5.2 усі мутанти класифікатора спіймані" "0" "$mut"
+
+fz=$(cd "$REPO" && python3 tests/fuzz-scan-input.py --cases 150 >/dev/null 2>&1; echo $?)
+check "S5.3 розбір недовіреного входу не падає" "0" "$fz"
+
+# Реверсивна перевірка підключеності (корінь F-12 і F-13): скрипт, що називає
+# себе хуком, має бути або зареєстрований, або названий у переліку з причиною.
+unwired=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+rows = m.check_unwired_hooks(pathlib.Path('.'))
+print(sum(1 for r in rows if r[0] == m.DRIFT))
+PY
+)
+[[ "$unwired" =~ ^[0-9]+$ ]] && ok "реверсивна перевірка підключеності працює (знайдено $unwired непідключених)" \
+  || bad "реверсивна перевірка підключеності працює" "число" "$unwired"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"
