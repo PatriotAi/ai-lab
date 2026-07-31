@@ -97,6 +97,55 @@ def _resolve_symlink(root: Path, raw: str) -> tuple[str, list[str]]:
 WRITE_OPS = (">", ">>", "|", "&&", "||", ";", "$(", "`", "<(", "tee ")
 
 
+# Ознаки того, що вміст лапок — це КОД, який виконають, а не текст-дані.
+SHELL_INVOKERS = (
+    "sh -c", "bash -c", "zsh -c", "eval ", "| sh", "| bash", "xargs ",
+    # heredoc, поданий У САМУ оболонку: тіло виконається, отже воно не дані.
+    # Пропуск, знайдений канаркою 2026-07-27: `bash <<'EOF' … rm -rf … EOF`
+    # давав R2, бо тіло відкидалося як «дані». Це вже не шум, а дірка.
+    "bash <<", "sh <<", "zsh <<", "bash -s", "sh -s",
+)
+
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+# Роздільник ЗАХОПЛЮЄТЬСЯ і шукається дослівно (зворотне посилання \1).
+# Перша версія шукала «перший рядок-слово» — і на довгому тілі, де такий
+# рядок трапляється раніше за справжній кінець, відрізала не там, лишаючи
+# решту тіла у «виконуваній» частині. Наслідок був безпечний (хибна тривога,
+# не пропуск), але це саме той шум, який ми тут і прибираємо.
+# Відкидається ТІЛО heredoc, а відкривач (`<<'EOF'`) лишається: інакше
+# `bash <<'EOF' … EOF` після відкидання виглядав би як просто `bash`, і ознака
+# «оболонка виконає вміст» зникала б разом із тілом.
+_HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2).*?^\3$", re.DOTALL | re.MULTILINE)
+
+
+def executable_part(command: str) -> str:
+    """Прибирає з команди те, що є ДАНИМИ, лишаючи те, що виконається.
+
+    НАВІЩО. Правила шукали підрядок будь-де в тексті команди — тож `echo
+    "merge_pull_request"` вмикало правило про злиття, а слово `secrets` у
+    повідомленні — правило про ключі. За одну сесію це дало п'ять хибних
+    тривог поспіль. Власне ж дослідження цього репозиторію (`research-2026-07`,
+    посилання на дані Google про флакі) каже прямо: перевірка, що часто кричить
+    дарма, вчить себе ігнорувати — тобто хибна тривога зношує гейт, а не
+    підсилює його.
+
+    ЧОГО ТУТ НЕ РОБИТЬСЯ. Якщо вміст лапок чи heredoc **виконується**
+    (`bash -c "…"`, `eval`, `| sh`, `bash <<'EOF'`), не прибирається НІЧОГО:
+    там це код. Інакше `bash -c "rm -rf /"` став би невидимим — а це вже не
+    хибна тривога, а пропуск справжньої дії.
+
+    ПОРЯДОК ВАЖЛИВИЙ. Ознака виконання шукається **після** відкидання даних,
+    а не до нього. Перша версія перевіряла її на сирому тексті — і згадка
+    `| sh` у звичайній прозі вимикала весь захист від хибних тривог, тобто
+    лікування скасовувало саме себе (спіймано 2026-07-27 на записі в журнал
+    напрацювань, який просто ПЕРЕЛІЧУВАВ ці ознаки).
+    """
+    stripped = _QUOTED.sub(" ", _HEREDOC.sub(r"\1", command))
+    if any(inv in stripped.lower() for inv in SHELL_INVOKERS):
+        return command
+    return stripped
+
+
 def _write_targets(command: str) -> list[str]:
     """Витягує з команди те, у що вона СПРАВДІ пише.
 
@@ -177,6 +226,8 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         or ""
     )
 
+    exec_part = executable_part(command) if command else ""
+
     notes: list[str] = []
     resolved = raw_path
     if raw_path and resolve_symlinks:
@@ -212,10 +263,12 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         # Виняток перевіряється ПЕРЕД збігом: безпечна форма дії не має
         # блокуватись лише тому, що містить у собі підрядок небезпечної.
         exceptions = [e.lower() for e in rule.get("except_commands", [])]
-        if command and any(exc in command.lower() for exc in exceptions):
+        if command and any(exc in exec_part.lower() for exc in exceptions):
             continue
         for needle in rule.get("match_commands", []):
-            if command and needle.lower() in command.lower():
+            # Збіг шукається лише у ВИКОНУВАНІЙ частині: назва дії в лапках
+            # чи в тілі heredoc — це дані, а не команда.
+            if command and needle.lower() in exec_part.lower():
                 return Verdict(
                     level=rule.get("level", "R4"),
                     reason=f"команда містить «{needle}» (правило «{rule['id']}»)",
@@ -223,6 +276,38 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
                     alternatives=rule.get("alternatives", ""),
                     target=command, resolved_target=command, notes=notes,
                 )
+
+    # ── Крок 1½. MCP-інструменти ────────────────────────────────────────────
+    # Окремим кроком і ПІСЛЯ правил шляхів: інструмент може і мати захищений
+    # шлях в аргументах, і бути незворотним за назвою — суворіше має вигравати.
+    if tool_name.startswith("mcp__"):
+        mcp = pol.get("mcp", {})
+        low = tool_name.lower()
+        # Виняток перевіряється ПЕРШИМ і за ТОЧНИМ збігом суфікса назви
+        # (після останнього `__`), а не підрядком: підрядковий виняток сам
+        # став би дірою, через яку пройшло б `slack_send_message`.
+        suffix = low.rsplit("__", 1)[-1]
+        if suffix in {e.lower() for e in mcp.get("except_tools", [])}:
+            return Verdict("R2", f"MCP-інструмент у переліку винятків ({tool_name})",
+                           target=tool_name, resolved_target=tool_name, notes=notes)
+        if any(v in low for v in mcp.get("irreversible_verbs", [])):
+            return Verdict(
+                "R4", f"MCP-інструмент незворотної дії ({tool_name})",
+                # Ідентифікатор — НА ІНСТРУМЕНТ, не на клас. Спільний
+                # `mcp-irreversible` означав би, що записана згода на злиття PR
+                # відкриває заразом деплой, видалення й надсилання в Slack.
+                # Знайдено 2026-07-31 при спробі змержити PR #49: згода була
+                # написана під `merge-to-main` (канал оболонки) і не покривала
+                # ту саму дію через MCP — та сама дія, інший канал, інший ключ.
+                rule_id=f"mcp-{suffix}",
+                why=mcp.get("why", ""), alternatives=mcp.get("alternatives", ""),
+                target=tool_name, resolved_target=resolved or tool_name, notes=notes,
+            )
+        if any(v in low for v in mcp.get("read_verbs", [])):
+            return Verdict("R0", f"MCP-інструмент читання ({tool_name})", notes=notes)
+        # Невідоме дієслово — НЕ вважаємо безпечним.
+        return Verdict("R2", f"MCP-інструмент невідомого класу ({tool_name})",
+                       target=tool_name, resolved_target=tool_name, notes=notes)
 
     # ── Крок 2. Недовірений вхід ────────────────────────────────────────────
     if tool_name in levels.get("R3", {}).get("tools", []):
@@ -233,7 +318,10 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     if tool_name in levels.get("R0", {}).get("tools", []):
         return Verdict("R0", f"{tool_name} лише читає", notes=notes)
     if command:
-        stripped = command.strip()
+        # Дивимось на ВИКОНУВАНУ частину, як і правила вище: `echo "| sh"` —
+        # це друк тексту, а не конвеєр в оболонку, і рахувати його командою
+        # з наслідками означало б знову міряти згадку замість дії.
+        stripped = (exec_part or command).strip()
         for prefix in levels.get("R0", {}).get("bash_prefixes", []):
             if stripped == prefix or stripped.startswith(prefix + " "):
                 # Ланцюжок АБО перенаправлення можуть ховати запис за читанням:

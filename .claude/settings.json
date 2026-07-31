@@ -35,16 +35,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/automations/g5-consolidate/g5-consolidate.sh"
-          }
-        ]
-      }
     ]
   },
   "permissions": {
