@@ -283,6 +283,13 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     if tool_name.startswith("mcp__"):
         mcp = pol.get("mcp", {})
         low = tool_name.lower()
+        # Виняток перевіряється ПЕРШИМ і за ТОЧНИМ збігом суфікса назви
+        # (після останнього `__`), а не підрядком: підрядковий виняток сам
+        # став би дірою, через яку пройшло б `slack_send_message`.
+        suffix = low.rsplit("__", 1)[-1]
+        if suffix in {e.lower() for e in mcp.get("except_tools", [])}:
+            return Verdict("R2", f"MCP-інструмент у переліку винятків ({tool_name})",
+                           target=tool_name, resolved_target=tool_name, notes=notes)
         if any(v in low for v in mcp.get("irreversible_verbs", [])):
             return Verdict(
                 "R4", f"MCP-інструмент незворотної дії ({tool_name})",
