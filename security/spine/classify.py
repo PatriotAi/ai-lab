@@ -293,7 +293,13 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         if any(v in low for v in mcp.get("irreversible_verbs", [])):
             return Verdict(
                 "R4", f"MCP-інструмент незворотної дії ({tool_name})",
-                rule_id="mcp-irreversible",
+                # Ідентифікатор — НА ІНСТРУМЕНТ, не на клас. Спільний
+                # `mcp-irreversible` означав би, що записана згода на злиття PR
+                # відкриває заразом деплой, видалення й надсилання в Slack.
+                # Знайдено 2026-07-31 при спробі змержити PR #49: згода була
+                # написана під `merge-to-main` (канал оболонки) і не покривала
+                # ту саму дію через MCP — та сама дія, інший канал, інший ключ.
+                rule_id=f"mcp-{suffix}",
                 why=mcp.get("why", ""), alternatives=mcp.get("alternatives", ""),
                 target=tool_name, resolved_target=resolved or tool_name, notes=notes,
             )
