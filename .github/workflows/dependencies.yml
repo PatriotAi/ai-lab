@@ -1,8 +1,39 @@
-# Залежності / Dependencies: рев'ю залежностей у PR / dependency review on PRs.
+# Залежності / Dependencies: контроль ланцюга постачання.
+#
+# ЧОМУ ЦЕЙ ВОРКФЛОУ ВИГЛЯДАЄ САМЕ ТАК — це не спрощення, а виправлення.
+#
+# Раніше тут стояв `actions/dependency-review-action` із `continue-on-error: true`.
+# Лог прогону 2026-07-27 (PR #48, job 90004989688) показує дослівно:
+#
+#     ##[error]Dependency review is not supported on this repository.
+#              Please ensure that Dependency graph is enabled along with
+#              GitHub Advanced Security
+#
+# Крок ВПАВ з помилкою — а джоба відзвітувала `success`, бо `continue-on-error`
+# це сховав. Тобто в переліку перевірок PR стояла зелена галочка з безпековою
+# назвою, за якою не було виконано нічого. Це той самий дефект, що й
+# «✓ усі перевірки чисті» при невстановлених сканерах: «не перевіряли» і
+# «чисто» виглядали однаково (docs/security/findings-2026-07-27.md, F-2 і F-6).
+#
+# Додатково: у репозиторії НЕМАЄ жодного файлу залежностей — ні requirements.txt,
+# ні package.json, ні lock-файлів. Код — Python на стандартній бібліотеці, shell
+# і markdown. Тож рев'ю залежностей тут не мало б що рев'ювати навіть із GHAS.
+#
+# РЕАЛЬНА поверхня ланцюга постачання цього репозиторію — самі GitHub Actions.
+# Компрометація `tj-actions/changed-files` (CVE-2025-30066) зачепила ~23 000
+# репозиторіїв саме через рухомий тег: тег перепризначили на шкідливий коміт.
+# Тому перевірка нижче стежить за тим, що тут справді може статися.
+#
+# Коли з'явиться код зі справжніми залежностями — додати сюди відповідний
+# сканер І екосистему в `.github/dependabot.yml` (там уже є `github-actions`,
+# тож Dependabot оновлюватиме закріплені хеші сам, разом із коментарем-версією).
+
 name: Dependencies
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 # Скасовуємо застарілі прогони того ж ref / cancel superseded runs of the same ref
 concurrency:
@@ -13,15 +44,15 @@ permissions:
   contents: read
 
 jobs:
-  dependency-review:
-    name: Dependency review
+  action-pinning:
+    name: Дії закріплені хешем / Actions pinned by SHA
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      # Крок не блокує, поки в repo Settings → Security не ввімкнено Dependency
-      # graph (після ввімкнення — прибрати continue-on-error) / step-level
-      # non-blocking until the Dependency graph is enabled; remove afterwards.
-      - uses: actions/dependency-review-action@v5
-        continue-on-error: true
-        with:
-          fail-on-severity: high
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Кожна дія має вказувати повний SHA коміта
+        # Логіка — у scripts/check-action-pinning.sh, щоб CI і локальна перевірка
+        # ганяли ОДИН код, а не дві копії, що розходяться з часом.
+        # Свідомо БЕЗ continue-on-error: перевірка, відмову якої ховають, не є
+        # перевіркою. Якщо тут червоно — це справжній сигнал, а не шум.
+        run: bash scripts/check-action-pinning.sh
