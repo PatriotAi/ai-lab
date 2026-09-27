@@ -104,7 +104,23 @@ SHELL_INVOKERS = (
     # Пропуск, знайдений канаркою 2026-07-27: `bash <<'EOF' … rm -rf … EOF`
     # давав R2, бо тіло відкидалося як «дані». Це вже не шум, а дірка.
     "bash <<", "sh <<", "zsh <<", "bash -s", "sh -s",
+    # Оболонка — не єдиний спосіб виконати текст. До 2026-09-27 перелік
+    # закінчувався на `sh -s`, тож `python3 -c "…"`, `node -e "…"` і
+    # `python3 - <<'PY' … PY` давали R2: лапки й тіло heredoc відкидались
+    # як «дані», хоча інтерпретатор саме їх і виконує. Виміряно ділом на
+    # трьох формах — усі три проходили повз правила. Це пропуск, а не шум:
+    # напрям, протилежний до хибної тривоги, і тому небезпечніший.
+    "python -c", "python3 -c", "python -", "python3 -",
+    "node -e", "node --eval", "node -", "perl -e", "ruby -e", "php -r",
 )
+
+# Ознаки того, що «читальна» команда насправді ВИКОНУЄ дію — без жодного
+# оператора оболонки, тому `WRITE_OPS` їх не бачить. Без цього переліку
+# послаблення для читання (`is_pure_read` нижче) прорубало б власну дірку:
+# `find . -name x -delete` теж починається з читального префікса.
+# Знайдено при проєктуванні самого фіксу: перевіряли не «чи ловить»,
+# а «що саме НЕ ловитиме» (Core Rule 15).
+EXEC_MARKERS = ("-exec", "-execdir", "-delete", "-ok", "--exec")
 
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 # Роздільник ЗАХОПЛЮЄТЬСЯ і шукається дослівно (зворотне посилання \1).
@@ -144,6 +160,39 @@ def executable_part(command: str) -> str:
     if any(inv in stripped.lower() for inv in SHELL_INVOKERS):
         return command
     return stripped
+
+
+def is_pure_read(command: str, policy: dict) -> bool:
+    """Чи команда лише ЧИТАЄ — тобто фізично не здатна виконати незворотну дію.
+
+    НАВІЩО. Правило-підрядок на читальній команді міряє ЗГАДКУ, а не дію:
+    пошук по документації за назвою небезпечного прапорця нічого не обходить —
+    він показує текст. До цього фіксу такий пошук класифікувався як R4, і та
+    сама хибна тривога двічі зупинила дослідження `gsd-core` — причому вдруге
+    саме на спробі ЗАПИСАТИ висновок про неї в журнал. Перевірка, що кричить
+    на згадку, вчить себе ігнорувати (`docs/security/research-2026-07.md`),
+    тож це не косметика, а зношування гейта.
+
+    МЕЖА ПОСЛАБЛЕННЯ. Діє, лише коли команда не має жодного оператора
+    запису чи ланцюжка (`WRITE_OPS`), жодної ознаки виконання
+    (`SHELL_INVOKERS`) і жодного маркера дії без оболонки (`EXEC_MARKERS`).
+    Інакше `cat f | sh` або `find . -delete` пролізли б як «читання».
+    Правила на ШЛЯХИ це послаблення не зачіпає взагалі.
+    """
+    if not command:
+        return False
+    stripped = executable_part(command).strip()
+    if not stripped:
+        return False
+    low = stripped.lower()
+    if any(op in stripped for op in WRITE_OPS):
+        return False
+    if any(inv in low for inv in SHELL_INVOKERS):
+        return False
+    if any(marker in low for marker in EXEC_MARKERS):
+        return False
+    prefixes = policy.get("levels", {}).get("R0", {}).get("bash_prefixes", [])
+    return any(stripped == pref or stripped.startswith(pref + " ") for pref in prefixes)
 
 
 def _write_targets(command: str) -> list[str]:
@@ -227,6 +276,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     )
 
     exec_part = executable_part(command) if command else ""
+    pure_read = is_pure_read(command, pol) if command else False
 
     notes: list[str] = []
     resolved = raw_path
@@ -264,6 +314,11 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         # блокуватись лише тому, що містить у собі підрядок небезпечної.
         exceptions = [e.lower() for e in rule.get("except_commands", [])]
         if command and any(exc in exec_part.lower() for exc in exceptions):
+            continue
+        # Читальна команда пропускає правила-підрядки: показати текст — не те
+        # саме, що виконати дію. Правила на ШЛЯХИ (вище в цьому ж циклі)
+        # лишаються чинними завжди, бо вони дивляться на ціль запису.
+        if command and pure_read:
             continue
         for needle in rule.get("match_commands", []):
             # Збіг шукається лише у ВИКОНУВАНІЙ частині: назва дії в лапках
@@ -326,7 +381,8 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             if stripped == prefix or stripped.startswith(prefix + " "):
                 # Ланцюжок АБО перенаправлення можуть ховати запис за читанням:
                 # `cat > файл` — це запис, хоч і починається з `cat`.
-                if any(op in stripped for op in WRITE_OPS):
+                if any(op in stripped for op in WRITE_OPS) or \
+                        any(marker in stripped.lower() for marker in EXEC_MARKERS):
                     break
                 return Verdict("R0", f"команда читання ({prefix})", notes=notes)
 

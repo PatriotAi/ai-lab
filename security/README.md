@@ -41,6 +41,7 @@ bash security/tests/test-standalone.sh   # чи працює пакет ПОЗА
 | `spine/classify.py` | Дія → рівень `R0`…`R4`. Розрізає симлінки **до** рішення |
 | `spine/explain.py` | Вердикт → пояснення людською мовою |
 | `spine/memory_guard.py` | Охорона пам'яті, що перетинає межу сесій |
+| `spine/input_guard.py` | Тріаж зовнішнього тексту **в момент читання** (`Read`/`WebFetch`/`WebSearch`). Попереджає, не блокує: перемикач у політиці |
 | `spine/pretooluse.py` | Рішення для хука + журнал |
 | `hooks/pre-tool-use.sh` | Міст: контракт stdin/stdout Claude Code |
 | `consent.md` | Записана згода власника: іменна, датована, видима в діффі PR |

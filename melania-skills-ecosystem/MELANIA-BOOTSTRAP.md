@@ -61,7 +61,7 @@
 | skill-ecosystem-auditor | 1.8.0 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
 | source-research-harvest | 0.3.0 | «досліди це джерело для оновлення»: будь-яке джерело → дослідження → покращення екосистеми → валідація |
 | skill-marketplace-distribution | 0.3.0 | публікація/продаж власного скіла в маркетплейси, .skill-пакування, монетизація |
-| safety-compliance-gate | 1.2.0 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
+| safety-compliance-gate | 1.3.0 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
 | pre-delivery-gate | 1.3.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
 | validation-mesh | 1.8.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
 | continuation-memory | 1.11.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
