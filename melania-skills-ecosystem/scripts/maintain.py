@@ -103,8 +103,9 @@ def skill_dirs():
 
 # ---------------------------------------------------------------- verify
 def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
-                            skill_dir: Path | None = None) -> list[str]:
-    """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S].
+                            skill_dir: Path | None = None,
+                            abstentions: list[str] | None = None) -> list[str]:
+    """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S]/[?].
 
     Чому саме секція «Critical Facts», а не «Core Rule»: правило-директива не буває
     істинним чи хибним — воно обов'язкове, тег там був би театром. Тегуємо лише те,
@@ -124,6 +125,26 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
     власний `references/…` — законний доказ, і вимагати для нього повний шлях від
     кореня означало б хибну тривогу (знайдено аудитом до появи реального випадку).
 
+    ЧЕТВЕРТИЙ СТАН `[?]` — «не можна перевірити в межах наявної специфікації»
+    (з 2026-09-27). Навіщо окремий стан: на твердженні, правильна відповідь до
+    якого зі специфікації НЕ виводиться, перевіряч не знає, що він не знає —
+    виміряна поведінка таких перевірок у сторонніх дослідженнях: майже завжди
+    впевнений PASS. Три наявні теги не мали куди це подіти: `[C]` читається як
+    «обґрунтовано» (тобто відповідь відома), `[S]` — як «моя гіпотеза». `[?]`
+    каже інше: **бракує самої специфікації**, і рішення за власником.
+
+    Два правила, щоб це не стало новим тег-театром:
+      1. `[?]` мусить назвати, ЧОГО бракує (маркер «бракує:») — абстенція без
+         причини нічим не краща за впевнену помилку, бо не підказує, що робити.
+      2. GUARD ПРОТИ НАД-АБСТЕНЦІЇ: якщо факт вказує на шлях, який РЕАЛЬНО
+         існує на диску, `[?]` відхиляється. Твердження, яке можна перевірити,
+         не має права ховатись у «не можу знати» — інакше тег стає способом
+         обійти вимогу доказу, і гейт зіпсується у протилежний бік.
+
+    `[?]` НЕ є помилкою: він збирається окремо (`abstentions`) і друкується
+    видимим рядком «чекає рішення власника». Якби абстенція падала, її б не
+    вживали — писали б `[C]`, тобто повернулись би до впевненого твердження.
+
     Винесено окремою функцією (root — параметр), щоб canary-тести ганяли її на
     тимчасовому тексті й тимчасовому корені, а не мутували робочі файли
     репозиторію (урок 2026-07-21).
@@ -141,9 +162,30 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
         nxt = re.search(r"^##+ ", txt[start:], re.M)
         body = txt[start:start + (nxt.start() if nxt else len(txt))]
         for bullet in re.findall(r"^[-*] +.*", body, re.M):
-            tag = re.search(r"\[(E|C|S)\]", bullet)
+            tag = re.search(r"\[(E|C|S|\?)\]", bullet)
             if not tag:
                 problems.append(f"{name}: факт без тега доказовості — {bullet[2:60].strip()}")
+                continue
+            if tag.group(1) == "?":
+                # Абстенція мусить сказати, ЧОГО бракує — інакше вона не дає дії.
+                if not re.search(r"бракує\s*:", bullet, re.I):
+                    problems.append(
+                        f"{name}: [?] без «бракує:» — абстенція мусить назвати, "
+                        f"чого саме немає у специфікації — {bullet[2:60].strip()}")
+                    continue
+                # Guard проти над-абстенції: якщо доказ ІСНУЄ, це не «не можу знати».
+                existing = [p for p in re.findall(
+                    r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
+                    if (root / p.lstrip("./")).exists()
+                    or (skill_dir and (skill_dir / p.lstrip("./")).exists())]
+                if existing:
+                    problems.append(
+                        f"{name}: [?] на твердженні, доказ якого існує "
+                        f"({', '.join(sorted(set(existing)))}) — це [E], не абстенція "
+                        f"— {bullet[2:60].strip()}")
+                    continue
+                if abstentions is not None:
+                    abstentions.append(f"{name}: {bullet[2:110].strip()}")
                 continue
             if tag.group(1) != "E":
                 continue
@@ -373,7 +415,9 @@ def verify() -> int:
     # правило не буває істинним чи хибним, воно обов'язкове — тег там був би театром.
     #   [E] перевірено ділом → ОБОВ'ЯЗКОВИЙ вказівник (шлях/файл/дата)
     #   [C] обґрунтоване, машинно не перевірене   [S] гіпотеза
+    #   [?] не виводиться з наявної специфікації → «бракує:» + рішення власника
     claim_problems = []
+    claim_abstentions: list[str] = []
     # ── Самоперевірний протокол (Core Rule 15) ────────────────────────────
     # Кроки, які досі звітувались словами (bump/H1-синхрон, крос-посилання,
     # лічильники про інші файли, чистота тексту), стають машинними. Підстава —
@@ -382,7 +426,8 @@ def verify() -> int:
     for name in dirs:
         d = SKILLS / name
         txt = (d / "SKILL.md").read_text(encoding="utf-8", errors="replace")
-        claim_problems += claim_evidence_problems(name, txt, skill_dir=d)
+        claim_problems += claim_evidence_problems(name, txt, skill_dir=d,
+                                                  abstentions=claim_abstentions)
         self_check_problems += version_triad_problems(
             name, txt, man["skills"].get(name, {}).get("version"))
         self_check_problems += crossref_problems(name, txt)
@@ -433,6 +478,12 @@ def verify() -> int:
     else:
         print("✅ усі фактичні твердження несуть тег доказовості "
               "([E] — з доказом, який існує на диску)")
+    # Абстенції — НЕ падіння, але й не тиша: твердження, правильна відповідь до
+    # якого не виводиться зі специфікації, мусить бути видимим власнику.
+    # Якби `[?]` падав, його б не вживали — писали б `[C]`, тобто впевнено.
+    if claim_abstentions:
+        print(f"\n⚠️  абстенції [?] — {len(claim_abstentions)} (чекають рішення власника, не падіння):")
+        for a in claim_abstentions: print(f"  ? {a}")
     if self_check_problems:
         ok = False; print(f"\n❌ самоперевірний протокол (Core Rule 15) — {len(self_check_problems)}:")
         for s in self_check_problems: print(f"  ✗ {s}")

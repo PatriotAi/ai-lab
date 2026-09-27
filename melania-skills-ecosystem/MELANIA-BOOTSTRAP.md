@@ -1,6 +1,6 @@
 # MELANIA-BOOTSTRAP — миттєва інтеграція скіл-екосистеми в нову сесію
 <!-- machine-priority: цей файл адресовано AI. Одного цього файлу достатньо — НЕ проси інших файлів для старту. -->
-<!-- Стан зафіксовано: 2026-07-25 · пакет melania-skills-ecosystem · governance melania v2.23.0 -->
+<!-- Стан зафіксовано: 2026-09-27 · пакет melania-skills-ecosystem · governance melania v2.24.0 -->
 
 ## Для AI: що зробити після отримання цього файлу (і ЧОГО НЕ робити)
 
@@ -51,7 +51,7 @@
 | Скіл | v | Активувати коли |
 |---|---|---|
 | semantic-router | 1.16.0 | ВХІДНА ТОЧКА: складний/неоднозначний запит, вибір скіла, мульти-скіл координація; тригери — за ЗНАЧЕННЯМ наміру, не дослівно |
-| melania-skill-master-administrator | 2.23.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
+| melania-skill-master-administrator | 2.24.0 | GOVERNANCE: оновити/затвердити/упакувати скіл, версії, guard (self-bound), CHANGELOG, self-dev, pattern lifecycle |
 | ai-core-runtime | 3.13.0 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
 | rlm-harness | 0.7.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.6.0 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
@@ -63,7 +63,7 @@
 | skill-marketplace-distribution | 0.3.0 | публікація/продаж власного скіла в маркетплейси, .skill-пакування, монетизація |
 | safety-compliance-gate | 1.3.0 | безпека/IP при публікації, naming policy, untrusted input, prompt-injection, ліцензії |
 | pre-delivery-gate | 1.3.0 | АВТОМАТИЧНО перед видачею користувачу готового скіла/застосунку/файлу: оркеструє всі перевірки |
-| validation-mesh | 1.8.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
+| validation-mesh | 1.9.0 | верифікація артефакту: архітектура, workflow, промпт, код → VALID/INVALID/UNKNOWN |
 | continuation-memory | 1.11.0 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.2.0 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
 | knowledge-synthesizer | 1.2.0 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
