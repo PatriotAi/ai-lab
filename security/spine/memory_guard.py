@@ -138,9 +138,21 @@ def wrap_clean(path: Path, body: str, days: int | None, limit: int) -> str:
 
 def guard(path: Path, digest_body: str, policy: dict) -> tuple[str, bool]:
     """Повертає (текст-для-контексту, чи_подано_пакет)."""
-    rel = str(path.resolve().relative_to(ROOT)) if path.is_absolute() else str(path)
+    outside = False
+    if path.is_absolute():
+        try:
+            rel = str(path.resolve().relative_to(ROOT))
+        except ValueError:
+            # Шлях поза межами репозиторію (напр. /tmp/...). Раніше тут був
+            # необроблений ValueError (знайдено 2026-09-06 канаркою F-1 з
+            # аргументом поза ROOT). Такий файл блокується ЗАВЖДИ — навіть
+            # коли перелік дозволених порожній, інакше порожній allowlist
+            # пропускав би будь-який файл з диска.
+            rel, outside = str(path), True
+    else:
+        rel = str(path)
     allow = allowed_paths(policy)
-    if allow and rel not in allow:
+    if outside or (allow and rel not in allow):
         return (
             "## ⚠️ Пам'ять НЕ відновлено — файл поза переліком дозволених\n\n"
             f"**Знайдено:** `{rel}`\n"

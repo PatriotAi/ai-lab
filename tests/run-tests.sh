@@ -95,6 +95,27 @@ mk_repo recursion; echo dirty >> seed.txt
 rc=$(bash "$HOOK" <<<'{"stop_hook_active":true}' >/dev/null 2>&1; echo $?)
 check "stop_hook_active=true → exit 0 (без рекурсії)" "0" "$rc"
 
+# 1.6 Те саме БЕЗ jq (F-15). На раннері CI jq є, тож без цього тесту
+# python-гілка захисту ніколи б не виконувалась і її поломка лишилась би
+# непоміченою. PATH без jq: посилання на всі виконувані файли, крім jq.
+NOJQ="$TMPROOT/nojq-bin"; mkdir -p "$NOJQ"
+IFS=: read -ra _pdirs <<<"$PATH"
+for _d in "${_pdirs[@]}"; do
+  for _f in "$_d"/*; do
+    _n="${_f##*/}"
+    [[ "$_n" == jq || -e "$NOJQ/$_n" || ! -x "$_f" ]] && continue
+    ln -s "$_f" "$NOJQ/$_n" 2>/dev/null
+  done
+done
+if PATH="$NOJQ" command -v jq >/dev/null 2>&1; then
+  skip "без jq: stop_hook_active=true → exit 0" "не вдалося сховати jq"
+else
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":true}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=true → exit 0" "0" "$rc"
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":false}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=false → перевірка працює (exit 2)" "2" "$rc"
+fi
+
 echo ""
 echo "════════ 2. G5: витяг памʼяті (g5-retrieve) ════════"
 cd "$REPO" || exit 1
@@ -161,13 +182,23 @@ for sec in "Щотижневий дайджест" "Активність за 7 
   [[ "$dg" == *"$sec"* ]] && ok "секція «$sec» присутня" \
     || bad "секція «$sec» присутня" "$sec" "відсутня"
 done
-[[ "$dg" =~ Комітів:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
-  || bad "лічильник комітів — число" "Комітів: **N**" "не знайдено"
+# 2026-09-06: регекс покривав лише гілку "є коміти" (`Комітів: **N**`).
+# Скрипт коректно має й другу легітимну гілку — "тихий тиждень" (0 комітів)
+# з іншим формулюванням `Комітів за тиждень: **0**` (scripts/weekly-digest.sh
+# рядок 25) — саме вона й спрацювала тут (0 комітів за останні 7 днів у
+# цьому клоні). Тест мав тестувати скрипт, а не збігатися з однією з двох
+# його коректних гілок — той самий клас дефекту, що й F-4 (крихкий тест).
+[[ "$dg" =~ Комітів(\ за\ тиждень)?:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
+  || bad "лічильник комітів — число" "Комітів: **N** або Комітів за тиждень: **N**" "не знайдено"
 
 echo ""
 echo "════════ 5. SessionStart: контекст сесії ════════"
 ss=$(bash automations/session-start/session-start.sh 2>&1); rc=$?
 check "session-start завершується успішно" "0" "$rc"
+# Без jq хук свідомо віддає текст: для SessionStart Claude Code додає в
+# контекст і звичайний stdout (офіційна документація hooks), тож це не
+# деградація. Тест перевіряє контракт відповідно до наявності jq.
+if command -v jq >/dev/null 2>&1; then
 python3 -c "
 import json,sys
 d=json.loads(sys.stdin.read())
@@ -175,6 +206,11 @@ assert d['hookSpecificOutput']['hookEventName']=='SessionStart'
 assert len(d['hookSpecificOutput']['additionalContext'])>50
 " <<<"$ss" 2>/dev/null && ok "віддає валідний JSON hookSpecificOutput" \
   || bad "віддає валідний JSON hookSpecificOutput" "валідний JSON" "невалідний/порожній"
+else
+  [[ "$ss" == *"Контекст лабораторії ai-lab"* && ${#ss} -gt 50 ]] \
+    && ok "без jq: віддає текстовий контекст" \
+    || bad "без jq: віддає текстовий контекст" "дайджест як текст" "порожньо/без заголовка"
+fi
 
 echo ""
 echo "════════ 6. Проєкт: кишеньковий агент (projects/mobile-agent) ════════"
@@ -567,6 +603,17 @@ import memory_guard as g
 _, admitted = g.guard(Path('experiments/чужий/g5-package.md'), '## 1. STATE\n- ок\n', g.load_policy())
 print('admitted' if admitted else 'blocked')" 2>/dev/null)
 check "пакет поза переліком шляхів не подається" "blocked" "$mem_path"
+
+# Файл ПОЗА репозиторієм (абсолютний шлях): раніше — необроблений ValueError;
+# тепер блокується завжди, навіть за порожнього переліку дозволених.
+mem_out=$(cd "$REPO" && python3 -c "
+import sys; sys.path.insert(0,'security/spine')
+from pathlib import Path
+import memory_guard as g
+p = Path('$CLEAN')
+r = [g.guard(p, '## 1. STATE\n- ок\n', pol)[1] for pol in (g.load_policy(), {})]
+print('blocked' if not any(r) else 'admitted:' + str(r))" 2>&1)
+check "пакет поза репозиторієм не подається (і за порожнього переліку)" "blocked" "$mem_out"
 
 # Обрамлення: текст мусить прийти позначеним як ДАНІ, інакше наступна сесія
 # читатиме його як інструкцію (офіційна рекомендація для непрямих ін'єкцій).
