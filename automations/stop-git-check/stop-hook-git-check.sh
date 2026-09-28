@@ -38,8 +38,30 @@
 #   (пропускає перевірки чистоти дерева; ганяє лише класифікатор на діапазоні)
 
 # --- Вхід і захист від рекурсії (як у базовій версії хука) ---
+# 2026-09-06: якщо jq відсутній у PATH, `echo|jq` мовчки повертає порожній
+# рядок (не помилку) — recursion-guard фейлив у ВІДКРИТУ позицію: замість
+# тихого exit 0 хук їхав далі в перевірку git-стану, ніби stop_hook_active
+# завжди false. Той самий клас дефекту, що й F-2 (тиха деградація за
+# відсутності інструмента), просто на іншому скрипті (F-15).
+# python3 — уже жорстка залежність g5-*/memory_guard/scan-external-input,
+# тож він надійний другий шар, а не додаткова крихкість. Гілка python
+# відтворює семантику `jq -r`: лише булеве true і рядок "true" → "true"
+# (`is True`, не `==`: інакше 1 і 1.0 теж вимикали б перевірку — Codex).
+# Хук ЖИВИЙ у Claude Code (web): sync.sh копіює цей файл у ~/.claude/.
 input=$(cat)
-stop_hook_active=$(echo "$input" | jq -r '.stop_hook_active' 2>/dev/null)
+if command -v jq >/dev/null 2>&1; then
+  stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // empty' 2>/dev/null)
+else
+  stop_hook_active=$(printf '%s' "$input" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    v = d.get("stop_hook_active")
+    print("true" if v is True or v == "true" else "")
+except Exception:
+    print("")
+' 2>/dev/null)
+fi
 if [[ "$stop_hook_active" = "true" ]]; then
   exit 0
 fi
