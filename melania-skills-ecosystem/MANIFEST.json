@@ -214,10 +214,10 @@
    ]
   },
   "pre-delivery-gate": {
-   "version": "1.3.0",
+   "version": "1.4.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "0b0da544b2e14ce2",
+    "SKILL.md": "9db83b2fda04ab18",
     "evals/evals.json": "07f5158b582ddaf5"
    },
    "files": [
