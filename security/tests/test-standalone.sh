@@ -94,13 +94,30 @@ import pretooluse as p
 print('none' if p.active_consent('workflows') is None else 'active')" 2>/dev/null)
 check "без файла згоди жодне правило не відкрите" "none" "$noconsent"
 
+# `workflows` позначено `require_target = true` (2026-09-27), тож рядок БЕЗ цілі
+# для нього не діє — це і перевіряємо першим: інакше згода на один воркфлоу
+# відкривала б усі. Далі — що рядок ІЗ ціллю діє, і лише на свою ціль.
 printf '| rule | until | причина |\n|---|---|---|\n| workflows | 2099-01-01 | тестовий запис для автономного прогону пакета |\n' \
+  > "$SANDBOX/project/security/consent.md"
+notarget=$(cd "$SANDBOX/project" && python3 -c "
+import sys; sys.path.insert(0, 'security/spine')
+import pretooluse as p
+print('none' if p.active_consent('workflows', '.github/workflows/ci.yml') is None else 'active')" 2>/dev/null)
+check "рядок без цілі не діє для правила з require_target" "none" "$notarget"
+
+printf '| rule | until | причина | ціль |\n|---|---|---|---|\n| workflows | 2099-01-01 | тестовий запис для автономного прогону пакета | .github/workflows/ci.yml |\n' \
   > "$SANDBOX/project/security/consent.md"
 withconsent=$(cd "$SANDBOX/project" && python3 -c "
 import sys; sys.path.insert(0, 'security/spine')
 import pretooluse as p
-print('active' if p.active_consent('workflows') else 'none')" 2>/dev/null)
-check "згода діє для названого правила" "active" "$withconsent"
+print('active' if p.active_consent('workflows', '.github/workflows/ci.yml') else 'none')" 2>/dev/null)
+check "згода з ціллю діє для названої цілі" "active" "$withconsent"
+
+othertarget=$(cd "$SANDBOX/project" && python3 -c "
+import sys; sys.path.insert(0, 'security/spine')
+import pretooluse as p
+print('none' if p.active_consent('workflows', '.github/workflows/release.yml') is None else 'leak')" 2>/dev/null)
+check "згода не переноситься на ІНШУ ціль того ж правила" "none" "$othertarget"
 
 other=$(cd "$SANDBOX/project" && python3 -c "
 import sys, base64; sys.path.insert(0, 'security/spine')
@@ -108,12 +125,15 @@ import pretooluse as p
 print('none' if p.active_consent(base64.b64decode('c2VjcmV0cw==').decode()) is None else 'leak')" 2>/dev/null)
 check "згода не відкриває сусідні правила" "none" "$other"
 
-printf '| rule | until | причина |\n|---|---|---|\n| workflows | 2000-01-01 | прострочений запис не має діяти |\n' \
+# Ціль тут ЗБІГАЄТЬСЯ і форма нова — щоб єдиною причиною відмови лишалась дата.
+# Інакше перевірка проходила б «порожньо» через брак цілі й нічого не доводила
+# про протермінування (та сама пастка, що з фільтром, який показав порожньо).
+printf '| rule | until | причина | ціль |\n|---|---|---|---|\n| workflows | 2000-01-01 | прострочений запис не має діяти | .github/workflows/ci.yml |\n' \
   > "$SANDBOX/project/security/consent.md"
 expired=$(cd "$SANDBOX/project" && python3 -c "
 import sys; sys.path.insert(0, 'security/spine')
 import pretooluse as p
-print('none' if p.active_consent('workflows') is None else 'active')" 2>/dev/null)
+print('none' if p.active_consent('workflows', '.github/workflows/ci.yml') is None else 'active')" 2>/dev/null)
 check "прострочена згода не діє" "none" "$expired"
 
 echo ""

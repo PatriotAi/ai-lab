@@ -375,6 +375,28 @@ abst_out=$($ABST "$TMPROOT/abst-canary" 2>&1); abst_rc=$?
   && ok "згадка тега в прозі й законна абстенція — не знахідки" \
   || bad "немає хибних тривог" "лише один випадок" "${abst_out:0:120}"
 
+# ── Незворотність РІШЕНЬ (хвиля 4): `one-way` мусить мати рішення власника ──
+# Рівні R0–R4 судять дію в момент виконання; рішення «формат на диску» — це
+# звичайний R1, і гейт дій його не бачить. Тому таксономія рішень перевіряється
+# окремо: найсуворіший рейтинг без сліду рішення власника — падіння.
+REV="python3 $REPO/scripts/check-reversibility.py"
+$REV "$REPO" >/dev/null 2>&1 \
+  && ok "кожне рішення one-way у репо має рішення власника" \
+  || bad "one-way має рішення власника" "код 0" "$($REV "$REPO" 2>&1 | head -2)"
+REV_T="$TMPROOT/rev-canary/docs"; mkdir -p "$REV_T"
+printf '%s\n' '- **Формат журналу.** незворотність: `one-way` — усі фази його читають.' '' \
+  '- **Другий вибір.** незворотність: `one-way`; рішення власника 2026-09-27: беремо JSONL.' '' \
+  '- **Третій.** незворотність: `costly` — без рішення власника, і це нормально.' '' \
+  '- Проза: двері в один бік (one-way) бувають дорогими.' > "$REV_T/plan.md"
+rev_out=$($REV "$TMPROOT/rev-canary" 2>&1); rev_rc=$?
+[[ "$rev_rc" == "1" && "$rev_out" == *"Формат журналу"* ]] \
+  && ok "канарка: one-way без рішення власника спіймано" \
+  || bad "канарка: one-way без рішення" "код 1 + знахідка" "rc=$rev_rc ${rev_out:0:60}"
+# Три хибні тривоги, яких не має бути: рішення з власником, рейтинг costly і проза.
+[[ "$rev_out" != *"Другий"* && "$rev_out" != *"Третій"* && "$rev_out" != *"Проза"* ]] \
+  && ok "costly, рішення з власником і проза — не знахідки" \
+  || bad "немає хибних тривог у незворотності" "лише один випадок" "${rev_out:0:140}"
+
 # Директива не буває істинною чи хибною — тег там був би театром. Секція Critical Facts
 # у фікстурі присутня, щоб перевірялась саме ця властивість, а не наявність секції.
 ce_case "директива в Core Rule тега НЕ потребує" - \
@@ -591,6 +613,22 @@ check "R4: python -c виконує вміст лапок" "R4" "$(lvl Bash 'pyt
 check "R4: node -e виконує вміст лапок"   "R4" "$(lvl Bash 'node -e "require(\"child_process\").execSync(\"rm -rf build\")"')"
 check "R4: heredoc в інтерпретатор"       "R4" "$(lvl Bash "$(printf 'python3 - <<%sPY%s\nimport os\nos.system("rm -rf build")\nPY' "'" "'")")"
 
+# ── Пропуск 2026-09-27 (хвиля 4): інлайн-код пише в захищений шлях ──
+# Знайдено на ВЛАСНІЙ дії: саме heredoc-ом у python правилась політика цієї
+# сесії, і гейт змовчав — перенаправлення немає, тож перевірка цілей запису
+# нічого не бачила. Тепер там, де команда ВИКОНУЄ текст і в тексті є ознака
+# запису, захищений шлях шукається в усій команді.
+POLP="security/""policy.toml"; WFP=".github/""workflows/evil.yml"; STP=".claude/""settings.json"
+check "R4: heredoc у python пише в політику" "R4" \
+  "$(lvl Bash "$(printf 'python3 - <<%sPY%s\nopen("%s","w").write("x")\nPY' "'" "'" "$POLP")")"
+check "R4: python -c пише у воркфлоу"     "R4" "$(lvl Bash "python3 -c \"open('$WFP','w')\"")"
+check "R4: node -e пише в налаштування"   "R4" \
+  "$(lvl Bash "node -e \"require('fs').writeFileSync('$STP','x')\"")"
+# Межа звужена свідомо: ДРУК шляху — не дія, і наявний стенд правильно чекає R2.
+# Перевірка, що кричить на згадку, вчить себе ігнорувати (урок 2026-07-27).
+check "не-R4: інлайн-код лише ДРУКУЄ шлях" "R2" "$(lvl Bash "python3 -c 'print(\"$WFP\")'")"
+check "не-R4: python запускає файл-скрипт" "R2" "$(lvl Bash 'python3 tests/probe-classify.py')"
+
 # ── Симлінк-підміна (GhostApproval): рішення по РЕАЛЬНІЙ цілі, не по назві ──
 SYM="$TMPROOT/project_settings.json"; ln -sf "$TMPROOT/id_rsa_fake" "$SYM"
 : > "$TMPROOT/id_rsa_fake"
@@ -728,6 +766,48 @@ import base64
 other = base64.b64decode('c2VjcmV0cw==').decode()
 print('ok' if p.active_consent('') is None and p.active_consent(other) is None else 'leak')" 2>/dev/null)
 check "записана згода не відкриває інші правила" "ok" "$consent_scope"
+
+# ── Згода мусить називати ЦІЛЬ (2026-09-27) ──
+# Рядок ключується за правилом, тож одна згода «merge-to-main» покривала будь-яке
+# злиття до кінця дня — включно з наступним PR, якого власник не бачив. Дзеркало
+# F-14: там та сама дія іншим каналом мала інший ключ, тут — один ключ на різні дії.
+# Прапорці мусять бути в політиці, інакше перевірки нижче не перевіряють нічого.
+flags=$(cd "$REPO" && python3 -c "
+import tomllib
+d = tomllib.load(open('security/policy.toml','rb'))
+need = {'workflows','agent-settings','secrets','merge-to-main','publish-outward'}
+have = {r['id'] for r in d['rules'] if r.get('require_target')}
+print('ok' if need <= have and d.get('mcp',{}).get('require_target') else f'бракує: {need-have}')" 2>&1)
+check "require_target стоїть на найдорожчих правилах" "ok" "$flags"
+
+# Реальний файл згоди: рядок із ціллю діє лише на свою ціль.
+consent_target=$(cd "$REPO" && python3 -c "
+import sys; sys.path.insert(0,'security/spine')
+import pretooluse as p
+from classify import load_policy
+pol = load_policy()
+same  = p.active_consent('agent-settings', 'security/policy.toml', pol)
+other = p.active_consent('agent-settings', '.claude/settings.json', pol)
+print('ok' if same and not other else f'same={bool(same)} other={bool(other)}')" 2>&1)
+check "згода з ціллю діє лише на свою ціль" "ok" "$consent_target"
+
+# Сумісність зі СТАРОЮ трирядковою формою — на ізольованому дереві, бо в робочому
+# файлі всіх активних правил require_target, тобто «порожньо» тут нічого б не довело.
+CT="$TMPROOT/consent-compat"
+mkdir -p "$CT/security/spine"
+cp "$REPO/security/spine/pretooluse.py" "$REPO/security/spine/classify.py" \
+   "$REPO/security/spine/explain.py" "$CT/security/spine/" 2>/dev/null
+cp "$REPO/security/policy.toml" "$CT/security/"
+tomorrow=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=1)).isoformat())")
+printf '%s\n' '| rule | until | причина |' '|---|---|---|' \
+  "| skip-verification | $tomorrow | причина достатньої довжини для перевірки формату |" \
+  > "$CT/security/consent.md"
+compat=$(cd "$CT" && python3 -c "
+import sys; sys.path.insert(0,'security/spine')
+import pretooluse as p
+from classify import load_policy
+print('ok' if p.active_consent('skip-verification','git commit', load_policy()) else 'стара форма перестала діяти')" 2>&1)
+check "стара трирядкова згода діє для правил без require_target" "ok" "$compat"
 
 echo ""
 echo "════════ 14. Переносимість, старіння, самозміна ════════"

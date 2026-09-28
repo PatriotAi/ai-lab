@@ -122,6 +122,21 @@ SHELL_INVOKERS = (
 # а «що саме НЕ ловитиме» (Core Rule 15).
 EXEC_MARKERS = ("-exec", "-execdir", "-delete", "-ok", "--exec")
 
+# Ознаки ЗАПИСУ всередині інлайн-коду інтерпретатора. Потрібні, щоб правила на
+# шляхи ловили `python3 - <<PY  open('security/policy.toml','w')  PY`, але НЕ
+# кричали на `python3 -c 'print(".github/workflows/x.yml")'` — друк шляху не є
+# дією (наявний стенд `tests/probe-classify.py` фіксує це як R2, і він має рацію:
+# перевірка, що кричить на згадку, вчить себе ігнорувати).
+#
+# ЧЕСНА МЕЖА ПОКРИТТЯ: перелік іменний, тож екзотична форма запису поза ним
+# лишається пропуском. Це краще за попередній стан, де інлайн-код не бачився
+# ВЗАГАЛІ, і краще за суцільну тривогу на кожну згадку шляху.
+INLINE_WRITE_HINTS = (
+    "write", "'w'", '"w"', "'a'", '"a"', "'x'", "truncate", "unlink", "remove",
+    "rmtree", "rename", "replace(", "copy", "move", "dump", "mkdir", "symlink",
+    "chmod", "touch", "appendfile", "createwritestream", "outputfile", "save",
+)
+
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 # Роздільник ЗАХОПЛЮЄТЬСЯ і шукається дослівно (зворотне посилання \1).
 # Перша версія шукала «перший рядок-слово» — і на довгому тілі, де такий
@@ -160,6 +175,19 @@ def executable_part(command: str) -> str:
     if any(inv in stripped.lower() for inv in SHELL_INVOKERS):
         return command
     return stripped
+
+
+def executes_inline_code(command: str) -> bool:
+    """Чи команда віддає ТЕКСТ інтерпретаторові на виконання.
+
+    `bash -c "…"`, `eval`, `| sh`, `python3 - <<PY … PY`, `node -e "…"`.
+    Ознака шукається після відкидання даних — з тієї ж причини, що в
+    `executable_part`: згадка `| sh` у прозі не робить команду виконанням.
+    """
+    if not command:
+        return False
+    stripped = _QUOTED.sub(" ", _HEREDOC.sub(r"\1", command))
+    return any(inv in stripped.lower() for inv in SHELL_INVOKERS)
 
 
 def is_pure_read(command: str, policy: dict) -> bool:
@@ -232,10 +260,31 @@ def _tool_managed(resolved: str, policy: dict) -> bool:
 
 
 def _command_touches_path(command: str, pattern: str) -> bool:
-    """Чи пише команда в захищений шлях."""
+    """Чи пише команда в захищений шлях.
+
+    ДРУГИЙ ШЛЯХ, знайдений 2026-09-27 під час хвилі 4: інлайн-код в
+    інтерпретаторі пише куди завгодно БЕЗ операторів оболонки —
+    `python3 - <<PY` з `open('security/policy.toml','w')` усередині не має ні
+    `>`, ні `tee`, тож перевірка цілей запису його не бачила. Знайдено на власній
+    дії: саме так у цій сесії правилась політика, і гейт змовчав.
+
+    Тому там, де команда ВИКОНУЄ текст і в цьому тексті є ознака ЗАПИСУ
+    (`INLINE_WRITE_HINTS`), захищений шлях шукається в усій команді. Ознака
+    потрібна, щоб не кричати на друк шляху: `print("<шлях>")` — не дія, і
+    наявний стенд справедливо чекає там R2.
+    """
     for target in _write_targets(command):
         if _match_path(pattern, target.lstrip("./"), target):
             return True
+    low = command.lower()
+    if executes_inline_code(command) and any(h in low for h in INLINE_WRITE_HINTS):
+        # Токен МУСИТЬ допускати провідну точку: `.github/workflows/*` і
+        # `.claude/settings.json` — саме такі. Перша версія регулярки починалась
+        # із `[\w]`, тож зрізала точку й обидва найважливіші правила проходили
+        # повз (спіймано пробою одразу після фіксу, до коміту).
+        for token in re.findall(r"[.\w][\w./-]*", command):
+            if _match_path(pattern, token.lstrip("./"), token):
+                return True
     return False
 
 

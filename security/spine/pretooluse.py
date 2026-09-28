@@ -76,15 +76,45 @@ def is_self_modification(target: str, policy: dict) -> bool:
     return False
 
 
-def active_consent(rule_id: str) -> tuple[str, str] | None:
+def requires_target(rule_id: str, policy: dict) -> bool:
+    """Чи для цього правила згода мусить називати ЦІЛЬ дії.
+
+    НАВІЩО. Рядок згоди ключується за правилом, тож один рядок «merge-to-main»
+    покриває будь-яке злиття, поки не спливе дата, — включно з наступним PR,
+    якого власник не бачив. Це той самий клас, що F-14 (та сама дія іншим
+    каналом мала інший ключ), тільки навпаки: один ключ на РІЗНІ дії.
+    Для найдорожчих правил цього досить, щоб згода перестала бути точковою.
+
+    Свідомо НЕ для всіх правил: вимога цілі там, де вона нічого не уточнює
+    (`destructive-delete` на довільній команді), дала б тертя без користі —
+    а гейт, що тертя без користі, вчить себе обходити.
+    """
+    for rule in policy.get("rules", []):
+        if rule.get("id") == rule_id:
+            return bool(rule.get("require_target", False))
+    if rule_id.startswith("mcp-"):
+        return bool(policy.get("mcp", {}).get("require_target", False))
+    return False
+
+
+def active_consent(rule_id: str, target: str = "",
+                   policy: dict | None = None) -> tuple[str, str] | None:
     """Шукає ЧИННУ записану згоду для правила у `security/consent.md`.
 
     Повертає (до-якої-дати, причина) або None. Прострочений запис ігнорується
     мовчки — згода не має «залипати» назавжди. Порожній rule_id ніколи не
     збігається: інакше один рядок відкривав би все підряд.
+
+    ЧЕТВЕРТА КОЛОНКА — ЦІЛЬ (з 2026-09-27). Для правил із `require_target`
+    рядок без цілі не діє, а рядок із ціллю діє лише тоді, коли ціль справді
+    трапляється в дії (підрядок або glob). Так згода на злиття PR #49 перестає
+    покривати PR #50. Для решти правил колонка необов'язкова — сумісність зі
+    старими трирядковими записами збережена.
     """
     if not rule_id or not CONSENT.is_file():
         return None
+    pol = policy if policy is not None else load_policy()
+    need_target = requires_target(rule_id, pol)
     today = datetime.now(timezone.utc).date().isoformat()
     try:
         for line in CONSENT.read_text(encoding="utf-8").splitlines():
@@ -94,8 +124,17 @@ def active_consent(rule_id: str) -> tuple[str, str] | None:
             if len(cells) < 3 or cells[0] != rule_id:
                 continue
             until, reason = cells[1], cells[2]
-            if len(until) == 10 and until >= today and len(reason) >= 20:
-                return until, reason
+            row_target = cells[3] if len(cells) > 3 else ""
+            if not (len(until) == 10 and until >= today and len(reason) >= 20):
+                continue
+            if need_target:
+                # Ціль обов'язкова І мусить збігтися з фактичною дією.
+                if not row_target:
+                    continue
+                low_t, low_a = row_target.lower(), (target or "").lower()
+                if not (low_t in low_a or fnmatch.fnmatch(low_a, low_t)):
+                    continue
+            return until, reason
     except OSError:
         return None
     return None
@@ -158,7 +197,9 @@ def main() -> int:
     target_path = verdict.resolved_target or verdict.target
     self_mod = is_self_modification(target_path, policy)
 
-    consent = active_consent(verdict.rule_id)
+    # Ціль передається у пошук згоди: для найдорожчих правил рядок мусить
+    # назвати саме цю дію (PR, файл), а не відкривати весь клас на добу.
+    consent = active_consent(verdict.rule_id, target_path or tool_name, policy)
     if action == "deny" and consent:
         record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
                 "decision": "ЗГОДА-ЗАПИСАНА", "consent_until": consent[0],
