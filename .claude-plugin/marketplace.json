@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "patriotai-lab",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Маркетплейс плагінів PatriotAI Lab — навички екосистеми Melania та робочі процеси ai-lab, згруповані в тематичні бандли.",
   "owner": {
     "name": "PatriotAI Lab",
@@ -13,7 +13,7 @@
       "source": "./plugins/melania-governance",
       "displayName": "Melania Governance",
       "description": "Життєвий цикл навичок: створення, версії, аудит екосистеми, гейти безпеки та валідації перед видачею. (7 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -33,14 +33,15 @@
         "validation",
         "safety",
         "audit"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "melania-orchestration",
       "source": "./plugins/melania-orchestration",
       "displayName": "Melania Orchestration",
       "description": "Оркестрація: маршрутизація наміру в скіли, мета-гарнес важких процесів, топології суб-агентів, мульти-провайдерний роутинг. (6 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -60,14 +61,15 @@
         "multi-agent",
         "runtime",
         "providers"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "melania-knowledge",
       "source": "./plugins/melania-knowledge",
       "displayName": "Melania Knowledge",
       "description": "Робота зі знанням: синтез неочевидних зв'язків, NotebookLM, пам'ять сесій, відновлення втраченого, harvest зовнішніх джерел. (5 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -87,14 +89,15 @@
         "research",
         "notebooklm",
         "recovery"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "melania-build",
       "source": "./plugins/melania-build",
       "displayName": "Melania Build",
       "description": "Побудова застосунків: Claude API, хірургічний рефакторинг великих файлів, E2E-тести, PWA/APK, локальні моделі в браузері. (5 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -114,14 +117,15 @@
         "refactoring",
         "testing",
         "pwa"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "melania-connect",
       "source": "./plugins/melania-connect",
       "displayName": "Melania Connect",
       "description": "Інтеграції та конектори: GitHub, Vercel, n8n, авторизація/сесії, спільний браузер з агентом. (5 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -143,14 +147,15 @@
         "n8n",
         "browser",
         "auth"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "ai-lab-workflows",
       "source": "./plugins/ai-lab-workflows",
       "displayName": "AI Lab Workflows",
       "description": "Робочі процеси лабораторії ai-lab: експерименти, контент-пайплайн, двомовність UA/EN, публікація, GMI-аудит, тижнева ретроспектива. (7 скілів)",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "PatriotAI Lab",
         "url": "https://github.com/PatriotAi"
@@ -170,7 +175,8 @@
         "content",
         "bilingual",
         "review"
-      ]
+      ],
+      "license": "MIT"
     }
   ]
 }

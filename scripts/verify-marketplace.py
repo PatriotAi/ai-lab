@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -154,36 +156,66 @@ def check_coverage(seen: dict[str, str]) -> None:
 
 
 def check_cli_validate(mp: dict) -> None:
-    """Офіційний валідатор — джерело істини щодо схеми."""
+    """Офіційний валідатор — джерело істини щодо схеми.
+
+    Плагіни перевіряються на РОЗІМЕНОВАНІЙ копії (`cp -rL`). Починаючи з Claude Code
+    v2.1.283 `plugin validate` не йде за симлінками і сам радить «validate the real
+    paths separately»; на копії з реальними файлами `--strict` лишається строгим і
+    жодне попередження не доводиться пробачати.
+    """
     claude = None
-    for candidate in ("claude",):
-        try:
-            subprocess.run([candidate, "--version"], capture_output=True, check=True, timeout=60)
-            claude = candidate
-            break
-        except (OSError, subprocess.SubprocessError):
-            pass
-    if claude is None:
+    try:
+        subprocess.run(["claude", "--version"], capture_output=True, check=True, timeout=60)
+        claude = "claude"
+    except (OSError, subprocess.SubprocessError):
         warn("claude CLI недоступний — схемну валідацію пропущено")
         return
-    targets = [ROOT] + [
-        ROOT / e["source"][2:]
-        for e in mp.get("plugins", [])
-        if isinstance(e.get("source"), str) and e["source"].startswith("./")
-    ]
-    for t in targets:
-        proc = subprocess.run(
-            [claude, "plugin", "validate", str(t), "--strict"],
-            capture_output=True, text=True, timeout=180,
-        )
+
+    def run(target: Path, label: str) -> None:
+        proc = subprocess.run([claude, "plugin", "validate", str(target), "--strict"],
+                              capture_output=True, text=True, timeout=300)
         if proc.returncode != 0:
-            tail = (proc.stdout + proc.stderr).strip().splitlines()
-            err(f"claude plugin validate --strict впав на {t.name}: {tail[-1] if tail else '?'}")
+            lines = [l.strip() for l in (proc.stdout + proc.stderr).splitlines() if l.strip()]
+            detail = next((l for l in lines if l.startswith(">")), lines[-1] if lines else "?")
+            err(f"claude plugin validate --strict впав на {label}: {detail}")
+
+    run(ROOT, "каталог маркетплейсу")
+    with tempfile.TemporaryDirectory() as tmp:
+        for entry in mp.get("plugins", []):
+            source = entry.get("source")
+            if not (isinstance(source, str) and source.startswith("./")):
+                continue
+            src = ROOT / source[2:]
+            if not src.is_dir():
+                continue
+            dst = Path(tmp) / src.name
+            try:
+                shutil.copytree(src, dst, symlinks=False)  # розіменовує симлінки
+            except (OSError, shutil.Error) as exc:
+                # найчастіша причина — битий симлінк, який уже названо вище;
+                # головне не впасти трасбеком, бо тоді решта звіту не друкується
+                err(f"{entry.get('name', src.name)}: не вдалося зібрати копію для валідації ({exc})")
+                continue
+            run(dst, entry.get("name", src.name))
+
 
 
 def check_licenses(publish: bool) -> None:
-    """Ліцензії скілів мусять бути однорідні до публікації."""
-    values: dict[str, list[str]] = {}
+    """Політика лабораторії: MIT скрізь, однаково на кожному рівні.
+
+    Це вже не «попередження перед публікацією», а інваріант: рішення власника від
+    2026-09-28. Тому будь-яке відхилення — помилка, а не warning: інакше наступний
+    скіл тихо принесе іншу ліцензію, як це вже сталося (чотири різні значення у 28 файлах).
+    """
+    # 1. файли ліцензій
+    for lic in (ROOT / "LICENSE", ROOT / "melania-skills-ecosystem" / "LICENSE.txt"):
+        if not lic.exists():
+            err(f"{lic.relative_to(ROOT)}: файл ліцензії відсутній")
+        elif not lic.read_text(encoding="utf-8").lstrip().startswith("MIT License"):
+            err(f"{lic.relative_to(ROOT)}: не MIT")
+
+    # 2. поле license: у SKILL.md
+    offenders: dict[str, list[str]] = {}
     for base in (MELANIA_SKILLS, LAB_SKILLS):
         if not base.is_dir():
             continue
@@ -191,12 +223,30 @@ def check_licenses(publish: bool) -> None:
             if p.is_symlink() or not (p / "SKILL.md").is_file():
                 continue
             m = re.search(r"^license:\s*(.+)$", (p / "SKILL.md").read_text(encoding="utf-8"), re.M)
-            if m:
-                values.setdefault(m.group(1).strip(), []).append(p.name)
-    if len(values) > 1:
-        summary = "; ".join(f"{k!r}×{len(v)}" for k, v in sorted(values.items()))
-        msg = f"ліцензії скілів розходяться ({summary}) — публікація маркетплейсу вимагає одного рішення власника"
-        (err if publish else warn)(msg)
+            if m and m.group(1).strip() != "MIT":
+                offenders.setdefault(m.group(1).strip(), []).append(p.name)
+    if offenders:
+        summary = "; ".join(f"{k!r} у {', '.join(sorted(v))}" for k, v in sorted(offenders.items()))
+        err(f"політика MIT порушена — не-MIT ліцензії: {summary}")
+
+    # 3. маніфести плагінів і записи каталогу
+    try:
+        mp = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    for entry in mp.get("plugins", []):
+        if entry.get("license") != "MIT":
+            err(f"{entry.get('name')}: license у каталозі = {entry.get('license')!r}, очікували 'MIT'")
+        source = entry.get("source")
+        if isinstance(source, str) and source.startswith("./"):
+            pj = ROOT / source[2:] / ".claude-plugin" / "plugin.json"
+            if pj.exists():
+                try:
+                    if json.loads(pj.read_text(encoding="utf-8")).get("license") != "MIT":
+                        err(f"{entry.get('name')}: license у plugin.json ≠ 'MIT'")
+                except json.JSONDecodeError:
+                    pass
+
 
 
 def main() -> int:

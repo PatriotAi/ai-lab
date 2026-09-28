@@ -54,7 +54,7 @@ Claude Code (навички, субагенти, хуки, slash-команди,
 **GitHub**, **Vercel**, **Canva**. AI-помічники: Claude / Claude Code, Codex, інші.
 
 ## Ліцензія
-Apache License 2.0 — див. [`LICENSE`](LICENSE).
+MIT — див. [`LICENSE`](LICENSE).
 
 ---
 
@@ -108,4 +108,4 @@ Details: [README-FOR-HUMANS](melania-skills-ecosystem/README-FOR-HUMANS.md) (for
 [README-FOR-AI](melania-skills-ecosystem/README-FOR-AI.md) (for AI assistants).
 
 ### License
-Apache License 2.0 — see [`LICENSE`](LICENSE).
+MIT — see [`LICENSE`](LICENSE).

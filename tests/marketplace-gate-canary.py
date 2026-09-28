@@ -16,7 +16,9 @@
   8. зарезервоване Anthropic ім'я маркетплейсу
   9. схемна помилка манифеста (ловить claude plugin validate --strict)
  10. ціль симлінка поза межами маркетплейсу (Claude Code її мовчки пропустить)
- 11. розбіжність ліцензій у режимі --publish
+ 11. не-MIT ліцензія в SKILL.md
+ 12. не-MIT файл LICENSE
+ 13. не-MIT license у plugin.json
 
 Запуск: python3 tests/marketplace-gate-canary.py
 """
@@ -128,8 +130,21 @@ def break_outside_target(root: Path) -> None:
     link.symlink_to(outside)
 
 
-def break_nothing(root: Path) -> None:
-    """Контроль: чиста копія має проходити (інакше гейт просто завжди червоний)."""
+def break_skill_license(root: Path) -> None:
+    p = root / "melania-skills-ecosystem" / "skills" / "semantic-router" / "SKILL.md"
+    p.write_text(p.read_text(encoding="utf-8").replace("license: MIT", "license: Proprietary", 1),
+                 encoding="utf-8")
+
+
+def break_license_file(root: Path) -> None:
+    (root / "LICENSE").write_text("Apache License\nVersion 2.0\n", encoding="utf-8")
+
+
+def break_manifest_license(root: Path) -> None:
+    edit_json(
+        root / "plugins" / "melania-knowledge" / ".claude-plugin" / "plugin.json",
+        lambda d: d.update(license="Apache-2.0"),
+    )
 
 
 SCENARIOS = [
@@ -143,8 +158,11 @@ SCENARIOS = [
     ("8. зарезервоване ім'я", break_reserved_name, "зарезервоване", False),
     ("9. схемна помилка", break_schema, "validate --strict впав", False),
     ("10. ціль поза маркетплейсом", break_outside_target, "поза маркетплейсом", False),
-    ("11. дрейф ліцензій (--publish)", break_nothing, "ліцензії скілів розходяться", True),
+    ("11. не-MIT у SKILL.md", break_skill_license, "політика MIT порушена", False),
+    ("12. не-MIT файл LICENSE", break_license_file, "LICENSE: не MIT", False),
+    ("13. не-MIT у plugin.json", break_manifest_license, "license у plugin.json", False),
 ]
+
 
 
 def main() -> int:

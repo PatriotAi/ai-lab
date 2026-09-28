@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ai-lab-workflows",
   "displayName": "AI Lab Workflows",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Робочі процеси лабораторії ai-lab: експерименти, контент-пайплайн, двомовність UA/EN, публікація, GMI-аудит, тижнева ретроспектива.",
   "author": {
     "name": "PatriotAI Lab",
@@ -15,5 +15,6 @@
     "content",
     "bilingual",
     "review"
-  ]
+  ],
+  "license": "MIT"
 }

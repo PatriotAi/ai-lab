@@ -1,16 +1,16 @@
 ---
 name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
-license: Proprietary
+license: MIT
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Multi-Provider AI Orchestration — v1.6.0
+# Multi-Provider AI Orchestration — v1.6.1
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -219,6 +219,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.6.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** НОВИЙ замінний файл `references/model-snapshot-2026-07.md` — ЄДИНЕ місце конкретики (матриця 15 моделей із верифікованими цінами, COSTS-конфіг з фіксом Opus 4.8 15/75→5/25, reasoning-поля по провайдерах, Anthropic-сумісні endpoints, per-role приклади для rlm-harness). **(B)** SKILL.md де-пінований: матриця→структура+класи вузлів, COSTS→loadFromSnapshot(), reasoning→capability-атрибут вузла, endpoints→патерн без URL. Скіл працює з будь-якими майбутніми моделями; застарівання = заміна снапшот-файлу. **(C)** Фікс розсинхрону заголовка (v1.0→актуальна). Знання старої матриці збережені в CHANGELOG-історії; merge-not-replace. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._

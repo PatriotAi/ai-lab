@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-28T18:09:12.965456+00:00",
-  "md5": "65b4fe04168de5fe23eee7ec2d3b108e",
-  "total_lines": 338,
+  "timestamp": "2026-09-28T18:08:20.494839+00:00",
+  "md5": "fc1f2fdb8bd05ed1d77c90054a7a8674",
+  "total_lines": 337,
   "desc_length": 934,
   "has_valid_frontmatter": true,
   "terms": {
@@ -84,7 +84,7 @@
     "## Behavior": 25,
     "## References": 13,
     "## 📎 Advanced Patterns (v4)": 6,
-    "## Зміни": 8
+    "## Зміни": 7
   },
   "behavior_rows": 19,
   "step1a_tool_calls": 21,

@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "melania-governance",
   "displayName": "Melania Governance",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Життєвий цикл навичок: створення, версії, аудит екосистеми, гейти безпеки та валідації перед видачею.",
   "author": {
     "name": "PatriotAI Lab",
@@ -15,5 +15,6 @@
     "validation",
     "safety",
     "audit"
-  ]
+  ],
+  "license": "MIT"
 }

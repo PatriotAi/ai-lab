@@ -15,13 +15,13 @@ compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Co
 license: MIT
 metadata:
   author: Melania (Master Administrator)
-  version: 1.6.0
+  version: 1.6.1
   category: orchestration
   created: 2026-06-13
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Workflow Orchestration — v1.6.0
+# Workflow Orchestration — v1.6.1
 Українською-перша: тригери/відповіді/приклади — українською; перемикання лише слідом за користувачем.
 Безпека/комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією).
 
@@ -197,6 +197,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
+- **v1.6.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `n8n-orchestrator` (побудова n8n-workflow/JSON поза скоупом) [#5]; депт-леддер перевірено — це коректне делегування механіки в `ai-core-runtime`, не дубль (без зміни) [#6]; H1-банер з версією. Лише опис/межі.
 - **v1.4.1** (2026-07-19) — Хвиля 1 Self-Dev (аудит 2026-07-18, №1): де-хардкод мертвого посилання `product-self-knowledge` (скіл не існує) → «офіційні docs» у SKILL.md (Stack Mapping) і `references/topology-taxonomy.md`. Правило «не пінь» незмінне.

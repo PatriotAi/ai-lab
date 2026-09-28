@@ -22,16 +22,16 @@ allowed-tools:
   - Bash(python:*)
   - Read
   - Write
-license: Proprietary
+license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   author: Melania (Master Administrator)
   category: research-orchestration
   created: 2026-06-15
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Source Research Harvest — v0.3.0
+# Source Research Harvest — v0.3.1
 > Українською-перша: рішення/приклади — українською; код/ідентифікатори — англійською.
 > ⚖️ Безпека/intake чужого матеріалу — `safety-compliance-gate` (Блок C). Запис скілів — Закон II.
 
@@ -125,6 +125,7 @@ validation-mesh = QA; continuation-memory = стан). **Прогалина, я�
 `references/acquire-playbook.md` КОЛИ: потрібні детальні fallback-рецепти per тип джерела (URL/зображення/handle/фрагмент).
 
 ## Зміни
+- **v0.3.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v0.3.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v0.2.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): тригер «досліди це джерело» кваліфіковано harvest-наміром («для оновлення екосистеми»); голе «досліди тему» — не тригер [#16]; DO NOT-межа з `gsre-recovery` (власне втрачене ≠ зовнішнє джерело) [#12]. Лише опис/тригери. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v0.1.1** (2026-07-05) — GSRE-відновлення: скіл був втрачений паралельними сесіями (відсутній на диску 28.06+, у zip v3 та в routing — жодних згадок). Відновлено 1:1 із затвердженого дизайну H2.2; логіка без змін. Routing: за гібридною архітектурою semantic-router 1.13.x скіл підхоплюється пасивним CORE-індексом через description — хардкод-рядок не потрібен.
