@@ -45,7 +45,8 @@
 # відсутності інструмента), просто на іншому скрипті (F-15).
 # python3 — уже жорстка залежність g5-*/memory_guard/scan-external-input,
 # тож він надійний другий шар, а не додаткова крихкість. Гілка python
-# відтворює семантику `jq -r`: і булеве true, і рядок "true" → "true".
+# відтворює семантику `jq -r`: лише булеве true і рядок "true" → "true"
+# (`is True`, не `==`: інакше 1 і 1.0 теж вимикали б перевірку — Codex).
 # Хук ЖИВИЙ у Claude Code (web): sync.sh копіює цей файл у ~/.claude/.
 input=$(cat)
 if command -v jq >/dev/null 2>&1; then
@@ -55,7 +56,8 @@ else
 import json, sys
 try:
     d = json.load(sys.stdin)
-    print("true" if d.get("stop_hook_active") in (True, "true") else "")
+    v = d.get("stop_hook_active")
+    print("true" if v is True or v == "true" else "")
 except Exception:
     print("")
 ' 2>/dev/null)

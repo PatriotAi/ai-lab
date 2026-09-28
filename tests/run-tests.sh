@@ -114,6 +114,8 @@ else
   check "без jq: stop_hook_active=true → exit 0" "0" "$rc"
   rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":false}' >/dev/null 2>&1; echo $?)
   check "без jq: stop_hook_active=false → перевірка працює (exit 2)" "2" "$rc"
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":1}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=1 (не булеве) → перевірка працює (exit 2)" "2" "$rc"
 fi
 
 echo ""
@@ -611,9 +613,10 @@ import sys; sys.path.insert(0,'security/spine')
 from pathlib import Path
 import memory_guard as g
 p = Path('$CLEAN')
-r = [g.guard(p, '## 1. STATE\n- ок\n', pol)[1] for pol in (g.load_policy(), {})]
+r = [g.guard(q, '## 1. STATE\n- ок\n', pol)[1]
+     for q in (p, Path('../../tmp/package.md')) for pol in (g.load_policy(), {})]
 print('blocked' if not any(r) else 'admitted:' + str(r))" 2>&1)
-check "пакет поза репозиторієм не подається (і за порожнього переліку)" "blocked" "$mem_out"
+check "пакет поза репозиторієм (абсолютний і ../) не подається, і за порожнього переліку" "blocked" "$mem_out"
 
 # Обрамлення: текст мусить прийти позначеним як ДАНІ, інакше наступна сесія
 # читатиме його як інструкцію (офіційна рекомендація для непрямих ін'єкцій).
