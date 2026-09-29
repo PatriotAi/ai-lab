@@ -418,7 +418,9 @@ async function submit() {
     return;
   }
 
-  state.queue.push(makeTask({ input: cmd.payload, kind: cmd.kind }));
+  // Намір береться з того, що людина бачить на чіпі в момент відправки.
+  state.queue.push(makeTask({ input: cmd.payload, kind: cmd.kind,
+    intent: currentEngine().engine === "cloud" ? "cloud" : "any" }));
   saveQueue();
   $("input").value = ""; $("input").style.height = "auto";
   state.query = ""; $("search").value = "";
@@ -439,6 +441,10 @@ function chainCaps() {
     online: navigator.onLine !== false,
     hasCloudKey: !!state.apiKey,
     hasBackupKey: !!state.backupKey,
+    // Збережений, але ще не відкритий ключ — це очікування людини, а не «ключа нема»
+    // (інакше перезапуск тихо перетворює хмарне завдання на офлайн-заглушку).
+    keyLocked: !state.apiKey && !!LS.get(SECRET_KEY, null),
+    backupKeyLocked: !state.backupKey && !!LS.get(SECRET_KEY + ".backup", null),
     localReady: !!state.local.engine || (state.caps.webgpu && state.settings.prefer !== "offline"),
   };
 }
@@ -455,24 +461,29 @@ async function drainQueue() {
   state.draining = true;
   renderQueue();
   const caps = chainCaps();
-  // Офлайн-відповідь — свідомий компроміс, а не автоматичний: беремо її лише
-  // на останній спробі, за явним вибором користувача, або коли інших вузлів нема.
   const lastChance = task.attempts + 1 >= MAX_ATTEMPTS;
-  const nothingElse = !caps.hasCloudKey && !caps.hasBackupKey && !caps.localReady;
-  const allowOffline = lastChance || nothingElse;
   const chain = defaultChain(state.settings);
   const tried = [];
-  let failure = null, lastErr = "", node = null;
+  let failure = null, lastErr = "", node = null, waited = false;
 
   try {
     // Обхід ланцюга В МЕЖАХ ОДНОГО ПРОХОДУ: якщо провайдер відмовив так, що
     // перемикання має сенс (ліміт, чужий ключ, 503) — наступний вузол пробуємо
-    // НЕГАЙНО, без паузи. Пауза потрібна лише коли весь ланцюг відмовив.
+    // НЕГАЙНО, без паузи. Кожен крок вирішує чиста planDispatch (тестована в core).
     while (true) {
-      node = state.settings.prefer === "offline"
-        ? { id: "offline", kind: "offline" }
-        : pickProvider(chain, { health: state.health, caps, tried, allowOffline });
-      if (!node) break;
+      const plan = planDispatch({
+        chain, health: state.health, caps, tried, lastChance,
+        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud",
+      });
+      if (plan.action === "wait") {
+        // Чекання — не невдача: спробу НЕ витрачаємо. Cooldown — таймер, ключ/мережа — подія.
+        state.queue = deferTask(state.queue, task.id,
+          plan.reason === "cooldown" ? { untilMs: plan.untilMs } : { waiting: plan.reason });
+        waited = true;
+        break;
+      }
+      if (plan.action === "exhausted") break;
+      node = plan.node;
       tried.push(node.id);
       try {
         const answer = await runNode(node, task);
@@ -493,10 +504,10 @@ async function drainQueue() {
       }
     }
 
-    if (failure || !node) {
-      const f = failure || { retryable: true, switchProvider: false, kind: "cooldown", retryAfterMs: null };
+    if (!waited && failure) {
+      const f = failure;
       state.queue = applyOutcome(state.queue, task.id, {
-        ok: false, failure: f, engine: node?.id, tried, error: lastErr || "усі провайдери на паузі",
+        ok: false, failure: f, engine: node?.id, tried, error: lastErr,
       });
       const after = state.queue.find((x) => x.id === task.id);
       if (after?.status === "failed") {
@@ -512,16 +523,27 @@ async function drainQueue() {
     }
   } finally {
     state.draining = false;
+    // Завершені завдання вже стали нотатками — тримати їх у черзі значить безкінечно
+    // розводити localStorage дублем «запит+відповідь» до вичерпання квоти, після чого
+    // saveQueue почне падати й свіжа незавершена робота загубиться (рев'ю Codex).
+    state.queue = pruneQueue(state.queue, { keepDone: 0 });
     saveQueue();
     render(); renderQueue(); renderEngine();
   }
   scheduleDrain();
 }
 
+/** Подія змінила умови (ключ, мережа, режим) — розбудити тих, хто чекав, і спробувати одразу. */
+function wakeAndDrain(reason) {
+  state.queue = wakeWaiting(state.queue, reason);
+  saveQueue();
+  drainQueue();
+}
+
 /** Наступний прохід — рівно тоді, коли настане час найранішої спроби. */
 function scheduleDrain() {
   clearTimeout(state.drainTimer);
-  const pending = state.queue.filter((t) => t.status === "pending");
+  const pending = state.queue.filter((t) => t.status === "pending" && !t.waiting);
   if (!pending.length) return;
   const now = Date.now();
   const soonest = Math.min(...pending.map((t) => t.nextAttemptAt));
@@ -533,10 +555,8 @@ function notifyFailure(task) {
   toast("Завдання не вдалося — доступний ручний повтор");
   if (document.visibilityState === "hidden" && window.Notification?.permission === "granted") {
     try {
-      new Notification("Кишеньковий агент", {
-        body: `Не вдалося виконати: ${task.input.slice(0, 60)}`,
-        tag: "pocket-agent-failure",
-      });
+      const n = failureNotification(task);   // тексту завдання тут немає навмисно
+      new Notification(n.title, { body: n.body, tag: "pocket-agent-failure" });
     } catch {}
   }
 }
@@ -552,7 +572,9 @@ function renderQueue() {
   box.innerHTML = active.map((t) => `
     <div class="qitem ${t.status}">
       <span class="qtext">${esc(t.input.slice(0, 70))}</span>
-      <span class="qmeta">${t.status === "failed" ? "не вдалося" : `спроба ${t.attempts + 1}`}</span>
+      <span class="qmeta">${t.status === "failed" ? "не вдалося"
+        : t.waiting === "locked" ? "чекає ключа" : t.waiting === "network" ? "чекає мережі"
+        : `спроба ${t.attempts + 1}`}</span>
       ${t.status === "failed" ? `<button class="qretry" data-retry="${esc(t.id)}">Повторити</button>` : ""}
     </div>`).join("");
 }
@@ -592,7 +614,7 @@ async function saveKey() {
     $("apikey").value = ""; $("backupApikey").value = ""; $("passphrase").value = "";
     $("keyHint").textContent = "Ключ зашифровано й збережено на пристрої.";
     $("keyHint").classList.remove("err");
-    toast("Ключ збережено (зашифровано)"); renderEngine();
+    toast("Ключ збережено (зашифровано)"); renderEngine(); wakeAndDrain("locked");
   } catch (e) { toast("Не вдалось зашифрувати: " + e.message); }
 }
 
@@ -607,7 +629,7 @@ async function unlockKey() {
     $("passphrase").value = "";
     $("keyHint").textContent = "Ключ відкрито для цієї сесії.";
     $("keyHint").classList.remove("err");
-    toast("Ключ відкрито"); renderEngine();
+    toast("Ключ відкрито"); renderEngine(); wakeAndDrain("locked");
   } catch {
     $("keyHint").textContent = "Хибна пароль-фраза.";
     $("keyHint").classList.add("err");
@@ -694,14 +716,14 @@ function bindUI() {
   $("engineChip").onclick = () => $("settings").showModal();
   for (const [id, key] of [["prefer", "prefer"], ["provider", "provider"], ["model", "model"], ["updateUrl", "updateUrl"], ["ram", "ram"],
                            ["backupProvider", "backupProvider"], ["backupModel", "backupModel"], ["backupBaseUrl", "backupBaseUrl"]]) {
-    $(id).addEventListener("change", (e) => { state.settings[key] = e.target.value.trim?.() ?? e.target.value; saveSettings(); renderEngine(); });
+    $(id).addEventListener("change", (e) => { state.settings[key] = e.target.value.trim?.() ?? e.target.value; saveSettings(); renderEngine(); wakeAndDrain(); });
   }
   $("saveKey").onclick = saveKey;
   $("unlockKey").onclick = unlockKey;
   $("forgetKey").onclick = () => {
     LS.del(SECRET_KEY); LS.del(SECRET_KEY + ".backup");
     state.apiKey = ""; state.backupKey = "";
-    toast("Ключі видалено з пристрою"); renderEngine();
+    toast("Ключі видалено з пристрою"); renderEngine(); wakeAndDrain("locked");
   };
   $("loadLocal").onclick = () => ensureLocalModel((p, m) => toast(`Модель ${p}% ${m.slice(0, 40)}`, 1500))
     .then(() => toast("Локальна модель готова")).catch((e) => toast("Локальна модель: " + e.message));
@@ -715,13 +737,17 @@ function bindUI() {
   };
   window.addEventListener("online", () => {
     // Мережа повернулась — не чекаємо таймера, пробуємо негайно.
-    state.caps.online = true; state.health = {}; renderEngine(); drainQueue();
+    state.caps.online = true; state.health = {}; renderEngine(); wakeAndDrain("network");
   });
   window.addEventListener("offline", () => { state.caps.online = false; renderEngine(); });
 }
 
 bindUI();
 render();
+// Прапорці очікування з минулого запуску застаріли (ключ/мережа могли змінитись) —
+// будимо всіх, а диспетчер сам заново вирішить, чи чекати. Завершене вже стало нотатками.
+state.queue = wakeWaiting(pruneQueue(state.queue, { keepDone: 0 }));
+saveQueue();
 renderQueue();
 // Головне для «падіння лише затримає»: незавершені завдання переживають
 // перезапуск застосунку й підхоплюються самі.
@@ -738,6 +764,7 @@ window.PocketAgent = {
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
           classifyFailure, nextBackoffMs, defaultChain, pickProvider, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
+  wake: wakeAndDrain,
 };
 </script>
 </body>

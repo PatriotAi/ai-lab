@@ -211,6 +211,11 @@ try {
     (await page.textContent(".note .a")).includes("справжня відповідь після повтору"));
   check("провайдера викликано двічі: падіння + успішний повтор", 2, cloudCalls);
   check("черга спорожніла після успіху", 0, await page.locator("#queue .qitem").count());
+  // P2 (рев'ю Codex): рядок у черзі зникає з екрана, але лишався б у localStorage
+  const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem("pocket-agent.queue.v1") || "[]"));
+  check("завершені завдання не лишаються в localStorage (квота)", 0, persisted.filter((x) => x.status === "done").length);
+  truthy("відповідь не дублюється в збереженій черзі",
+    !JSON.stringify(persisted).includes("справжня відповідь після повтору"));
 
   // Вичерпання ланцюга: запис усе одно лишається, завдання видиме й повторюване
   await page.unroute("**/api.anthropic.com/**");
@@ -237,6 +242,137 @@ try {
   await page.waitForFunction(() => document.querySelectorAll("#queue .qitem").length >= 1);
   truthy("незавершене завдання пережило перезапуск застосунку",
     (await page.textContent("#queue .qitem .qtext")).includes("пережити перезапуск"));
+
+  // ── Рев'ю Codex (PR #74): три P1 у реальному браузері ──
+  // Кожен із них пройшов усі unit-тести, доки логіка жила лише в app.html.
+  const reset = (extra = "") => page.evaluate(`(() => { const s = window.PocketAgent.state;
+    s.queue = []; s.notes = []; s.health = {}; s.settings.prefer = "auto"; ${extra}
+    localStorage.setItem("pocket-agent.queue.v1", "[]"); localStorage.setItem("pocket-agent.notes.v1", "[]");
+    window.PocketAgent.render(); })()`);
+  const okAnswer = (text) => (route) => route.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ content: [{ type: "text", text }] }) });
+
+  // P1-1: замкнений ключ після перезапуску — очікування, а не тиха деградація
+  await page.unroute("**/api.anthropic.com/**");
+  let lockedCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { lockedCalls++; return okAnswer("відповідь після розблокування")(route); });
+  await page.evaluate(async () => {
+    const env = await window.PocketAgent.core.encryptSecret("real-key", "фраза-розблокування");
+    localStorage.setItem("pocket-agent.secret.v1", JSON.stringify(env));
+    localStorage.setItem("pocket-agent.notes.v1", "[]");
+    localStorage.setItem("pocket-agent.queue.v1", JSON.stringify([{
+      id: "locked1", input: "відновлене хмарне завдання", kind: "ask", intent: "cloud", status: "pending",
+      attempts: 0, nextAttemptAt: Date.now() - 1000, createdAt: Date.now() - 2000, tried: [], lastError: null }]));
+  });
+  await page.reload({ waitUntil: "networkidle" });   // ключ у пам'яті сесії порожній: він замкнений
+  await page.waitForFunction(() => document.getElementById("queueStatus").textContent.includes("відкрий ключ"));
+  ok("P1-1: після перезапуску завдання чекає відкриття ключа");
+  await page.waitForTimeout(1500);                    // тиша не є доказом — даємо шанс деградувати
+  check("P1-1: завдання не деградувало в офлайн-нотатку", 0, await page.locator(".note").count());
+  check("P1-1: у хмару без ключа нічого не пішло", 0, lockedCalls);
+  truthy("P1-1: у списку названо причину очікування",
+    (await page.textContent("#queue .qmeta")).includes("чекає ключа"));
+  await page.click("#openSettings");
+  await page.fill("#passphrase", "фраза-розблокування");
+  await page.click("#unlockKey");
+  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  truthy("P1-1: після розблокування прийшла СПРАВЖНЯ відповідь",
+    (await page.textContent(".note .a")).includes("відповідь після розблокування"));
+  check("P1-1: хмару викликано рівно раз", 1, lockedCalls);
+  await page.click("#closeSettings");
+
+  // Retry-After у РЕАЛЬНОМУ браузері читається лише якщо провайдер розкриває його через
+  // Access-Control-Expose-Headers. Без цього fetch повертає null — і «Retry-After має
+  // пріоритет» лишається мертвим кодом (доведено прямо 2026-09-29). Контур мусить
+  // лишатись справним в обох випадках, тому перевіряємо обидва.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", (route) =>
+    route.fulfill({ status: 429, headers: { "retry-after": "30" }, contentType: "application/json",
+      body: JSON.stringify({ error: { message: "rate limit" } }) }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "завдання без розкритого Retry-After");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  const hiddenCd = await page.evaluate(() => window.PocketAgent.state.health.cloud.cooldownUntil - Date.now());
+  truthy("Retry-After без CORS-дозволу браузер не віддає → контур падає на експоненту (пауза коротка), а не ламається",
+    hiddenCd < 3000, "пауза < 3 с");
+
+  // P1-2: cooldown не з'їдає спроб і не б'є провайдера, що ще на паузі
+  await page.unroute("**/api.anthropic.com/**");
+  let coolCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { coolCalls++;
+    return route.fulfill({ status: 429, contentType: "application/json",
+      headers: { "retry-after": "30", "access-control-expose-headers": "retry-after" },
+      body: JSON.stringify({ error: { message: "rate limit" } }) }); });
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "перше завдання кладе провайдера");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  const shownCd = await page.evaluate(() => window.PocketAgent.state.health.cloud.cooldownUntil - Date.now());
+  truthy("Retry-After, розкритий через CORS, реально керує паузою (~30 с)", shownCd > 25000, "пауза > 25 с");
+  await page.fill("#input", "друге завдання під час cooldown");
+  await page.click("#send");
+  await page.waitForFunction(() => {
+    const b = window.PocketAgent.state.queue.find((x) => x.input.startsWith("друге"));
+    return b && b.nextAttemptAt > Date.now() + 10000;
+  });
+  const second = await page.evaluate(() => window.PocketAgent.state.queue.find((x) => x.input.startsWith("друге")));
+  check("P1-2: друге завдання чекає, спробу НЕ витрачено", 0, second.attempts);
+  check("P1-2: воно лишилось у черзі, а не пішло в офлайн", "pending", second.status);
+  check("P1-2: провайдера, що на паузі, не било (лише перший виклик)", 1, coolCalls);
+  check("P1-2: офлайн-нотаток нема — роботу не підмінено", 0, await page.locator(".note").count());
+
+  // P1-3: «Тільки локальна» не відправляє запит у хмару
+  await page.unroute("**/api.anthropic.com/**");
+  let leakCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { leakCalls++; return okAnswer("НЕ МАЛО ПРИЛЕТІТИ")(route); });
+  await reset(`s.apiKey = "k"; s.settings.prefer = "local";`);
+  await page.fill("#input", "приватний запит лише для локальної моделі");
+  await page.click("#send");
+  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  check("P1-3: у хмару НІЧОГО не пішло попри відкритий ключ і мережу", 0, leakCalls);
+  truthy("P1-3: відповідь не від хмари", !(await page.textContent(".note .a")).includes("НЕ МАЛО ПРИЛЕТІТИ"));
+  truthy("P1-3: чіп чесно каже «офлайн», а не «хмара»", (await page.textContent("#engineChip")).includes("офлайн"));
+  await reset();
+
+  // Застарілий прапорець очікування після перезапуску не має «заморозити» завдання назавжди:
+  // прапорець зберігається в localStorage, а подія `online`, що його будить, уже не прийде.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.evaluate(() => {
+    localStorage.removeItem("pocket-agent.secret.v1");
+    localStorage.setItem("pocket-agent.notes.v1", "[]");
+    localStorage.setItem("pocket-agent.queue.v1", JSON.stringify([{
+      id: "stale1", input: "завдання із застарілим очікуванням мережі", kind: "ask", intent: "any",
+      status: "pending", waiting: "network", attempts: 0, nextAttemptAt: Date.now() - 1000,
+      createdAt: Date.now() - 2000, tried: [], lastError: null }]));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  ok("застарілий прапорець очікування після перезапуску не заморозив завдання");
+  await reset();
+
+  // P2-2: проводка сповіщення. Чиста failureNotification вже перевірена юніт-тестом, але
+  // саме `new Notification(...)` в app.html міг би знову взяти текст завдання — тому
+  // підміняємо Notification і читаємо, що застосунок справді передав ОС.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", (route) =>
+    route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: { message: "bad" } }) }));
+  await reset(`s.apiKey = "k";`);
+  await page.evaluate(() => {
+    window.__osNotes = [];
+    window.Notification = class { constructor(title, opts) { window.__osNotes.push({ title, ...opts }); }
+      static get permission() { return "granted"; } };
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+  });
+  await page.fill("#input", "мій діагноз і пароль SuperSecret777");
+  await page.click("#send");
+  await page.waitForFunction(() => window.__osNotes.length === 1, null, { timeout: 15000 });
+  const osNote = await page.evaluate(() => window.__osNotes[0]);
+  truthy("P2-2: системне сповіщення про збій справді показано, коли застосунок згорнуто", osNote.body.length > 0);
+  truthy("P2-2: у сповіщенні (видно на екрані блокування) НЕМАЄ тексту завдання",
+    !JSON.stringify(osNote).includes("SuperSecret777") && !JSON.stringify(osNote).includes("діагноз"));
+  await page.evaluate(() => { delete document.visibilityState; });
+  await reset();
 
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: join(SHOTS, "pixel7-offline.png"), fullPage: false });

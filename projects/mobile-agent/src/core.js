@@ -51,10 +51,11 @@ export function pickEngine(ctx = {}) {
   }
   if (prefer === "local") {
     if (localOk) return { engine: "local", reason: "обрано вручну", fallback: false };
+    // «Тільки локальна» — це обіцянка про дані: запит не залишає пристрій. Тому
+    // без локального двигуна ми НЕ йдемо в хмару, навіть якщо ключ відкритий
+    // (рев'ю Codex до PR #74: чіп казав «локальна», а запит летів у хмару).
     const why = !ctx.webgpu ? "нема WebGPU" : "не secure context (потрібен HTTPS)";
-    return cloudOk
-      ? { engine: "cloud", reason: `локальна недоступна (${why})`, fallback: true }
-      : { engine: "offline", reason: `локальна недоступна (${why})`, fallback: true };
+    return { engine: "offline", reason: `локальна недоступна (${why}); хмару не використовую — обрано «тільки локальна»`, fallback: true };
   }
   if (cloudOk) return { engine: "cloud", reason: "є мережа і ключ", fallback: false };
   if (localOk) return { engine: "local", reason: "нема хмари, є WebGPU", fallback: true };
@@ -476,14 +477,108 @@ export function markSuccess(health, id) {
   return next;
 }
 
+// ── Рішення диспетчера (чиста функція) ─────────────────────────────────────
+// Раніше ця логіка жила лише в app.html — і саме тому три P1 із рев'ю Codex
+// (PR #74) пройшли повз усі unit-тести: тестувати було нічого. Тепер кожен крок
+// обходу ланцюга — чиста функція від вхідних даних.
+
+/**
+ * Явний вибір користувача звужує ланцюг, а не лише підпис на чіпі.
+ * «Тільки локальна» — обіцянка про дані: запит не залишає пристрій.
+ */
+export function constrainChain(chain, prefer) {
+  if (prefer === "local") return chain.filter((n) => n.kind === "local");
+  return chain;
+}
+
+/**
+ * Що робити з завданням ЗАРАЗ. Повертає одне з:
+ *   {action:"run", node}                          — виконати цим вузлом;
+ *   {action:"wait", reason:"cooldown", untilMs}   — справжні вузли на паузі: чекати, НЕ витрачаючи спробу;
+ *   {action:"wait", reason:"locked"}              — ключ збережено, але ще не відкрито: чекати людину;
+ *   {action:"wait", reason:"network"}             — ключ є, мережі нема: чекати мережу;
+ *   {action:"exhausted"}                          — у цьому проході справжніх вузлів не лишилось.
+ *
+ * Три інваріанти (кожен — окреме зауваження Codex, кожен має регрес-тест):
+ *  1. Збережений, але замкнений ключ — це СТАН ОЧІКУВАННЯ, а не «ключа нема»:
+ *     інакше перезапуск тихо перетворює хмарне завдання на офлайн-заглушку.
+ *  2. Чекання cooldown не є невдачею й не витрачає спроб: інакше друге завдання
+ *     вичерпує всі спроби й іде в офлайн задовго до кінця вікна провайдера.
+ *  3. Явно обраний двигун обмежує ланцюг: «тільки локальна» ніколи не веде в хмару.
+ */
+export function planDispatch(o = {}) {
+  const now = o.now ?? Date.now();
+  const caps = o.caps || {};
+  const health = o.health || {};
+  const tried = new Set(o.tried || []);
+  const prefer = o.prefer || "auto";
+  const wantsCloud = o.wantsCloud === true;
+  const offlineNode = { id: "offline", kind: "offline" };
+
+  if (prefer === "offline") return { action: "run", node: offlineNode };
+
+  const real = constrainChain(o.chain || [], prefer).filter((n) => n.kind !== "offline" && !tried.has(n.id));
+  const cooling = [];
+  let available = null, lockedBlocked = false, networkBlocked = false;
+
+  for (const node of real) {
+    if (node.kind === "cloud") {
+      const has = node.backup ? caps.hasBackupKey : caps.hasCloudKey;
+      const locked = node.backup ? caps.backupKeyLocked : caps.keyLocked;
+      // Чекати ключа чи мережі мають лише завдання з наміром «хмара». Решта (створені
+      // за офлайн-чіпа) не блокуються тим, чого людина не збиралась чекати.
+      if (!has) { if (locked && wantsCloud) lockedBlocked = true; continue; }
+      if (caps.online === false) { if (wantsCloud) networkBlocked = true; continue; }
+    } else if (node.kind === "local") {
+      if (!caps.localReady) continue;
+    }
+    const until = health[node.id]?.cooldownUntil || 0;
+    if (until > now) { cooling.push(until); continue; }
+    if (!available) available = node;
+  }
+
+  if (available) return { action: "run", node: available };
+
+  // Уже щось пробували в цьому проході й нічого не лишилось: ланцюг вичерпано.
+  // Офлайн — лише як остання ланка на останній спробі.
+  if (tried.size > 0) {
+    return o.lastChance === true ? { action: "run", node: offlineNode } : { action: "exhausted" };
+  }
+
+  // Нічого не пробували, але справжні вузли існують — просто зараз недоступні.
+  if (cooling.length) return { action: "wait", reason: "cooldown", untilMs: Math.min(...cooling) };
+  if (lockedBlocked) return { action: "wait", reason: "locked" };
+  if (networkBlocked) return { action: "wait", reason: "network" };
+
+  // Справжніх вузлів нема взагалі — офлайн-структурування єдине, що можна дати.
+  return { action: "run", node: offlineNode };
+}
+
+/**
+ * Системне сповіщення про збій. Текст завдання туди НЕ потрапляє ніколи: тіло
+ * сповіщення видно на екрані блокування, а застосунок в усьому іншому тримає дані
+ * на пристрої (рев'ю Codex до PR #74). Приймає завдання лише щоб тест міг довести,
+ * що воно ігнорується.
+ */
+export function failureNotification(_task) {
+  return {
+    title: "Кишеньковий агент",
+    body: "Завдання не вдалося виконати. Відкрий застосунок, щоб повторити.",
+  };
+}
+
 // ── Черга завдань ──────────────────────────────────────────────────────────
 /** Завдання з детермінованих полів; id ззовні, щоб тест був відтворюваний. */
-export function makeTask({ input, kind = "ask", now = Date.now(), id }) {
+export function makeTask({ input, kind = "ask", now = Date.now(), id, intent = "any" }) {
   const text = String(input ?? "").trim();
   return {
     id: id || `t${now}-${Math.abs(hashString(text + now)).toString(36)}`,
     input: text,
     kind,
+    // Намір фіксується при створенні: якщо чіп казав «хмара», завдання має право
+    // ЧЕКАТИ ключа чи мережі. Якщо чіп казав «офлайн», людина очікує офлайн-відповіді
+    // одразу — змушувати її чекати ключа, якого вона не збиралась відкривати, помилка.
+    intent: intent === "cloud" ? "cloud" : "any",
     status: "pending",
     attempts: 0,
     nextAttemptAt: now,
@@ -496,7 +591,7 @@ export function makeTask({ input, kind = "ask", now = Date.now(), id }) {
 /** Найстаріше завдання, якому вже час виконуватись. */
 export function nextRunnable(queue, now = Date.now()) {
   return (queue || [])
-    .filter((t) => t.status === "pending" && t.nextAttemptAt <= now)
+    .filter((t) => t.status === "pending" && !t.waiting && t.nextAttemptAt <= now)
     .sort((a, b) => a.createdAt - b.createdAt)[0] || null;
 }
 
@@ -531,6 +626,29 @@ export function applyOutcome(queue, id, outcome, o = {}) {
   });
 }
 
+/**
+ * Відкласти завдання БЕЗ витрати спроби. Чекання — не невдача: спробу з'їдає лише
+ * справжній виклик, що відмовив. Дві форми:
+ *   {untilMs}  — таймерне чекання (cooldown провайдера): пробудиться саме;
+ *   {waiting}  — чекання події («locked» — відкрий ключ, «network» — мережа):
+ *                таймера нема, будить `wakeWaiting`. Без цього спорожнення крутилось
+ *                би в холосту, бо завдання лишалось би «готовим» щоразу.
+ */
+export function deferTask(queue, id, o = {}) {
+  return (queue || []).map((t) => {
+    if (t.id !== id) return t;
+    if (o.waiting) return { ...t, waiting: o.waiting };
+    return { ...t, waiting: undefined, nextAttemptAt: Math.max(t.nextAttemptAt, o.untilMs ?? t.nextAttemptAt) };
+  });
+}
+
+/** Розбудити завдання, що чекали подію (усі або лише за причиною). */
+export function wakeWaiting(queue, reason) {
+  return (queue || []).map((t) =>
+    t.waiting && (!reason || t.waiting === reason) ? { ...t, waiting: undefined } : t,
+  );
+}
+
 /** Ручний повтор завдання, що вичерпало спроби: лічильник і історія — з нуля. */
 export function requeue(queue, id, now = Date.now()) {
   return (queue || []).map((t) =>
@@ -556,18 +674,22 @@ export function queueSummary(queue, now = Date.now()) {
   const list = queue || [];
   const pending = list.filter((t) => t.status === "pending");
   const failed = list.filter((t) => t.status === "failed");
-  const waiting = pending.filter((t) => t.nextAttemptAt > now);
-  const nextAt = waiting.length ? Math.min(...waiting.map((t) => t.nextAttemptAt)) : null;
+  const parkedLocked = pending.filter((t) => t.waiting === "locked");
+  const parkedNet = pending.filter((t) => t.waiting === "network");
+  const timed = pending.filter((t) => !t.waiting && t.nextAttemptAt > now);
+  const nextAt = timed.length ? Math.min(...timed.map((t) => t.nextAttemptAt)) : null;
   let text = "";
   if (failed.length) text = `${failed.length} не вдалося — потрібен ручний повтор`;
-  else if (waiting.length) text = `${pending.length} у черзі · наступна спроба через ${Math.max(1, Math.round((nextAt - now) / 1000))} с`;
+  else if (parkedLocked.length) text = `${parkedLocked.length} чекає: відкрий ключ (⚙ → «Відкрити»)`;
+  else if (parkedNet.length) text = `${parkedNet.length} чекає на мережу`;
+  else if (timed.length) text = `${pending.length} у черзі · наступна спроба через ${Math.max(1, Math.round((nextAt - now) / 1000))} с`;
   else if (pending.length) text = `${pending.length} у черзі · виконується`;
   return {
     pending: pending.length,
     failed: failed.length,
     done: list.filter((t) => t.status === "done").length,
     nextAttemptIn: nextAt === null ? null : Math.max(0, nextAt - now),
-    needsAttention: failed.length > 0,
+    needsAttention: failed.length > 0 || parkedLocked.length > 0,
     text,
   };
 }

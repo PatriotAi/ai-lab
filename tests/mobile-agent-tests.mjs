@@ -40,8 +40,12 @@ check("ключ є, але мережі нема → не хмара", "offline"
   pe({ online: false, hasCloudKey: true, webgpu: false }).engine);
 check("prefer=offline поважається навіть за наявності хмари", "offline",
   pe({ online: true, hasCloudKey: true, prefer: "offline" }).engine);
-check("prefer=local без WebGPU → падає на хмару", "cloud",
+// Змінено свідомо (рев'ю Codex до PR #74): «Тільки локальна» — обіцянка про дані.
+// Раніше чіп при недоступній локальній тихо вів у хмару.
+check("prefer=local без WebGPU → офлайн, а НЕ хмара (запит не залишає пристрій)", "offline",
   pe({ online: true, hasCloudKey: true, webgpu: false, prefer: "local" }).engine);
+check("prefer=local з WebGPU+HTTPS і відкритим хмарним ключем → локальна", "local",
+  pe({ online: true, hasCloudKey: true, webgpu: true, secureContext: true, prefer: "local" }).engine);
 truthy("вимушена деградація позначена fallback=true",
   pe({ online: true, hasCloudKey: true, webgpu: false, prefer: "local" }).fallback === true);
 truthy("свідомий вибір не позначається fallback",
@@ -327,6 +331,88 @@ check("збій вимагає уваги", true, sFail.needsAttention);
 truthy("текст збою прямо каже про ручний повтор", sFail.text.includes("ручний повтор"));
 check("збій має пріоритет над очікуванням у тексті", true,
   core.queueSummary([{ status: "failed" }, { status: "pending", nextAttemptAt: 9000 }], 1000).text.includes("не вдалося"));
+
+// ═══════ 16. Диспетчер: інваріанти з рев'ю Codex до PR #74 ═══════
+console.log('\n════════ 16. Диспетчер (рев\'ю Codex, PR #74) ════════');
+const dchain = core.defaultChain({ backupProvider: "openai" });
+const dcaps = { online: true, hasCloudKey: true, hasBackupKey: false, localReady: false };
+const plan = (o) => core.planDispatch({ chain: dchain, now: 1000, ...o });
+
+// P1-1: збережений, але замкнений ключ — СТАН ОЧІКУВАННЯ, а не «ключа нема»
+const lockedCaps = { online: true, hasCloudKey: false, keyLocked: true, hasBackupKey: false, localReady: false };
+check("P1-1: замкнений ключ + намір «хмара» → чекаємо людину, а не офлайн", "locked",
+  plan({ caps: lockedCaps, wantsCloud: true }).reason);
+check("P1-1: чекання ключа НЕ дозволяє офлайн навіть на останній спробі", "wait",
+  plan({ caps: lockedCaps, wantsCloud: true, lastChance: true }).action);
+check("P1-1: замкнений ключ без наміру «хмара» → офлайн одразу (чіп казав «офлайн»)", "offline",
+  plan({ caps: lockedCaps, wantsCloud: false }).node?.id ?? "(рішення без вузла)");
+check("P1-1: реальний локальний вузол доступний → працюємо ним, не чекаємо", "local",
+  plan({ caps: { ...lockedCaps, localReady: true }, wantsCloud: true }).node?.id ?? "(рішення без вузла)");
+check("P1-1: замкнений ЗАПАСНИЙ ключ теж чекає", "locked",
+  plan({ caps: { online: true, hasCloudKey: false, hasBackupKey: false, backupKeyLocked: true, localReady: false }, wantsCloud: true }).reason);
+check("P1-1: ключа нема взагалі (нічого не збережено) → офлайн, як і раніше", "offline",
+  plan({ caps: { online: true, hasCloudKey: false, keyLocked: false, localReady: false }, wantsCloud: true }).node?.id ?? "(рішення без вузла)");
+check("ключ є, мережі нема, намір «хмара» → чекаємо мережу", "network",
+  plan({ caps: { ...dcaps, online: false }, wantsCloud: true }).reason);
+check("ключ є, мережі нема, намір «офлайн» → офлайн одразу", "offline",
+  plan({ caps: { ...dcaps, online: false }, wantsCloud: false }).node?.id ?? "(рішення без вузла)");
+
+// P1-2: чекання cooldown не є невдачею і не витрачає спроб
+const cooled = { cloud: { cooldownUntil: 31000 } };
+const pc = plan({ caps: dcaps, health: cooled, wantsCloud: true });
+check("P1-2: усі справжні вузли в паузі → чекаємо, а не деградуємо", "wait", pc.action);
+check("P1-2: чекаємо саме до кінця cooldown провайдера", 31000, pc.untilMs);
+check("P1-2: навіть на останній спробі чекаємо cooldown, не йдемо в офлайн", "wait",
+  plan({ caps: dcaps, health: cooled, lastChance: true, wantsCloud: true }).action);
+check("P1-2: два вузли в паузі → до найранішого кінця", 20000,
+  plan({ caps: { ...dcaps, hasBackupKey: true }, wantsCloud: true,
+    health: { cloud: { cooldownUntil: 31000 }, "cloud-backup": { cooldownUntil: 20000 } } }).untilMs);
+check("прохід уже щось пробував і ланцюг вичерпано → exhausted (спроба витрачається)", "exhausted",
+  plan({ caps: dcaps, tried: ["cloud"], wantsCloud: true }).action);
+check("вичерпано на останній спробі → офлайн як остання ланка", "offline",
+  plan({ caps: dcaps, tried: ["cloud"], lastChance: true, wantsCloud: true }).node?.id ?? "(рішення без вузла)");
+const deferred = core.deferTask([core.makeTask({ input: "x", now: 0, id: "d1" })], "d1", { untilMs: 31000 });
+check("deferTask НЕ витрачає спробу", 0, deferred[0].attempts);
+check("deferTask відсуває на кінець cooldown", 31000, deferred[0].nextAttemptAt);
+check("deferTask не повертає час назад", 31000,
+  core.deferTask([{ id: "d2", nextAttemptAt: 31000 }], "d2", { untilMs: 5000 })[0].nextAttemptAt);
+check("завдання в стані очікування події не «готове» (інакше холостий цикл)", null,
+  core.nextRunnable(core.deferTask([core.makeTask({ input: "x", now: 0, id: "d3" })], "d3", { waiting: "locked" }), 99999));
+check("wakeWaiting повертає його в роботу", "d3",
+  core.nextRunnable(core.wakeWaiting(core.deferTask([core.makeTask({ input: "x", now: 0, id: "d3" })], "d3", { waiting: "locked" })), 99999).id);
+check("wakeWaiting за причиною не чіпає чужих очікувань", "network",
+  core.wakeWaiting([{ id: "a", waiting: "locked" }, { id: "b", waiting: "network" }], "locked")[1].waiting);
+const sLocked = core.queueSummary([{ status: "pending", waiting: "locked", nextAttemptAt: 0 }], 1000);
+truthy("очікування ключа видно людині прямо в тексті", sLocked.text.includes("відкрий ключ"));
+check("очікування ключа вимагає уваги людини", true, sLocked.needsAttention);
+truthy("очікування мережі видно в тексті",
+  core.queueSummary([{ status: "pending", waiting: "network", nextAttemptAt: 0 }], 1000).text.includes("мережу"));
+check("намір «хмара» фіксується при створенні завдання", "cloud", core.makeTask({ input: "x", intent: "cloud" }).intent);
+check("невідомий намір не стає «хмарою»", "any", core.makeTask({ input: "x", intent: "щось" }).intent);
+
+// P1-3: явно обраний двигун обмежує ланцюг
+const allNodesCaps = { online: true, hasCloudKey: true, hasBackupKey: true, localReady: true };
+check("P1-3: «тільки локальна» → ланцюг лише з локальної", "local",
+  core.constrainChain(dchain, "local").map((n) => n.id).join(","));
+check("P1-3: prefer=local, хмара відкрита, локальна готова → локальна, не хмара", "local",
+  plan({ caps: allNodesCaps, prefer: "local" }).node?.id ?? "(рішення без вузла)");
+check("P1-3: prefer=local, локальної нема → офлайн, а НЕ хмара", "offline",
+  plan({ caps: { ...allNodesCaps, localReady: false }, prefer: "local" }).node?.id ?? "(рішення без вузла)");
+check("P1-3: prefer=local + відкритий ключ + мережа: жоден хмарний вузол не обирається", "offline",
+  plan({ caps: { online: true, hasCloudKey: true, hasBackupKey: true, localReady: false }, prefer: "local", wantsCloud: true }).node?.id ?? "(рішення без вузла)");
+check("prefer=offline → лише офлайн навіть за відкритої хмари", "offline",
+  plan({ caps: allNodesCaps, prefer: "offline" }).node?.id ?? "(рішення без вузла)");
+check("prefer=auto не звужує ланцюг", 4, core.constrainChain(dchain, "auto").length);
+
+// P2: прибирання завершених + сповіщення без тексту
+check("P2: pruneQueue не лишає завершених (keepDone=0)", 1,
+  core.pruneQueue([{ id: "a", status: "done", finishedAt: 1 }, { id: "b", status: "failed" }, { id: "c", status: "done", finishedAt: 2 }], { keepDone: 0 }).length);
+check("P2: pruneQueue зберігає failed (потрібен ручний повтор)", "failed",
+  core.pruneQueue([{ id: "b", status: "failed" }], { keepDone: 0 })[0].status);
+const notif = core.failureNotification({ input: "мій секретний пароль 12345 і діагноз" });
+truthy("P2: текст завдання НЕ потрапляє в системне сповіщення",
+  !notif.body.includes("секретний") && !notif.body.includes("12345") && !notif.title.includes("секретний"));
+truthy("P2: сповіщення все ж повідомляє про збій", notif.body.includes("не вдалося"));
 
 console.log(`\nTOTALS pass=${PASS} fail=${FAIL}`);
 if (FAIL) {
