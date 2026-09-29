@@ -3,12 +3,17 @@
 
 Read-only. Exit 0 — усе зійшлося; exit 1 — є розбіжність.
 Перевіряє те, що інакше трималося б лише на уважності автора:
-джерела плагінів, резолв симлінків, покриття скілів, похідні лічильники,
-збіг версій, збіг ліцензій (з --publish — блокує).
+джерела плагінів, резолв симлінків (бандл МУСИТЬ бути симлінком на джерело правди,
+не копією), покриття скілів, похідні лічильники, збіг версій, політика MIT
+(кожен SKILL.md декларує MIT у frontmatter; відсутнє поле — теж порушення).
+
+Схемна валідація (`claude plugin validate --strict`) потребує claude CLI. Без нього:
+у звичайному прогоні — видиме попередження (структурні перевірки лишаються корисними,
+так працює CI), у режимі --publish — ПОМИЛКА.
 
 Використання:
-    python3 scripts/verify-marketplace.py            # структурний гейт
-    python3 scripts/verify-marketplace.py --publish  # + гейт готовності до публікації
+    python3 scripts/verify-marketplace.py            # звичайний гейт
+    python3 scripts/verify-marketplace.py --publish  # + claude CLI обов'язковий
 """
 from __future__ import annotations
 
@@ -116,9 +121,15 @@ def check_plugin(entry: dict, seen: dict[str, str]) -> None:
         err(f"{name}: жодного скіла в skills/")
     for s in skills:
         link = pdir / "skills" / s
+        if not link.is_symlink():
+            # Копія каталогу замість симлінка тихо ламає «єдине джерело правди»: resolve()
+            # повертає її саму, усі подальші перевірки (покриття за іменем, SKILL.md) проходять,
+            # а зміни в справжньому скілі перестають доходити до бандла.
+            err(f"{name}/{s}: не симлінк — бандл мусить вказувати на джерело правди, а не тримати копію")
+            continue
         target = link.resolve()
         if not target.exists():
-            err(f"{name}/{s}: битий симлінк → {os.readlink(link) if link.is_symlink() else '?'}")
+            err(f"{name}/{s}: битий симлінк → {os.readlink(link)}")
             continue
         if ROOT not in target.parents:
             err(f"{name}/{s}: ціль поза маркетплейсом ({target}) — Claude Code пропустить її при встановленні")
@@ -155,20 +166,35 @@ def check_coverage(seen: dict[str, str]) -> None:
         err(f"плагіни віддають скіли, яких немає в джерелі: {', '.join(ghosts)}")
 
 
-def check_cli_validate(mp: dict) -> None:
+# Мітка, за якою tests/run-tests.sh розпізнає, що схемна валідація НЕ ганялась, і
+# показує це як «не ганялось», а не як зелене. Змінюєш текст — змінюй і там.
+SCHEMA_SKIPPED_MARK = "схемну валідацію пропущено"
+
+
+def check_cli_validate(mp: dict, publish: bool = False) -> None:
     """Офіційний валідатор — джерело істини щодо схеми.
 
     Плагіни перевіряються на РОЗІМЕНОВАНІЙ копії (`cp -rL`). Починаючи з Claude Code
     v2.1.283 `plugin validate` не йде за симлінками і сам радить «validate the real
     paths separately»; на копії з реальними файлами `--strict` лишається строгим і
     жодне попередження не доводиться пробачати.
+
+    Без `claude` CLI схемна валідація неможлива. У звичайному прогоні це ВИДИМЕ
+    попередження (структурні перевірки лишаються корисними на машині без CLI — так
+    працює CI). У режимі `--publish` це ПОМИЛКА: реліз без схемної перевірки міг би
+    випустити зламаний маніфест, а гейт готовності до публікації мав би саме цьому
+    запобігати.
     """
     claude = None
     try:
         subprocess.run(["claude", "--version"], capture_output=True, check=True, timeout=60)
         claude = "claude"
     except (OSError, subprocess.SubprocessError):
-        warn("claude CLI недоступний — схемну валідацію пропущено")
+        msg = f"claude CLI недоступний — {SCHEMA_SKIPPED_MARK}"
+        if publish:
+            err(msg + " (у режимі публікації це помилка: без схемної перевірки реліз не дозволено)")
+        else:
+            warn(msg)
         return
 
     def run(target: Path, label: str) -> None:
@@ -200,7 +226,16 @@ def check_cli_validate(mp: dict) -> None:
 
 
 
-def check_licenses(publish: bool) -> None:
+def frontmatter_license(text: str) -> str | None:
+    """Значення `license:` із YAML-frontmatter (між першою парою `---`), або None."""
+    fm = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.S)
+    if not fm:
+        return None
+    m = re.search(r"^license:[ \t]*(.+?)[ \t]*$", fm.group(1), re.M)
+    return m.group(1).strip() if m else None
+
+
+def check_licenses() -> None:
     """Політика лабораторії: MIT скрізь, однаково на кожному рівні.
 
     Це вже не «попередження перед публікацією», а інваріант: рішення власника від
@@ -214,7 +249,10 @@ def check_licenses(publish: bool) -> None:
         elif not lic.read_text(encoding="utf-8").lstrip().startswith("MIT License"):
             err(f"{lic.relative_to(ROOT)}: не MIT")
 
-    # 2. поле license: у SKILL.md
+    # 2. поле license: у frontmatter кожного SKILL.md. Відсутнє поле — теж порушення:
+    #    політика «MIT скрізь» вимагає, щоб КОЖЕН скіл її декларував, а не лише щоб
+    #    ті, що декларують, не суперечили. Читаємо саме frontmatter: рядок «license: MIT»
+    #    у тілі (приклад шаблону, цитата) не є метаданими скіла.
     offenders: dict[str, list[str]] = {}
     for base in (MELANIA_SKILLS, LAB_SKILLS):
         if not base.is_dir():
@@ -222,12 +260,12 @@ def check_licenses(publish: bool) -> None:
         for p in base.iterdir():
             if p.is_symlink() or not (p / "SKILL.md").is_file():
                 continue
-            m = re.search(r"^license:\s*(.+)$", (p / "SKILL.md").read_text(encoding="utf-8"), re.M)
-            if m and m.group(1).strip() != "MIT":
-                offenders.setdefault(m.group(1).strip(), []).append(p.name)
+            value = frontmatter_license((p / "SKILL.md").read_text(encoding="utf-8"))
+            if value != "MIT":
+                offenders.setdefault(value if value is not None else "<відсутнє>", []).append(p.name)
     if offenders:
         summary = "; ".join(f"{k!r} у {', '.join(sorted(v))}" for k, v in sorted(offenders.items()))
-        err(f"політика MIT порушена — не-MIT ліцензії: {summary}")
+        err(f"політика MIT порушена — ліцензія не MIT або не задекларована: {summary}")
 
     # 3. маніфести плагінів і записи каталогу
     try:
@@ -258,8 +296,8 @@ def main() -> int:
         for entry in mp.get("plugins", []):
             check_plugin(entry, seen)
         check_coverage(seen)
-        check_cli_validate(mp)
-        check_licenses(publish)
+        check_cli_validate(mp, publish)
+        check_licenses()
         print(f"маркетплейс: {mp.get('name')} · плагінів: {len(mp.get('plugins', []))} · скілів: {len(seen)}")
 
     for w in warnings:
