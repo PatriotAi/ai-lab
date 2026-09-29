@@ -161,8 +161,22 @@ for sec in "Щотижневий дайджест" "Активність за 7 
   [[ "$dg" == *"$sec"* ]] && ok "секція «$sec» присутня" \
     || bad "секція «$sec» присутня" "$sec" "відсутня"
 done
-[[ "$dg" =~ Комітів:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
+# Лічильник має ДВІ форми рядка: активний тиждень («Комітів: **N**») і тихий
+# («Комітів за тиждень: **0**»). Перша версія тесту знала лише першу, тож
+# результат залежав від дати запуску: 2026-09-28 (останній коміт — 31 липня)
+# набір почервонів на справному коді. Живий прогін приймає обидві форми, а
+# кожну гілку окремо доводять ізольовані репо з контрольованою датою.
+[[ "$dg" =~ Комітів(\ за\ тиждень)?:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
   || bad "лічильник комітів — число" "Комітів: **N**" "не знайдено"
+mk_repo digest_active
+dg_a=$(bash "$REPO/scripts/weekly-digest.sh" 2>&1)
+[[ "$dg_a" == *"Комітів: **1**"* ]] && ok "активний тиждень → «Комітів: **1**»" \
+  || bad "активний тиждень → «Комітів: **1**»" "Комітів: **1**" "$(printf '%s' "$dg_a" | grep -m1 Комітів)"
+GIT_AUTHOR_DATE="2020-01-01T00:00:00Z" GIT_COMMITTER_DATE="2020-01-01T00:00:00Z" mk_repo digest_quiet
+dg_q=$(bash "$REPO/scripts/weekly-digest.sh" 2>&1)
+[[ "$dg_q" == *"Комітів за тиждень: **0**"* ]] && ok "тихий тиждень → «Комітів за тиждень: **0**»" \
+  || bad "тихий тиждень → «Комітів за тиждень: **0**»" "Комітів за тиждень: **0**" "$(printf '%s' "$dg_q" | grep -m1 Комітів)"
+cd "$REPO" || exit 1
 
 echo ""
 echo "════════ 5. SessionStart: контекст сесії ════════"
@@ -942,8 +956,57 @@ rows = m.check_unwired_hooks(pathlib.Path('.'))
 print(sum(1 for r in rows if r[0] == m.DRIFT))
 PY
 )
-[[ "$unwired" =~ ^[0-9]+$ ]] && ok "реверсивна перевірка підключеності працює (знайдено $unwired непідключених)" \
+[[ "$unwired" =~ ^[0-9]+$ ]] && ok "реверсивна перевірка підключеності працює (розбіжностей: $unwired)" \
   || bad "реверсивна перевірка підключеності працює" "число" "$unwired"
+
+# Сироти — скрипти, що звуть себе хуком, але не підключені НІДЕ й не названі з
+# причиною. Має бути 0 у будь-якому середовищі: хук середовища без його файлу
+# налаштувань дає ❓, а не сироту (урок хибної F-13).
+orphans=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(sum(1 for r in m.check_unwired_hooks(pathlib.Path('.')) if r[1].startswith('НЕ ПІДКЛЮЧЕНО')))
+PY
+)
+check "самооголошених хуків-сиріт немає" "0" "$orphans"
+
+# Стенд підключеності: по випадку на кожен спосіб, яким хук СЕРЕДОВИЩА може
+# тихо не працювати. Сам стенд доведено 11 мутантами (0 вижило) — 2026-09-29.
+pw=$(cd "$REPO" && python3 tests/probe-wiring.py >/dev/null 2>&1; echo $?)
+check "хуки середовища: 18/18 випадків стенду (tests/probe-wiring.py)" "0" "$pw"
+
+echo ""
+echo "════════ 19. Цілісність тексту: маркери конфлікту злиття ════════"
+# Інцидент 2026-09-28: коміт «розв'язано конфлікт» (6e04740) лишив маркери в
+# docs/learnings.md, і вони два злиття поспіль пролежали в main. Хук pre-commit
+# check-merge-conflict БУВ — але без --assume-in-merge перевіряє лише під час
+# незавершеного злиття, тож у CI звітував «Passed», нічого не перевіривши.
+# Три перевірки на три способи повторити інцидент: маркер у корпусі · детектор
+# осліп · конфіг знову без прапорця. Шаблони — зі шматків, інакше цей файл сам
+# став би знахідкою.
+L7=$(printf '<%.0s' 1 2 3 4 5 6 7); R7=$(printf '>%.0s' 1 2 3 4 5 6 7); E7=$(printf '=%.0s' 1 2 3 4 5 6 7)
+MARK_RE="^(${L7} |${E7} |${E7}\$|${R7} )"
+found=$(cd "$REPO" && git grep -nE "$MARK_RE" -- . 2>/dev/null | head -5)
+check "у відстежуваних файлах немає маркерів конфлікту" "" "$found"
+
+cf="$TMPROOT/conflict-canary.md"
+printf '%s\n' "- до конфлікту" "$L7 HEAD" "- наша версія" "$E7" "- їхня версія" "$R7 origin/main" \
+  "- згадка $L7 посеред рядка — проза, не маркер" "$E7=" "$E7$E7" > "$cf"
+n=$(grep -cE "$MARK_RE" "$cf")
+check "канарка: форма інциденту 6e04740 ловиться (3 маркери; проза й setext-лінії — ні)" "3" "$n"
+
+cmc_ok() {  # $1 — конфіг pre-commit; yes, якщо check-merge-conflict має --assume-in-merge
+  python3 - "$1" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"-\s*id:\s*check-merge-conflict[ \t]*\n(\s+args:[^\n]*)?", text)
+print("yes" if m and m.group(1) and "--assume-in-merge" in m.group(1) else "no")
+PY
+}
+check "pre-commit check-merge-conflict перевіряє і поза злиттям (--assume-in-merge)" "yes" "$(cmc_ok "$REPO/.pre-commit-config.yaml")"
+printf '%s\n' "repos:" "  - repo: x" "    hooks:" "      - id: check-merge-conflict" "      - id: detect-private-key" > "$TMPROOT/pc-old.yaml"
+check "канарка: конфіг без прапорця (стан до 2026-09-28) ловиться" "no" "$(cmc_ok "$TMPROOT/pc-old.yaml")"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"
