@@ -241,10 +241,10 @@
    ]
   },
   "rlm-harness": {
-   "version": "0.7.0",
+   "version": "0.8.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "e975f303ba7d219f",
+    "SKILL.md": "71ee9fbd1f93a025",
     "evals/evals.json": "4c348b6d0b54326e"
    },
    "files": [
