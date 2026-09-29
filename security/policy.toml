@@ -232,6 +232,8 @@ intentionally_unwired = [
 # не «працює».
 [[wiring.environment_wired]]
 script = "stop-hook-git-check.sh"
+# Подія, на якій копія МАЄ виконуватись: реєстрація на іншій — не зараховується.
+event = "Stop"
 env_settings = "~/.claude/launcher-settings.json"
 active_copy = "~/.claude/stop-hook-git-check.sh"
 synced_by = "sync.sh"

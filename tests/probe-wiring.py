@@ -11,7 +11,14 @@
 по випадку на кожен (Core Rule 15: перелік інцидентів, а не число):
   синхронізатор не підключений · файла середовища нема · середовище не реєструє ·
   активної копії нема · копія ≠ канон · налаштування середовища зіпсовані ·
-  схожа назва синхронізатора (`async.sh`) не зараховується за справжній.
+  схожа назва синхронізатора (`async.sh`) не зараховується за справжній ·
+  копія зареєстрована на ІНШІЙ події · на потрібній події стоїть ІНШИЙ файл
+  із тим самим ім'ям · файл середовища має неочікувану ФОРМУ (4 види — перша
+  версія на них падала разом з усім звітом). Дві останні групи знайшло рев'ю
+  Codex на PR #73; мутаційне тестування їх не бачило, бо мутація ламає наявний
+  код, а тут бракувало самих випадків.
+Плюс два легітимні записи тієї самої команди (`"$HOME/…"`, `bash ~/…`) — щоб
+суворіша перевірка не стала хибною тривогою.
 І два випадки старої поведінки, яку розширення не має зламати: сирота → тривога,
 свідомо не підключений із причиною → ✅.
 
@@ -42,11 +49,32 @@ intentionally_unwired = ["allowed.sh: свідомо вимкнено для с�
 
 [[wiring.environment_wired]]
 script = "envhook.sh"
+event = "Stop"
 env_settings = "~/.claude/launcher-settings.json"
 active_copy = "~/.claude/envhook.sh"
 synced_by = "sync.sh"
 """
 CANON = f"#!/bin/bash\n# envhook.sh — Stop{HOOK}: канон\nexit 0\n"
+
+
+def _hooks(event: str, command: str) -> str:
+    return json.dumps({"hooks": {event: [{"matcher": "", "hooks": [{"type": "command", "command": command}]}]}})
+
+
+# Варіанти файлу налаштувань середовища. None у build() — файла немає зовсім.
+ENV_VARIANTS = {
+    "ok": _hooks("Stop", "~/.claude/envhook.sh"),
+    "other": _hooks("Stop", "~/.claude/base.sh"),
+    "wrong_event": _hooks("SessionStart", "~/.claude/envhook.sh"),
+    "other_path": _hooks("Stop", "/opt/other/envhook.sh"),
+    "home_var": _hooks("Stop", '"$HOME/.claude/envhook.sh"'),
+    "via_bash": _hooks("Stop", "bash ~/.claude/envhook.sh"),
+    "broken": "{ не json",
+    "root_list": "[]",
+    "hooks_str": json.dumps({"hooks": "x"}),
+    "event_num": json.dumps({"hooks": {"Stop": 5}}),
+    "group_str": json.dumps({"hooks": {"Stop": ["x"]}}),
+}
 
 
 def build(tmp: pathlib.Path, *, env_settings: str | None = "ok", copy: str | None = "same",
@@ -65,14 +93,8 @@ def build(tmp: pathlib.Path, *, env_settings: str | None = "ok", copy: str | Non
     (root / ".claude" / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
 
     env_file = home / ".claude" / "launcher-settings.json"
-    if env_settings == "ok":
-        env = {"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "~/.claude/envhook.sh"}]}]}}
-        env_file.write_text(json.dumps(env), encoding="utf-8")
-    elif env_settings == "other":
-        env = {"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "~/.claude/base.sh"}]}]}}
-        env_file.write_text(json.dumps(env), encoding="utf-8")
-    elif env_settings == "broken":
-        env_file.write_text("{ не json", encoding="utf-8")
+    if env_settings is not None:
+        env_file.write_text(ENV_VARIANTS[env_settings], encoding="utf-8")
 
     active = home / ".claude" / "envhook.sh"
     if copy == "same":
@@ -104,6 +126,14 @@ CASES = [
     ("активної копії нема → тривога", {"copy": None}, "envhook.sh", sd.DRIFT),
     ("копія ≠ канон → тривога", {"copy": "old"}, "envhook.sh", sd.DRIFT),
     ("синхронізатор не підключений → тривога", {"synced": "other.sh"}, "envhook.sh", sd.DRIFT),
+    ("реєстрація на іншій події → тривога", {"env_settings": "wrong_event"}, "envhook.sh", sd.DRIFT),
+    ("на потрібній події інший файл з тим самим ім'ям → тривога", {"env_settings": "other_path"}, "envhook.sh", sd.DRIFT),
+    ("`\"$HOME/…\"` — той самий файл → ✅", {"env_settings": "home_var"}, "envhook.sh", sd.OK),
+    ("`bash ~/…` — той самий файл → ✅", {"env_settings": "via_bash"}, "envhook.sh", sd.OK),
+    ("форма: корінь-список → ❓, не падіння", {"env_settings": "root_list"}, "envhook.sh", sd.UNKNOWN),
+    ("форма: hooks-рядок → ❓, не падіння", {"env_settings": "hooks_str"}, "envhook.sh", sd.UNKNOWN),
+    ("форма: подія-число → ❓, не падіння", {"env_settings": "event_num"}, "envhook.sh", sd.UNKNOWN),
+    ("форма: група-рядок → ❓, не падіння", {"env_settings": "group_str"}, "envhook.sh", sd.UNKNOWN),
     ("`async.sh` ≠ `sync.sh` → тривога", {"synced": "async.sh"}, "envhook.sh", sd.DRIFT),
     ("стара поведінка: сирота → тривога", {}, "orphan.sh", sd.DRIFT),
     ("стара поведінка: свідомо вимкнений → ✅", {}, "allowed.sh", sd.OK),
@@ -118,6 +148,8 @@ def main() -> int:
             tmp = pathlib.Path(tempfile.mkdtemp(prefix="probe-wiring-"))
             try:
                 got_rows = rows_for(build(tmp, **params))
+            except Exception as exc:          # падіння перевірки — теж провал, а не зупинка стенду
+                got_rows = {script: (f"ПАДІННЯ {type(exc).__name__}", str(exc))}
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
             got = got_rows.get(script, ("—", "рядка немає"))[0]
