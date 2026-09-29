@@ -214,6 +214,120 @@ truthy("у зібраному файлі нема секретів",
 truthy("WebGPU перевіряється перед використанням", dist.includes("navigator.gpu"));
 truthy("є мова інтерфейсу uk", dist.includes('<html lang="uk">'));
 
+// ═══════ 11. Резервний контур: класифікація збою ═══════
+console.log('\n════════ 11. Резервний контур: класифікація збою ════════');
+const cf = core.classifyFailure;
+check("429 → ліміт, повторюваний", "rate-limit", cf({ status: 429 }).kind);
+check("429 → перемкнути провайдера", true, cf({ status: 429 }).switchProvider);
+check("503 → тимчасовий, повторюваний", true, cf({ status: 503 }).retryable);
+check("500 → повторюваний", true, cf({ status: 500 }).retryable);
+check("401 → повтор марний", false, cf({ status: 401 }).retryable);
+check("401 → але інший провайдер варто спробувати", true, cf({ status: 401 }).switchProvider);
+check("400 → фатально, нікуди не перемикати", false, cf({ status: 400 }).switchProvider);
+check("нема мережі → повторюваний", "offline", cf({ offline: true }).kind);
+check("«Failed to fetch» без статусу → нема мережі", "offline", cf({ message: "TypeError: Failed to fetch" }).kind);
+check("rate limit у тексті без статусу", "rate-limit", cf({ message: "Error: rate limit exceeded" }).kind);
+check("Retry-After у секундах", 30000, cf({ status: 429, retryAfter: "30" }).retryAfterMs);
+check("Retry-After сміття → null", null, cf({ status: 429, retryAfter: "скоро" }).retryAfterMs);
+check("Retry-After як HTTP-дата", 5000,
+  core.parseRetryAfter(new Date(Date.parse("2026-01-01T00:00:05Z")).toUTCString(), Date.parse("2026-01-01T00:00:00Z")));
+
+// ═══════ 12. Пауза між спробами ═══════
+console.log('\n════════ 12. Пауза між спробами (backoff + джитер) ════════');
+const half = () => 0.5;
+check("перша спроба ≈ базова", 750, core.nextBackoffMs(1, { baseMs: 1000, rand: half }));
+check("зростає експоненційно", 1500, core.nextBackoffMs(2, { baseMs: 1000, rand: half }));
+check("обмежена стелею", 45000, core.nextBackoffMs(10, { baseMs: 1000, capMs: 60000, rand: half }));
+truthy("джитер розводить клієнтів (rand=0 і rand=1 дають різне)",
+  core.nextBackoffMs(3, { baseMs: 1000, rand: () => 0 }) !== core.nextBackoffMs(3, { baseMs: 1000, rand: () => 1 }));
+truthy("пауза ніколи не менша за половину експоненти",
+  core.nextBackoffMs(3, { baseMs: 1000, rand: () => 0 }) >= 2000);
+check("Retry-After має пріоритет над формулою", 7000, core.nextBackoffMs(1, { retryAfterMs: 7000, rand: half }));
+check("Retry-After теж обмежений стелею", 60000, core.nextBackoffMs(1, { retryAfterMs: 999999, rand: half }));
+
+// ═══════ 13. Ланцюг провайдерів ═══════
+console.log('\n════════ 13. Ланцюг провайдерів і cooldown ════════');
+const chain = core.defaultChain({ backupProvider: "openai" });
+check("ланцюг: хмара → запасна → локальна → офлайн", "cloud,cloud-backup,local,offline", chain.map((n) => n.id).join(","));
+const capsAll = { online: true, hasCloudKey: true, hasBackupKey: true, localReady: true };
+check("за нормальних умов — основна хмара", "cloud", core.pickProvider(chain, { caps: capsAll }).id);
+check("основна в cooldown → запасна", "cloud-backup",
+  core.pickProvider(chain, { caps: capsAll, now: 1000, health: { cloud: { cooldownUntil: 9999 } } }).id);
+check("обидві хмари в cooldown → локальна", "local",
+  core.pickProvider(chain, { caps: capsAll, now: 1000, health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 } } }).id);
+check("нема мережі → одразу локальна", "local", core.pickProvider(chain, { caps: { ...capsAll, online: false } }).id);
+// Регрес на дефект, спійманий браузерним прогоном 2026-09-28: офлайн «з'їдав»
+// завдання після першого ж 429, і затримка знову ставала втратою відповіді.
+check("офлайн НЕ береться, поки лишається шанс на справжню відповідь", null,
+  core.pickProvider(chain, { caps: { online: true, hasCloudKey: false, hasBackupKey: false, localReady: false } }));
+check("офлайн береться, коли його явно дозволено (остання спроба)", "offline",
+  core.pickProvider(chain, { allowOffline: true, caps: { online: true, hasCloudKey: false, hasBackupKey: false, localReady: false } }).id);
+check("усі справжні вузли в паузі → чекаємо, а не деградуємо", null,
+  core.pickProvider(chain, { caps: capsAll, now: 1000,
+    health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 }, local: { cooldownUntil: 9999 } } }));
+check("вузол, який уже пробували в цьому проході, пропускається", "cloud-backup",
+  core.pickProvider(chain, { caps: capsAll, tried: ["cloud"] }).id);
+const h1 = core.markFailure({}, "cloud", { now: 1000, kind: "rate-limit" });
+truthy("невдача ставить вузол на паузу", h1.cloud.cooldownUntil > 1000);
+const h2 = core.markFailure(h1, "cloud", { now: 1000 });
+truthy("друга поспіль невдача подовжує паузу", h2.cloud.cooldownUntil > h1.cloud.cooldownUntil);
+check("успіх стирає історію вузла", undefined, core.markSuccess(h2, "cloud").cloud);
+check("Retry-After керує паузою вузла", 1000 + 30000,
+  core.markFailure({}, "cloud", { now: 1000, retryAfterMs: 30000 }).cloud.cooldownUntil);
+
+// ═══════ 14. Черга завдань ═══════
+console.log('\n════════ 14. Черга завдань (падіння = затримка, не втрата) ════════');
+const t1 = core.makeTask({ input: "перше завдання", now: 1000, id: "a" });
+check("нове завдання одразу готове до виконання", "pending", t1.status);
+check("готове зараз, не потім", 1000, t1.nextAttemptAt);
+let q = [t1, core.makeTask({ input: "друге", now: 2000, id: "b" })];
+check("першим береться найстаріше", "a", core.nextRunnable(q, 3000).id);
+check("час іще не настав → нічого не беремо", null, core.nextRunnable([{ ...t1, nextAttemptAt: 9999 }], 1000));
+const fail429 = { retryable: true, switchProvider: true, kind: "rate-limit", retryAfterMs: 5000 };
+q = core.applyOutcome(q, "a", { ok: false, failure: fail429, engine: "cloud", error: "429" }, { now: 3000 });
+const a1 = q.find((x) => x.id === "a");
+check("після збою завдання ЛИШАЄТЬСЯ в черзі", "pending", a1.status);
+check("лічильник спроб зріс", 1, a1.attempts);
+check("наступна спроба відсунута на Retry-After", 8000, a1.nextAttemptAt);
+check("провайдер, що впав, занотований у цьому проході", "cloud", a1.tried.join(","));
+// Другий регрес того ж дефекту: постійний «чорний список» назавжди відрізав
+// найкращого провайдера через одну тимчасову помилку.
+check("список спробуваних — журнал ОСТАННЬОГО проходу, не вічний чорний список", "cloud-backup",
+  core.applyOutcome([{ ...t1, tried: ["cloud"], attempts: 1 }], "a",
+    { ok: false, failure: fail429, engine: "cloud-backup" }, { now: 3000 })[0].tried.join(","));
+truthy("список спробуваних не росте нескінченно між раундами",
+  core.applyOutcome([{ ...t1, tried: ["cloud", "cloud-backup", "local"], attempts: 2 }], "a",
+    { ok: false, failure: fail429, engine: "cloud" }, { now: 3000 })[0].tried.length === 1);
+q = core.applyOutcome(q, "a", { ok: true, answer: "готово", engine: "local" }, { now: 9000 });
+check("успіх закриває завдання", "done", q.find((x) => x.id === "a").status);
+check("відповідь збережена", "готово", q.find((x) => x.id === "a").answer);
+let q2 = [core.makeTask({ input: "впаде", now: 0, id: "c" })];
+for (let i = 0; i < 5; i++) q2 = core.applyOutcome(q2, "c", { ok: false, failure: fail429, engine: "cloud" }, { now: 0, maxAttempts: 3 });
+check("вичерпані спроби → failed, а не тихе зникнення", "failed", q2[0].status);
+truthy("failed-завдання лишається в черзі видимим", q2.length === 1);
+check("фатальний збій не повторюється марно", "failed",
+  core.applyOutcome([core.makeTask({ input: "x", now: 0, id: "d" })], "d",
+    { ok: false, failure: { retryable: false, kind: "fatal" } }, { now: 0 })[0].status);
+check("ручний повтор повертає failed у роботу", "pending", core.requeue(q2, "c", 100)[0].status);
+check("ручний повтор скидає лічильник спроб", 0, core.requeue(q2, "c", 100)[0].attempts);
+check("applyOutcome не мутує вхідну чергу", "pending", [core.makeTask({ input: "x", now: 0, id: "e" })]
+  .map((x) => { core.applyOutcome([x], "e", { ok: true, answer: "1" }, { now: 1 }); return x.status; })[0]);
+check("prune прибирає завершені", 0, core.pruneQueue([{ id: "z", status: "done", finishedAt: 1 }]).length);
+check("prune не чіпає активні", 1, core.pruneQueue([{ id: "z", status: "pending" }]).length);
+
+// ═══════ 15. Сповіщення про стан ═══════
+console.log('\n════════ 15. Сповіщення про стан черги ════════');
+const sEmpty = core.queueSummary([], 1000);
+check("порожня черга → нічого не кричить", "", sEmpty.text);
+check("порожня черга не потребує уваги", false, sEmpty.needsAttention);
+const sWait = core.queueSummary([{ status: "pending", nextAttemptAt: 6000 }], 1000);
+truthy("черга з паузою показує, скільки чекати", sWait.text.includes("5 с"));
+const sFail = core.queueSummary([{ status: "failed" }], 1000);
+check("збій вимагає уваги", true, sFail.needsAttention);
+truthy("текст збою прямо каже про ручний повтор", sFail.text.includes("ручний повтор"));
+check("збій має пріоритет над очікуванням у тексті", true,
+  core.queueSummary([{ status: "failed" }, { status: "pending", nextAttemptAt: 9000 }], 1000).text.includes("не вдалося"));
+
 console.log(`\nTOTALS pass=${PASS} fail=${FAIL}`);
 if (FAIL) {
   console.log("Впали:\n" + FAILED.map((f) => "  - " + f).join("\n"));

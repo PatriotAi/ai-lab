@@ -3,14 +3,14 @@ name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
 license: Proprietary
 metadata:
-  version: 1.6.0
+  version: 1.7.0
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Multi-Provider AI Orchestration — v1.6.0
+# Multi-Provider AI Orchestration — v1.7.0
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -73,6 +73,58 @@ for(let i=0;i<chain.length;i++){
   }
 }
 ```
+
+## Pattern 2b — Резервний контур: черга + повтори + cooldown
+
+> Failover (Pattern 2) відповідає «куди перемкнутись». Він НЕ відповідає «що буде
+> із завданням, поки всі впали». Без черги перший же збій втрачає роботу —
+> [E] підтверджено на власному коді: `projects/mobile-agent` мав одну спробу й
+> `catch` → офлайн-заглушка замість справжньої відповіді (виправлено 2026-09-28,
+> `tests/mobile-agent-browser.mjs`).
+
+**Чотири частини, кожна обов'язкова:**
+
+1. **Черга з durable-станом.** Завдання — не виклик, а запис зі станом
+   (`pending` → `done`/`failed`), що переживає перезапуск. Падіння = затримка.
+2. **Пауза з джитером.** `exp = base·2^(n-1)`, далі **половина детермінована +
+   половина випадкова**. Без джитера всі клієнти повертаються одночасно й кладуть
+   провайдера вдруге. `Retry-After` від провайдера має пріоритет над формулою.
+3. **Cooldown вузла, а не завдання.** Невдача ставить на паузу ПРОВАЙДЕРА
+   (зростаючу з кількістю невдач поспіль); успіх її стирає. Тимчасова помилка не
+   має відрізати найкращий вузол назавжди — «чорний список» тримається один прохід.
+4. **Деградація — остання ланка, не перша.** Офлайн/локальна заглушка береться
+   лише на останній спробі або коли інших вузлів у пристрою нема. Інакше контур
+   «успішно» закриває завдання гіршою відповіддю — [E] цей дефект спіймано
+   браузерним прогоном, unit-тести його пропускали.
+
+```javascript
+// Обхід ланцюга В МЕЖАХ ОДНОГО ПРОХОДУ — миттєвий failover, без паузи.
+// Пауза потрібна лише коли відмовив УВЕСЬ ланцюг.
+while ((node = pick(chain, {health, tried, allowOffline: lastChance}))) {
+  tried.push(node.id);
+  try { return await run(node, task); }
+  catch (e) {
+    const f = classify(e);                      // rate-limit · transient · auth · fatal
+    health = markFailure(health, node.id, f);   // cooldown саме цього вузла
+    if (!f.switchProvider) break;               // наступний вузол не допоможе
+  }
+}
+task = reschedule(task, backoff(task.attempts, f.retryAfterMs));  // затримка, не втрата
+```
+
+**Сповіщення — частина контуру, не додаток.** Якщо завдання чекає або впало, це
+має бути видно без пошуку: рядок стану («3 у черзі · спроба через 12 с»), окрема
+позначка для того, що вимагає ручного втручання, і системне сповіщення, коли
+застосунок згорнуто.
+
+**Класифікація збою — три різні речі, які легко сплутати:** `retryable` (повторити
+те саме) · `switchProvider` (цьому вузлу повтор не допоможе) · `fatal` (зламаний
+наш запит, не допоможе ніде). 401/403 — не retryable, але switchProvider:
+чужий ключ в одного провайдера не означає збою в іншого.
+
+**Референсна реалізація:** [E] `projects/mobile-agent/src/core.js` (чиста логіка)
++ `tests/mobile-agent-tests.mjs` §11–15 · доведено мутаційним прогоном 7/7
+(2026-09-28): прибери джитер, cooldown, паузу чи позначку `failed` — перевірки падають.
 
 ## Pattern 3 — Task-based routing
 
@@ -219,6 +271,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.7.0** (2026-09-28) — **Pattern 2b «Резервний контур»**: черга з durable-станом + пауза з джитером (Retry-After має пріоритет) + cooldown ВУЗЛА замість вічного чорного списку + деградація як остання ланка + сповіщення як частина контуру + класифікація збою (retryable / switchProvider / fatal — три різні речі). Закриває прогалину: Pattern 2 відповідав «куди перемкнутись», але не «що буде із завданням, поки всі впали» — без черги перший збій втрачав роботу. Здобуто з власного коду: `projects/mobile-agent` мав одну спробу й деградацію в заглушку; браузерний прогін спіймав ще й те, що офлайн «з'їдав» завдання після першого 429 (unit-тести це пропускали). Референс + мутаційний прогін 7/7. Лише додавання.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** НОВИЙ замінний файл `references/model-snapshot-2026-07.md` — ЄДИНЕ місце конкретики (матриця 15 моделей із верифікованими цінами, COSTS-конфіг з фіксом Opus 4.8 15/75→5/25, reasoning-поля по провайдерах, Anthropic-сумісні endpoints, per-role приклади для rlm-harness). **(B)** SKILL.md де-пінований: матриця→структура+класи вузлів, COSTS→loadFromSnapshot(), reasoning→capability-атрибут вузла, endpoints→патерн без URL. Скіл працює з будь-якими майбутніми моделями; застарівання = заміна снапшот-файлу. **(C)** Фікс розсинхрону заголовка (v1.0→актуальна). Знання старої матриці збережені в CHANGELOG-історії; merge-not-replace. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._

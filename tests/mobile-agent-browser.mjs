@@ -176,13 +176,78 @@ try {
   ok("без мережі агент однаково приймає й обробляє запис");
   await context.setOffline(false);
 
+  // ── Резервний контур: падіння API має ЗАТРИМАТИ, а не втратити роботу ──
+  // Перевіряємо саме обіцянку, а не її частини: кладемо провайдера, дивимось,
+  // що завдання лишилось у черзі, і що після відновлення відповідь реальна.
+  let cloudCalls = 0;
+  await page.route("**/api.anthropic.com/**", async (route) => {
+    cloudCalls++;
+    if (cloudCalls === 1) {
+      return route.fulfill({ status: 429, headers: { "retry-after": "1" }, contentType: "application/json",
+        body: JSON.stringify({ error: { message: "rate limit" } }) });
+    }
+    return route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ content: [{ type: "text", text: "справжня відповідь після повтору" }] }) });
+  });
+  await page.evaluate(() => {
+    window.PocketAgent.state.apiKey = "test-key";
+    window.PocketAgent.state.notes = [];
+    window.PocketAgent.state.queue = [];
+    localStorage.removeItem("pocket-agent.queue.v1");
+    window.PocketAgent.render();
+  });
+
+  await page.fill("#input", "завдання під час падіння API");
+  await page.click("#send");
+  await page.waitForFunction(() => document.querySelectorAll("#queue .qitem").length === 1);
+  ok("завдання одразу стало в чергу, а не зникло");
+  check("поле вводу звільнилось одразу (можна писати далі)", "", await page.inputValue("#input"));
+  truthy("після 429 завдання чекає на повтор, а не провалилось",
+    (await page.textContent("#queueStatus")).includes("черзі"));
+  truthy("видно, коли буде наступна спроба", /через \d+ с/.test(await page.textContent("#queueStatus")));
+
+  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  truthy("після повтору прийшла СПРАВЖНЯ відповідь, не офлайн-заглушка",
+    (await page.textContent(".note .a")).includes("справжня відповідь після повтору"));
+  check("провайдера викликано двічі: падіння + успішний повтор", 2, cloudCalls);
+  check("черга спорожніла після успіху", 0, await page.locator("#queue .qitem").count());
+
+  // Вичерпання ланцюга: запис усе одно лишається, завдання видиме й повторюване
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", (route) =>
+    route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: { message: "bad request" } }) }));
+  await page.evaluate(() => { window.PocketAgent.state.caps.webgpu = false; });
+  await page.fill("#input", "завдання з фатальним збоєм");
+  await page.click("#send");
+  await page.waitForFunction(() => document.querySelectorAll("#queue .qitem.failed").length === 1, null, { timeout: 15000 });
+  ok("фатальний збій → завдання позначене як невдале, а не зникло");
+  truthy("є кнопка ручного повтору", await page.locator(".qretry").count() === 1);
+  truthy("стан прямо каже, що потрібна дія людини",
+    (await page.textContent("#queueStatus")).includes("ручний повтор"));
+  truthy("запис усе одно збережено (робота не втрачена)",
+    (await page.textContent(".note .a")).includes("Провайдери недоступні"));
+
+  // Черга переживає перезапуск застосунку — інакше «затримка» перетворюється на втрату
+  await page.evaluate(() => {
+    window.PocketAgent.state.queue = [{ id: "survivor", input: "пережити перезапуск", kind: "ask",
+      status: "pending", attempts: 0, nextAttemptAt: Date.now() + 600000, createdAt: Date.now(), tried: [], lastError: null }];
+    localStorage.setItem("pocket-agent.queue.v1", JSON.stringify(window.PocketAgent.state.queue));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.querySelectorAll("#queue .qitem").length >= 1);
+  truthy("незавершене завдання пережило перезапуск застосунку",
+    (await page.textContent("#queue .qitem .qtext")).includes("пережити перезапуск"));
+
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: join(SHOTS, "pixel7-offline.png"), fullPage: false });
   ok("знімок екрана збережено (dist/screenshots/pixel7-offline.png)");
 
   // Мережеві відмови під час офлайн-частини — очікувані (проба sw.js і version.json
   // не мають мережі й обробляються застосунком). Усе інше — справжня помилка.
-  const unexpected = errors.filter((e) => !/ERR_INTERNET_DISCONNECTED|ERR_NETWORK_CHANGED/.test(e));
+  // 429 і 400 створені цим же тестом навмисно (падіння провайдера й фатальний
+  // запит) — це очікуваний шум, а не дефект. Усе інше лишається помилкою.
+  const unexpected = errors.filter((e) =>
+    !/ERR_INTERNET_DISCONNECTED|ERR_NETWORK_CHANGED|429 \(Too Many Requests\)|400 \(Bad Request\)/.test(e));
   check("наприкінці прогону несподіваних помилок нема", 0, unexpected.length ? unexpected.join(" | ") : 0);
 } catch (e) {
   bad("прогін завершився винятком", "без винятків", String(e).split("\n")[0]);

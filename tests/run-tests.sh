@@ -946,6 +946,36 @@ PY
   || bad "реверсивна перевірка підключеності працює" "число" "$unwired"
 
 echo ""
+echo "════════ 12. Маркери конфлікту у відстежуваних файлах ════════"
+cd "$REPO" || exit 1
+# Чому окремо від pre-commit: його хук ганяється на комітах ГІЛКИ, а merge-коміт
+# його оминає. Саме так `<<<<<<< HEAD` прожили в docs/learnings.md до 2026-09-28,
+# і жодна з 236 перевірок їх не бачила.
+out=$(python3 "$REPO/scripts/check-conflict-markers.py" 2>&1); rc=$?
+check "робоче дерево чисте від маркерів конфлікту" "0" "$rc"
+
+# Канарка (обидва напрямки, ізольовано — робочі файли не чіпаємо):
+# на зламаному стані перевірка МУСИТЬ спіймати, на чистому — мовчати.
+cmdir="$TMPROOT/conflict-canary"; mkdir -p "$cmdir"
+printf 'ok
+' > "$cmdir/clean.md"
+rc=$(python3 "$REPO/scripts/check-conflict-markers.py" "$cmdir" >/dev/null 2>&1; echo $?)
+check "канарка: чистий корпус → мовчить" "0" "$rc"
+# Фікстуру складаємо з частин: інакше сам файл набору містив би маркери
+# і перевірка справедливо падала б на ньому (спіймано на собі 2026-09-28).
+LT=$(printf '<%.0s' 1 2 3 4 5 6 7); EQ=$(printf '=%.0s' 1 2 3 4 5 6 7); GT=$(printf '>%.0s' 1 2 3 4 5 6 7)
+printf 'a\n%s HEAD\nb\n%s\nc\n%s origin/main\n' "$LT" "$EQ" "$GT" > "$cmdir/broken.md"
+out=$(python3 "$REPO/scripts/check-conflict-markers.py" "$cmdir" 2>&1); rc=$?
+check "канарка: зламаний стан → спіймано" "1" "$rc"
+[[ "$out" == *"broken.md"* ]] && ok "канарка: названо саме зламаний файл" \
+  || bad "канарка: названо саме зламаний файл" "broken.md у звіті" "${out:0:60}"
+# Згадка маркерів у тексті (як у цьому файлі чи в README) не є дефектом.
+printf 'Текст про `%s HEAD` усередині рядка не ламає перевірку.\n' "$LT" > "$cmdir/mention.md"
+rm -f "$cmdir/broken.md"
+rc=$(python3 "$REPO/scripts/check-conflict-markers.py" "$cmdir" >/dev/null 2>&1; echo $?)
+check "згадка маркера в тексті — не хибна тривога" "0" "$rc"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
