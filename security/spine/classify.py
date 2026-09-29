@@ -96,6 +96,16 @@ def _resolve_symlink(root: Path, raw: str) -> tuple[str, list[str]]:
 # Без цього переліку `cat > файл` вважався читанням (реальна дірка 2026-07-27).
 WRITE_OPS = (">", ">>", "|", "&&", "||", ";", "$(", "`", "<(", "tee ")
 
+# Роздільники, що перетворюють одну команду на ЛАНЦЮЖОК. Перелік `WRITE_OPS`
+# їх майже покриває, але не бачив **перенесення рядка** — а це теж роздільник.
+# Наслідок був реальний: після послаблення «читання пропускає правила-підрядки»
+# (2026-09-27) команда `cat README.md\ngit push --force origin main` ставала R0,
+# бо починалась із читального префікса й не мала жодного оператора з переліку.
+# Мої власні канарки цього не спіймали — усі були однорядкові; спіймав
+# property-тест монотонності з `main` (`tests/property-classify.py`, Фаза S5):
+# «додавання небезпечного фрагмента не може знизити рівень».
+CHAIN_OPS = WRITE_OPS + ("\n", "\r")
+
 
 # Ознаки того, що вміст лапок — це КОД, який виконають, а не текст-дані.
 SHELL_INVOKERS = (
@@ -213,7 +223,7 @@ def is_pure_read(command: str, policy: dict) -> bool:
     if not stripped:
         return False
     low = stripped.lower()
-    if any(op in stripped for op in WRITE_OPS):
+    if any(op in stripped for op in CHAIN_OPS):
         return False
     if any(inv in low for inv in SHELL_INVOKERS):
         return False
@@ -430,7 +440,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             if stripped == prefix or stripped.startswith(prefix + " "):
                 # Ланцюжок АБО перенаправлення можуть ховати запис за читанням:
                 # `cat > файл` — це запис, хоч і починається з `cat`.
-                if any(op in stripped for op in WRITE_OPS) or \
+                if any(op in stripped for op in CHAIN_OPS) or \
                         any(marker in stripped.lower() for marker in EXEC_MARKERS):
                     break
                 return Verdict("R0", f"команда читання ({prefix})", notes=notes)

@@ -13,7 +13,11 @@ repos:
       - id: check-json
       - id: check-added-large-files
         args: ["--maxkb=2048"]
+      # Без --assume-in-merge хук перевіряє ЛИШЕ під час незавершеного злиття
+      # (є .git/MERGE_HEAD) — у CI (`run --all-files`) він тихо звітує «Passed»,
+      # нічого не перевіривши. Так маркери конфлікту пролежали в main два місяці.
       - id: check-merge-conflict
+        args: ["--assume-in-merge"]
       - id: detect-private-key
       - id: mixed-line-ending
         exclude: '^melania-skills-ecosystem/'

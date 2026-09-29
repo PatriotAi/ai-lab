@@ -161,8 +161,22 @@ for sec in "Щотижневий дайджест" "Активність за 7 
   [[ "$dg" == *"$sec"* ]] && ok "секція «$sec» присутня" \
     || bad "секція «$sec» присутня" "$sec" "відсутня"
 done
-[[ "$dg" =~ Комітів:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
+# Лічильник має ДВІ форми рядка: активний тиждень («Комітів: **N**») і тихий
+# («Комітів за тиждень: **0**»). Перша версія тесту знала лише першу, тож
+# результат залежав від дати запуску: 2026-09-28 (останній коміт — 31 липня)
+# набір почервонів на справному коді. Живий прогін приймає обидві форми, а
+# кожну гілку окремо доводять ізольовані репо з контрольованою датою.
+[[ "$dg" =~ Комітів(\ за\ тиждень)?:\ \*\*[0-9]+\*\* ]] && ok "лічильник комітів — число" \
   || bad "лічильник комітів — число" "Комітів: **N**" "не знайдено"
+mk_repo digest_active
+dg_a=$(bash "$REPO/scripts/weekly-digest.sh" 2>&1)
+[[ "$dg_a" == *"Комітів: **1**"* ]] && ok "активний тиждень → «Комітів: **1**»" \
+  || bad "активний тиждень → «Комітів: **1**»" "Комітів: **1**" "$(printf '%s' "$dg_a" | grep -m1 Комітів)"
+GIT_AUTHOR_DATE="2020-01-01T00:00:00Z" GIT_COMMITTER_DATE="2020-01-01T00:00:00Z" mk_repo digest_quiet
+dg_q=$(bash "$REPO/scripts/weekly-digest.sh" 2>&1)
+[[ "$dg_q" == *"Комітів за тиждень: **0**"* ]] && ok "тихий тиждень → «Комітів за тиждень: **0**»" \
+  || bad "тихий тиждень → «Комітів за тиждень: **0**»" "Комітів за тиждень: **0**" "$(printf '%s' "$dg_q" | grep -m1 Комітів)"
+cd "$REPO" || exit 1
 
 echo ""
 echo "════════ 5. SessionStart: контекст сесії ════════"
@@ -835,8 +849,21 @@ have = {r['id'] for r in d['rules'] if r.get('require_target')}
 print('ok' if need <= have and d.get('mcp',{}).get('require_target') else f'бракує: {need-have}')" 2>&1)
 check "require_target стоїть на найдорожчих правилах" "ok" "$flags"
 
-# Реальний файл згоди: рядок із ціллю діє лише на свою ціль.
-consent_target=$(cd "$REPO" && python3 -c "
+# Рядок із ціллю діє лише на свою ціль — на ІЗОЛЬОВАНОМУ дереві.
+# Перша версія читала робочий `consent.md` і померла від календаря рівно
+# наступного дня (рядки мають `until`, і це правильно). Тест, чий результат
+# залежить від дати, перевіряє календар, а не поведінку — той самий клас, що
+# F-16. Тому фікстура створює власний файл згоди з датою «завтра».
+CT2="$TMPROOT/consent-target"
+mkdir -p "$CT2/security/spine"
+cp "$REPO/security/spine/pretooluse.py" "$REPO/security/spine/classify.py" \
+   "$REPO/security/spine/explain.py" "$CT2/security/spine/" 2>/dev/null
+cp "$REPO/security/policy.toml" "$CT2/security/"
+tomorrow2=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=1)).isoformat())")
+printf '%s\n' '| rule | until | причина | ціль |' '|---|---|---|---|' \
+  "| agent-settings | $tomorrow2 | причина достатньої довжини для перевірки формату | security/policy.toml |" \
+  > "$CT2/security/consent.md"
+consent_target=$(cd "$CT2" && python3 -c "
 import sys; sys.path.insert(0,'security/spine')
 import pretooluse as p
 from classify import load_policy
@@ -930,7 +957,7 @@ other = p.is_self_modification('docs/learnings.md', pol)
 print('ok' if gate and cfg and not other else f'{gate}/{cfg}/{other}')")
 check "самозміна гейта помітна, звичайна правка — ні" "ok" "$selfmod"
 
-echo "════════ 18. Профіль можливостей виконавця (Фаза 8) ════════"
+echo "════════ 20. Профіль можливостей виконавця (Фаза 8) ════════"
 cd "$REPO" || exit 1
 PROBE="$REPO/automations/capability-probe/capability-probe.sh"
 SCAN="$REPO/scripts/capability-scan.py"
@@ -1087,7 +1114,11 @@ echo "════════ 16. G5: чи справді замкнено ци
 consol_out=$(grep -oE '"[A-Z-]+\.md"' "$REPO/scripts/g5-consolidate.py" | head -1 | tr -d '"')
 check "консолідація пише AUTO-STATE.md" "AUTO-STATE.md" "$consol_out"
 
-readers=$(grep -rl "AUTO-STATE" --include="*.py" --include="*.sh" --include="*.toml" "$REPO" 2>/dev/null \
+# Шукаємо саме ЧИТАЧІВ — виконуваний код. `.toml` свідомо виключено: конфіг
+# нічого не читає, а згадка назви у ПРИЧИНІ винятку (`[wiring]`) — це
+# документація, не використання. Хибна тривога на власне пояснення — той самий
+# клас, що вже ловився двічі (секції 10 і 13).
+readers=$(grep -rl "AUTO-STATE" --include="*.py" --include="*.sh" "$REPO" 2>/dev/null \
           | grep -v "/.git/" | grep -v "g5-consolidate.py" | grep -v "run-tests.sh" | wc -l)
 check "AUTO-STATE.md не читає жоден інший скрипт (розрив зафіксовано)" "0" "$readers"
 
@@ -1139,7 +1170,7 @@ else
 fi
 
 echo ""
-echo "════════ 19. Тріаж входу в момент читання (PostToolUse) ════════"
+echo "════════ 21. Тріаж входу в момент читання (PostToolUse) ════════"
 # НАВІЩО. Скан зовнішнього входу існував із 2026-07, але автоматичним був лише
 # шлях пам'яті (F-1). Веб і читання файлів заходили в контекст без перевірки —
 # та сама конструкція «перевірка існує, але не стоїть на шляху». Канарки нижче
@@ -1211,6 +1242,87 @@ sys.exit(0 if any('input-scan' in c for c in cmds) else 1)" 2>/dev/null \
     && ok "хук справді зареєстрований у .claude/settings.json" \
     || bad "хук зареєстрований" "PostToolUse → input-scan" "не знайдено"
 fi
+
+echo "════════ 18. Фаза S5: властивості, мутації, фазинг ════════"
+# Три рівні доказовості, кожен відповідає на своє питання:
+#   S5.1 property-based — чи тримаються ІНВАРІАНТИ на входах, яких я не уявляв
+#   S5.2 мутаційне      — чи ловлять мої перевірки хоч що-небудь
+#   S5.3 фазинг         — чи не падає розбір недовіреного тексту
+# Усе на стандартній бібліотеці: pip install — це R4 у власній політиці, і в
+# репозиторії свідомо немає файлів залежностей.
+
+prop=$(cd "$REPO" && python3 tests/property-classify.py --cases 120 >/dev/null 2>&1; echo $?)
+check "S5.1 інваріанти класифікатора тримаються" "0" "$prop"
+
+# Найважливіша з трьох: зелений набір на цілому коді не доводить нічого.
+# Мутант, що вижив, — діра в ПЕРЕВІРКАХ, не в коді.
+mut=$(cd "$REPO" && python3 tests/mutation-classify.py >/dev/null 2>&1; echo $?)
+check "S5.2 усі мутанти класифікатора спіймані" "0" "$mut"
+
+fz=$(cd "$REPO" && python3 tests/fuzz-scan-input.py --cases 150 >/dev/null 2>&1; echo $?)
+check "S5.3 розбір недовіреного входу не падає" "0" "$fz"
+
+# Реверсивна перевірка підключеності (корінь F-12 і F-13): скрипт, що називає
+# себе хуком, має бути або зареєстрований, або названий у переліку з причиною.
+unwired=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+rows = m.check_unwired_hooks(pathlib.Path('.'))
+print(sum(1 for r in rows if r[0] == m.DRIFT))
+PY
+)
+[[ "$unwired" =~ ^[0-9]+$ ]] && ok "реверсивна перевірка підключеності працює (розбіжностей: $unwired)" \
+  || bad "реверсивна перевірка підключеності працює" "число" "$unwired"
+
+# Сироти — скрипти, що звуть себе хуком, але не підключені НІДЕ й не названі з
+# причиною. Має бути 0 у будь-якому середовищі: хук середовища без його файлу
+# налаштувань дає ❓, а не сироту (урок хибної F-13).
+orphans=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(sum(1 for r in m.check_unwired_hooks(pathlib.Path('.')) if r[1].startswith('НЕ ПІДКЛЮЧЕНО')))
+PY
+)
+check "самооголошених хуків-сиріт немає" "0" "$orphans"
+
+# Стенд підключеності: по випадку на кожен спосіб, яким хук СЕРЕДОВИЩА може
+# тихо не працювати. Сам стенд доведено 11 мутантами (0 вижило) — 2026-09-29.
+pw=$(cd "$REPO" && python3 tests/probe-wiring.py >/dev/null 2>&1; echo $?)
+check "хуки середовища: 18/18 випадків стенду (tests/probe-wiring.py)" "0" "$pw"
+
+echo ""
+echo "════════ 19. Цілісність тексту: маркери конфлікту злиття ════════"
+# Інцидент 2026-09-28: коміт «розв'язано конфлікт» (6e04740) лишив маркери в
+# docs/learnings.md, і вони два злиття поспіль пролежали в main. Хук pre-commit
+# check-merge-conflict БУВ — але без --assume-in-merge перевіряє лише під час
+# незавершеного злиття, тож у CI звітував «Passed», нічого не перевіривши.
+# Три перевірки на три способи повторити інцидент: маркер у корпусі · детектор
+# осліп · конфіг знову без прапорця. Шаблони — зі шматків, інакше цей файл сам
+# став би знахідкою.
+L7=$(printf '<%.0s' 1 2 3 4 5 6 7); R7=$(printf '>%.0s' 1 2 3 4 5 6 7); E7=$(printf '=%.0s' 1 2 3 4 5 6 7)
+MARK_RE="^(${L7} |${E7} |${E7}\$|${R7} )"
+found=$(cd "$REPO" && git grep -nE "$MARK_RE" -- . 2>/dev/null | head -5)
+check "у відстежуваних файлах немає маркерів конфлікту" "" "$found"
+
+cf="$TMPROOT/conflict-canary.md"
+printf '%s\n' "- до конфлікту" "$L7 HEAD" "- наша версія" "$E7" "- їхня версія" "$R7 origin/main" \
+  "- згадка $L7 посеред рядка — проза, не маркер" "$E7=" "$E7$E7" > "$cf"
+n=$(grep -cE "$MARK_RE" "$cf")
+check "канарка: форма інциденту 6e04740 ловиться (3 маркери; проза й setext-лінії — ні)" "3" "$n"
+
+cmc_ok() {  # $1 — конфіг pre-commit; yes, якщо check-merge-conflict має --assume-in-merge
+  python3 - "$1" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"-\s*id:\s*check-merge-conflict[ \t]*\n(\s+args:[^\n]*)?", text)
+print("yes" if m and m.group(1) and "--assume-in-merge" in m.group(1) else "no")
+PY
+}
+check "pre-commit check-merge-conflict перевіряє і поза злиттям (--assume-in-merge)" "yes" "$(cmc_ok "$REPO/.pre-commit-config.yaml")"
+printf '%s\n' "repos:" "  - repo: x" "    hooks:" "      - id: check-merge-conflict" "      - id: detect-private-key" > "$TMPROOT/pc-old.yaml"
+check "канарка: конфіг без прапорця (стан до 2026-09-28) ловиться" "no" "$(cmc_ok "$TMPROOT/pc-old.yaml")"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"

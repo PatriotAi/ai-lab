@@ -26,6 +26,9 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -185,6 +188,173 @@ def check_self_modification(root: Path) -> tuple[str, str, str]:
     return OK, "самозміни гейта", "жодної в журналі цього середовища"
 
 
+def check_unwired_hooks(root: Path) -> list[tuple[str, str, str]]:
+    """Зворотний бік перевірки хуків: що ОГОЛОШУЄ себе хуком, але не підключене.
+
+    Наявна перевірка йшла від реєстрації до файлу («хук зареєстровано — чи є
+    файл?»). Цей напрямок ловить протилежне: файл є, у шапці написано «-хук»,
+    а в жодній події його немає. Саме так пройшла повз увагу F-12 — і ще
+    один випадок, від іншої сесії, знайшовся вже під час побудови цієї
+    перевірки. Тобто клас системний, а не разовий недогляд.
+
+    Урок F-13 (хибна знахідка першої версії): «нема в проєктних
+    налаштуваннях» ≠ «не працює» — частину хуків реєструє СЕРЕДОВИЩЕ.
+    Такі названі в `[[wiring.environment_wired]]` і перевіряються окремо.
+
+    Спираємось на САМООГОЛОШЕННЯ скрипта: це чесніше за здогад по імені файлу
+    й не дає хибних тривог на допоміжні скрипти поруч.
+    """
+    try:
+        pol = tomllib.loads((root / "security" / "policy.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return [(DRIFT, "підключеність автоматизацій", f"політика не читається ({exc})")]
+
+    cfg = pol.get("wiring", {})
+    markers = cfg.get("hook_markers", ["-хук", "-hook"])
+    allowed = {line.split(":", 1)[0].strip(): line.split(":", 1)[1].strip()
+               for line in cfg.get("intentionally_unwired", []) if ":" in line}
+    env_wired = {e["script"]: e for e in cfg.get("environment_wired", [])
+                 if isinstance(e, dict) and e.get("script")}
+
+    settings = root / ".claude" / "settings.json"
+    registered = settings.read_text(encoding="utf-8") if settings.is_file() else ""
+
+    rows: list[tuple[str, str, str]] = []
+    for rel_dir in cfg.get("scan_dirs", []):
+        base = root / rel_dir
+        if not base.is_dir():
+            continue
+        for script in sorted(base.rglob("*.sh")):
+            try:
+                head = "\n".join(script.read_text(encoding="utf-8").splitlines()[:12])
+            except OSError:
+                continue
+            declares_hook = any(m in head for m in markers)
+            if not declares_hook:
+                continue                       # допоміжний скрипт — не наша справа
+            name = script.name
+            if name in registered:
+                continue                       # підключений — усе гаразд
+            if name in env_wired:
+                rows.append(check_env_wired(env_wired[name], script, registered))
+                continue
+            try:
+                shown = str(script.relative_to(root))
+            except ValueError:
+                shown = str(script)
+            reason = allowed.get(name)
+            if reason:
+                rows.append((OK, f"не підключено свідомо: {shown}", reason))
+            else:
+                rows.append((
+                    DRIFT, f"НЕ ПІДКЛЮЧЕНО: {shown}",
+                    "скрипт називає себе хуком у власній шапці, але його немає в "
+                    "жодній події `.claude/settings.json`. Або підключи, або назви "
+                    "причину в `security/policy.toml` → [wiring].intentionally_unwired",
+                ))
+    if not rows:
+        rows.append((OK, "підключеність автоматизацій", "усі самооголошені хуки на місці"))
+    return rows
+
+
+def _env_commands(settings_file: Path) -> list[tuple[str, str]] | None:
+    """(подія, команда) з файлу налаштувань хуків; None — читабельність не доведено.
+
+    Неочікувана ФОРМА (корінь-список, `hooks`-рядок, подія-число, група-рядок)
+    — теж «не читається», а не падіння: зіпсований файл середовища не має
+    зупиняти решту звіту. Знайдено рев'ю на PR #73; відтворено на 4 формах.
+    """
+    try:
+        data = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("hooks", {}), dict):
+        return None
+    found: list[tuple[str, str]] = []
+    for event, groups in data.get("hooks", {}).items():
+        if not isinstance(groups, list):
+            return None
+        for group in groups:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks", []), list):
+                return None
+            for hook in group.get("hooks", []):
+                if not isinstance(hook, dict):
+                    return None
+                cmd = hook.get("command")
+                if isinstance(cmd, str):
+                    found.append((str(event), cmd))
+    return found
+
+
+def _runs_file(cmd: str, target: Path) -> bool:
+    """Чи запускає команда САМЕ цей файл, а не інший з тим самим ім'ям.
+
+    `~/.claude/x.sh`, `"$HOME/.claude/x.sh"` і `bash ~/.claude/x.sh` — той
+    самий файл; `/opt/other/x.sh` — ні. Порівнюються реальні шляхи.
+    """
+    try:
+        words = shlex.split(cmd)
+    except ValueError:
+        return False
+    want = os.path.realpath(target)
+    return any(os.path.realpath(os.path.expanduser(os.path.expandvars(w))) == want for w in words)
+
+
+def check_env_wired(entry: dict, canon: Path, registered: str) -> tuple[str, str, str]:
+    """Хук, який реєструє СЕРЕДОВИЩЕ, а не проєкт (F-13 виявився саме таким).
+
+    У `.claude/settings.json` його немає — і не повинно бути: друга реєстрація
+    запускала б ту саму перевірку двічі. Тому доводимо не один факт, а три:
+    синхронізатор підключений · середовище запускає САМЕ активну копію САМЕ
+    на потрібній події · копія байт-у-байт дорівнює канону. Без файлу
+    налаштувань середовища (локальна машина, CI) довести нічого не можна —
+    це ❓, а НЕ ✅.
+    """
+    name = canon.name
+    label = f"хук середовища: {name}"
+    event = str(entry.get("event", ""))
+    if not event:
+        return (UNKNOWN, label, "у політиці не названо подію (`event`) — нема з чим звіряти")
+    synced_by = str(entry.get("synced_by", ""))
+    # За повним ім'ям файла, не підрядком: `sync.sh` не має збігатися з `async.sh`.
+    if not synced_by or not re.search(rf"(^|[/\s\"']){re.escape(synced_by)}([\s\"']|$)", registered, re.M):
+        return (DRIFT, label,
+                f"синхронізатор `{synced_by or '—'}` не підключений у `.claude/settings.json` — "
+                "після рестарту контейнера середовище запускатиме стару базову версію")
+
+    env_raw = str(entry.get("env_settings", ""))
+    active_raw = str(entry.get("active_copy", ""))
+    env_file = Path(os.path.expanduser(env_raw))
+    active = Path(os.path.expanduser(active_raw))
+    if not env_file.is_file():
+        return (UNKNOWN, label,
+                f"звідси не перевірити: нема `{env_raw}` (це не середовище Claude Code web)")
+    commands = _env_commands(env_file)
+    if commands is None:
+        return (UNKNOWN, label, f"`{env_raw}` не читається (JSON або його форма) — підключеність не доведено")
+    # Не за ім'ям файла: команда на іншій події або з іншим шляхом до файла з
+    # тим самим ім'ям давала б ✅, хоча наша копія в потрібний момент не працює.
+    events = sorted({ev for ev, cmd in commands if _runs_file(cmd, active)})
+    if event not in events:
+        if events:
+            return (DRIFT, label,
+                    f"`{active_raw}` зареєстровано на {', '.join(events)}, а не на {event} — "
+                    "у потрібний момент не виконується")
+        return (DRIFT, label, f"середовище НЕ запускає `{active_raw}` (`{env_raw}`) — хук не виконується")
+    if not active.is_file():
+        return (DRIFT, label, f"середовище посилається на `{active_raw}`, але файла немає")
+    try:
+        same = active.read_bytes() == canon.read_bytes()
+    except OSError as exc:
+        return (UNKNOWN, label, f"копію не вдалося звірити з каноном ({exc})")
+    if not same:
+        return (DRIFT, label,
+                f"активна копія `{active_raw}` ≠ канон — зараз працює інша версія; "
+                f"оновиться на старті наступної сесії (`{synced_by}`)")
+    return (OK, f"підключено середовищем: {name}",
+            f"подія {event} у `{env_raw}` запускає саме `{active_raw}`; копія = канон; "
+            f"синхронізує `{synced_by}`")
+
 def check_remote_only() -> list[tuple[str, str, str]]:
     return [
         (UNKNOWN, "Dependency graph на GitHub", "не перевіряється звідси — лише в налаштуваннях репо"),
@@ -209,6 +379,7 @@ def main(argv: list[str]) -> int:
     rows += check_claude_hooks(root)
     rows.append(check_pretooluse(root))
     rows.append(check_action_pinning(root))
+    rows += check_unwired_hooks(root)
     rows.append(check_last_verified(root, stale_limit(root)))
     rows.append(check_self_modification(root))
     rows += check_remote_only()
