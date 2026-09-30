@@ -900,30 +900,95 @@ echo "════════ 17. E2E: застосунок у справжнь
 # Чому не просто «додати виклик». Сам E2E був написаний за схемою «немає
 # playwright → exit 0», тобто «не ганявся» зараховувалось як «пройдено» —
 # рівно дефект F-2. Тому тут три стани: ПРОЙДЕНО · ВПАЛО · НЕ ГАНЯВСЯ.
-E2E="$REPO/tests/mobile-agent-browser.mjs"
+# Раніше, коли E2E падав, раннер лишав лише лічильник («fail=1») і викидав вивід — тож НАЗВА
+# впалої перевірки зникала безслідно (2026-09-30: одиничний збій «60 із 61» у повному прогоні
+# не вдалось розібрати, бо причина не зберіглась). Тепер на падінні друкуємо самі впалі
+# перевірки з «очікували/отримали» й вносимо їхні назви в підсумок — так, як секція 6 уже
+# робить для підпорядкованого набору проєкту; а коли тест не дійшов до TOTALS — показуємо
+# хвіст його виводу. Формат рядка збою («  ❌ назва») у E2E і в раннера той самий.
+e2e_failed_names()   { sed -n 's/^  ❌ //p' <<<"$1"; }
+e2e_failure_detail() { grep -A2 '❌' <<<"$1" | grep -v '^--$' | sed 's/^/     E2E│ /'; }
+
 E2E_RAN=0   # 1 лише якщо браузерний набір справді дійшов до підсумку (потрібно секції 18)
-if [[ ! -f "$E2E" ]]; then
-  skip "E2E у справжньому браузері" "файла тесту немає"
-elif ! command -v node >/dev/null 2>&1; then
-  skip "E2E у справжньому браузері" "node не встановлено"
-else
-  e2e_out=$(cd "$REPO" && timeout 300 node "$E2E" 2>&1); e2e_rc=$?
-  e2e_totals=$(printf '%s' "$e2e_out" | grep -oE 'TOTALS pass=[0-9]+ fail=[0-9]+' | tail -1)
-  if [[ -z "$e2e_totals" ]]; then
-    # Немає підсумкового рядка — тест не дійшов до кінця. Розрізняємо
-    # «немає браузера» (чесний пропуск) від справжньої поломки.
-    if printf '%s' "$e2e_out" | grep -qiE "playwright|chromium|browser"; then
-      skip "E2E у справжньому браузері" "playwright/Chromium недоступні в цьому середовищі"
-    else
-      bad "E2E завершився коректно" "рядок TOTALS" "rc=$e2e_rc, без підсумку"
-    fi
+# Уся логіка секції — у функції, щоб її можна було прогнати на заглушках (канарки нижче).
+run_e2e_section() { # run_e2e_section <шлях-до-E2E-скрипта>
+  local E2E="$1" e2e_out e2e_rc e2e_totals e2e_fail e2e_pass name
+  if [[ ! -f "$E2E" ]]; then
+    skip "E2E у справжньому браузері" "файла тесту немає"
+  elif ! command -v node >/dev/null 2>&1; then
+    skip "E2E у справжньому браузері" "node не встановлено"
   else
-    e2e_fail=$(printf '%s' "$e2e_totals" | grep -oE 'fail=[0-9]+' | cut -d= -f2)
-    e2e_pass=$(printf '%s' "$e2e_totals" | grep -oE 'pass=[0-9]+' | cut -d= -f2)
-    check "E2E у справжньому браузері: 0 падінь ($e2e_pass перевірок)" "0" "$e2e_fail"
-    E2E_RAN=1
+    e2e_out=$(cd "$REPO" && timeout 300 node "$E2E" 2>&1); e2e_rc=$?
+    e2e_totals=$(printf '%s' "$e2e_out" | grep -oE 'TOTALS pass=[0-9]+ fail=[0-9]+' | tail -1)
+    if [[ -z "$e2e_totals" ]]; then
+      # Немає підсумкового рядка — тест не дійшов до кінця. Розрізняємо
+      # «немає браузера» (чесний пропуск) від справжньої поломки.
+      if printf '%s' "$e2e_out" | grep -qiE "playwright|chromium|browser"; then
+        skip "E2E у справжньому браузері" "playwright/Chromium недоступні в цьому середовищі"
+      else
+        bad "E2E завершився коректно" "рядок TOTALS" "rc=$e2e_rc, без підсумку"
+        printf '%s\n' "$e2e_out" | tail -15 | sed 's/^/     E2E│ /'
+      fi
+    else
+      e2e_fail=$(printf '%s' "$e2e_totals" | grep -oE 'fail=[0-9]+' | cut -d= -f2)
+      e2e_pass=$(printf '%s' "$e2e_totals" | grep -oE 'pass=[0-9]+' | cut -d= -f2)
+      check "E2E у справжньому браузері: 0 падінь ($e2e_pass перевірок)" "0" "$e2e_fail"
+      E2E_RAN=1
+      if [[ "$e2e_fail" != "0" ]]; then
+        e2e_failure_detail "$e2e_out"
+        while IFS= read -r name; do FAILED+=("E2E: $name"); done < <(e2e_failed_names "$e2e_out")
+      fi
+    fi
   fi
+}
+run_e2e_section "$REPO/tests/mobile-agent-browser.mjs"
+
+# Канарки діагностики (Core Rule 15: перевірка, що лише мовчить на чистому, нічого не доводить).
+# Заглушки — справжні node-скрипти; функція йде в поточній оболонці, тож стан лічильників
+# зберігаємо й відновлюємо, щоб заглушки не потрапили в підсумок справжнього прогону.
+if command -v node >/dev/null 2>&1; then
+  e2e_stubs="$TMPROOT/e2e-stubs"; mkdir -p "$e2e_stubs"
+  cat > "$e2e_stubs/clean.mjs" <<'STUB'
+console.log("  ✅ перша"); console.log("  ✅ друга"); console.log("\nTOTALS pass=2 fail=0");
+STUB
+  cat > "$e2e_stubs/failing.mjs" <<'STUB'
+console.log("  ✅ перша");
+console.log("  ❌ друга\n     очікували: 1\n     отримали:  2");
+console.log("  ❌ третя\n     очікували: a\n     отримали:  b");
+console.log("\nTOTALS pass=1 fail=2"); process.exit(1);
+STUB
+  cat > "$e2e_stubs/crash.mjs" <<'STUB'
+console.log("Uncaught TypeError: зламалось до підсумку"); process.exit(3);
+STUB
+  e2e_canary() { # e2e_canary <заглушка> → c_text, c_dfail, c_names; лічильники відновлюються
+    local p=$PASS f=$FAIL s=$SKIP er=$E2E_RAN nf=${#FAILED[@]} ns=${#SKIPPED[@]} o="$e2e_stubs/out.txt"
+    run_e2e_section "$1" >"$o" 2>&1
+    c_dfail=$((FAIL - f)); c_names="${FAILED[*]:$nf}"; c_text=$(<"$o")
+    PASS=$p; FAIL=$f; SKIP=$s; E2E_RAN=$er; FAILED=("${FAILED[@]:0:$nf}"); SKIPPED=("${SKIPPED[@]:0:$ns}")
+  }
+  e2e_canary "$e2e_stubs/failing.mjs"
+  [[ "$c_dfail" == "1" && "$c_text" == *"❌ друга"* && "$c_text" == *"❌ третя"* && "$c_text" == *"отримали:  b"* ]] \
+    && ok "діагностика E2E: на падінні друкує впалі перевірки з «очікували/отримали»" \
+    || bad "діагностика E2E: на падінні друкує впалі перевірки" "друга + третя + деталі, +1 падіння" "dfail=$c_dfail: ${c_text:0:160}"
+  [[ "$c_names" == *"E2E: друга"* && "$c_names" == *"E2E: третя"* ]] \
+    && ok "діагностика E2E: назви впалих потрапляють у підсумок («Впали:»)" \
+    || bad "діагностика E2E: назви впалих у підсумку" "E2E: друга, E2E: третя" "$c_names"
+  e2e_canary "$e2e_stubs/clean.mjs"
+  [[ "$c_dfail" == "0" && "$c_text" != *"E2E│"* && -z "$c_names" ]] \
+    && ok "діагностика E2E: мовчить на чистому виводі (жодного шуму)" \
+    || bad "діагностика E2E: мовчить на чистому виводі" "0 падінь, без «E2E│»" "dfail=$c_dfail: ${c_text:0:160}"
+  e2e_ran_keep=$E2E_RAN; E2E_RAN=0; e2e_canary "$e2e_stubs/clean.mjs"; e2e_ran_leak=$E2E_RAN; E2E_RAN=$e2e_ran_keep
+  check "діагностика E2E: заглушка не виставляє E2E_RAN (інакше секція 18 повірила б у браузерний прогін)" "0" "$e2e_ran_leak"
+e2e_canary "$e2e_stubs/crash.mjs"
+  [[ "$c_dfail" == "1" && "$c_text" == *"Uncaught TypeError: зламалось до підсумку"* ]] \
+    && ok "діагностика E2E: без TOTALS показує хвіст виводу" \
+    || bad "діагностика E2E: без TOTALS показує хвіст виводу" "+1 падіння і текст помилки" "dfail=$c_dfail: ${c_text:0:160}"
+else
+  skip "діагностика E2E (канарки на заглушках)" "node не встановлено"
 fi
+grep -q '^run_e2e_section "\$REPO/tests/mobile-agent-browser.mjs"$' "$REPO/tests/run-tests.sh" \
+  && ok "діагностика E2E підключена до справжнього запуску" \
+  || bad "діагностика E2E підключена до справжнього запуску" "виклик run_e2e_section на справжньому E2E" "не знайдено"
 
 echo ""
 echo "════════ 18. Фаза S5: властивості, мутації, фазинг ════════"
