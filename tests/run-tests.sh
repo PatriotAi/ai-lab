@@ -18,17 +18,14 @@ PASS=0; FAIL=0; SKIP=0; FAILED=(); SKIPPED=()
 
 ok()   { PASS=$((PASS+1)); printf '  ✅ %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); FAILED+=("$1"); printf '  ❌ %s\n     очікували: %s\n     отримали:  %s\n' "$1" "$2" "$3"; }
-# «НЕ ГАНЯВСЯ» — третій стан, а не тихий успіх. Перевірка, якої не виконали,
-# не має зараховуватись як пройдена: це дефект F-2, який ми вже лікували в
-# scripts/security-check.sh. Набір від пропуску не червоніє (інакше CI без
-# браузера падав би завжди), але пропуск ВИДНО в підсумку.
-skip() { SKIP=$((SKIP+1)); SKIPPED+=("$1 — $2"); printf '  ⊘ %s\n     не ганялось: %s\n' "$1" "$2"; }
 check(){ # check <назва> <очікуване> <фактичне>
   [[ "$2" == "$3" ]] && ok "$1" || bad "$1" "$2" "$3"; }
 # skip <назва> <причина> — перевірка, яку НЕ БУЛО ЯК виконати в цьому середовищі.
 # Свідомо окремий лічильник: якби такі перевірки тихо зараховувались як ✅,
 # набір доповідав би про успіх, нічого не перевіривши (Core Rule 15).
-skip() { SKIP=$((SKIP+1)); SKIPPED+=("$1"); printf '  ⏭️  %s — ПРОПУЩЕНО: %s\n' "$1" "$2"; }
+# Причина пропуску потрапляє й у підсумок («назва — причина»): раніше друге визначення skip()
+# мовчки затінювало перше й губило її (знайдено 2026-09-30 при розширенні набору).
+skip() { SKIP=$((SKIP+1)); SKIPPED+=("$1 — $2"); printf '  ⏭️  %s — ПРОПУЩЕНО: %s\n' "$1" "$2"; }
 
 # Тимчасовий git-репозиторій із фейковим remote (хук виходить тихо без remote).
 # ВАЖЛИВО: викликати БЕЗ підоболонки — `mk_repo name`, не `d=$(mk_repo name)`.
@@ -912,6 +909,7 @@ echo "════════ 17. E2E: застосунок у справжнь
 e2e_failed_names()   { sed -n 's/^  ❌ //p' <<<"$1"; }
 e2e_failure_detail() { grep -A2 '❌' <<<"$1" | grep -v '^--$' | sed 's/^/     E2E│ /'; }
 
+E2E_RAN=0   # 1 лише якщо браузерний набір справді дійшов до підсумку (потрібно секції 18)
 # Уся логіка секції — у функції, щоб її можна було прогнати на заглушках (канарки нижче).
 run_e2e_section() { # run_e2e_section <шлях-до-E2E-скрипта>
   local E2E="$1" e2e_out e2e_rc e2e_totals e2e_fail e2e_pass name
@@ -935,6 +933,7 @@ run_e2e_section() { # run_e2e_section <шлях-до-E2E-скрипта>
       e2e_fail=$(printf '%s' "$e2e_totals" | grep -oE 'fail=[0-9]+' | cut -d= -f2)
       e2e_pass=$(printf '%s' "$e2e_totals" | grep -oE 'pass=[0-9]+' | cut -d= -f2)
       check "E2E у справжньому браузері: 0 падінь ($e2e_pass перевірок)" "0" "$e2e_fail"
+      E2E_RAN=1
       if [[ "$e2e_fail" != "0" ]]; then
         e2e_failure_detail "$e2e_out"
         while IFS= read -r name; do FAILED+=("E2E: $name"); done < <(e2e_failed_names "$e2e_out")
@@ -962,10 +961,10 @@ STUB
 console.log("Uncaught TypeError: зламалось до підсумку"); process.exit(3);
 STUB
   e2e_canary() { # e2e_canary <заглушка> → c_text, c_dfail, c_names; лічильники відновлюються
-    local p=$PASS f=$FAIL s=$SKIP nf=${#FAILED[@]} ns=${#SKIPPED[@]} o="$e2e_stubs/out.txt"
+    local p=$PASS f=$FAIL s=$SKIP er=$E2E_RAN nf=${#FAILED[@]} ns=${#SKIPPED[@]} o="$e2e_stubs/out.txt"
     run_e2e_section "$1" >"$o" 2>&1
     c_dfail=$((FAIL - f)); c_names="${FAILED[*]:$nf}"; c_text=$(<"$o")
-    PASS=$p; FAIL=$f; SKIP=$s; FAILED=("${FAILED[@]:0:$nf}"); SKIPPED=("${SKIPPED[@]:0:$ns}")
+    PASS=$p; FAIL=$f; SKIP=$s; E2E_RAN=$er; FAILED=("${FAILED[@]:0:$nf}"); SKIPPED=("${SKIPPED[@]:0:$ns}")
   }
   e2e_canary "$e2e_stubs/failing.mjs"
   [[ "$c_dfail" == "1" && "$c_text" == *"❌ друга"* && "$c_text" == *"❌ третя"* && "$c_text" == *"отримали:  b"* ]] \
@@ -978,7 +977,9 @@ STUB
   [[ "$c_dfail" == "0" && "$c_text" != *"E2E│"* && -z "$c_names" ]] \
     && ok "діагностика E2E: мовчить на чистому виводі (жодного шуму)" \
     || bad "діагностика E2E: мовчить на чистому виводі" "0 падінь, без «E2E│»" "dfail=$c_dfail: ${c_text:0:160}"
-  e2e_canary "$e2e_stubs/crash.mjs"
+  e2e_ran_keep=$E2E_RAN; E2E_RAN=0; e2e_canary "$e2e_stubs/clean.mjs"; e2e_ran_leak=$E2E_RAN; E2E_RAN=$e2e_ran_keep
+  check "діагностика E2E: заглушка не виставляє E2E_RAN (інакше секція 18 повірила б у браузерний прогін)" "0" "$e2e_ran_leak"
+e2e_canary "$e2e_stubs/crash.mjs"
   [[ "$c_dfail" == "1" && "$c_text" == *"Uncaught TypeError: зламалось до підсумку"* ]] \
     && ok "діагностика E2E: без TOTALS показує хвіст виводу" \
     || bad "діагностика E2E: без TOTALS показує хвіст виводу" "+1 падіння і текст помилки" "dfail=$c_dfail: ${c_text:0:160}"
@@ -1008,6 +1009,45 @@ check "S5.2 усі мутанти класифікатора спіймані" "
 
 fz=$(cd "$REPO" && python3 tests/fuzz-scan-input.py --cases 150 >/dev/null 2>&1; echo $?)
 check "S5.3 розбір недовіреного входу не падає" "0" "$fz"
+
+# S5.4 Мутації резервного контуру (проєкт mobile-agent). 180 зелених перевірок не доводять, що
+# контур захищений: доводить лише мутант, якого вони вбивають. Три стани, як у секції 17:
+# код 0 = усі спіймані ТІЄЮ перевіркою, що мала · 1 = діра або нестабільна база · 2 = НЕ ГАНЯВСЯ.
+mutation_gate() {  # $1 — назва, $2.. — аргументи скрипта
+  local title="$1"; shift
+  local out rc
+  out=$(cd "$REPO" && timeout 900 python3 tests/mutation-mobile-agent.py "$@" 2>&1); rc=$?
+  case "$rc" in
+    0) ok "$title: $(grep -oE 'спіймано: [0-9]+ · вижило: 0' <<<"$out" | tail -1)" ;;
+    2) skip "$title" "$(grep -m1 'НЕ ГАНЯЛОСЬ' <<<"$out" | sed 's/^⊘ //')" ;;
+    *) bad "$title" "усі мутанти спіймані заявленою перевіркою" "rc=$rc: $(grep -E 'ВИЖИВ|НЕ тією|НЕДІЙСН|аварія|база|якір' <<<"$out" | head -3 | tr '\n' '|')" ;;
+  esac
+}
+if ! command -v node >/dev/null 2>&1; then
+  skip "S5.4 мутації резервного контуру" "node не встановлено"
+else
+  mutation_gate "S5.4 мутанти ядра резервного контуру (16)"
+  if [[ "$E2E_RAN" == "1" && "${SKIP_BROWSER_MUTATION:-0}" != "1" ]]; then
+    mutation_gate "S5.4b мутанти ядра + проводки застосунку в браузері (16+5)" --browser
+  else
+    skip "S5.4b мутанти ядра + проводки застосунку в браузері (16+5)" \
+         "браузерний набір не ганявся у цьому прогоні (секція 17) або SKIP_BROWSER_MUTATION=1; вручну: python3 tests/mutation-mobile-agent.py --browser"
+  fi
+fi
+
+# S5.5 Службові функції самого набору мусять бути визначені РІВНО раз. Інцидент 2026-09-29:
+# паралельні сесії залишили в цьому файлі дві skip() з різною семантикою — друга мовчки
+# перекривала першу, і «пропущено» лічилось по-різному залежно від місця виклику.
+dup_defs() {  # $1 — файл; друкує назви службових функцій, визначених не рівно раз
+  local f="$1" fn n
+  for fn in ok bad check skip mk_repo; do
+    n=$(grep -cE "^${fn}\(\)|^${fn}[[:space:]]*\(\)" "$f")
+    [[ "$n" == "1" ]] || printf '%s×%s ' "$fn" "$n"
+  done
+}
+check "службові функції набору визначені рівно раз" "" "$(dup_defs "$REPO/tests/run-tests.sh")"
+printf '%s\n' 'ok()   { :; }' 'bad()  { :; }' 'check(){ :; }' 'skip() { :; }' 'skip() { :; }' 'mk_repo() { :; }' > "$TMPROOT/dup-canary.sh"
+check "канарка: подвійне визначення skip() ловиться" "skip×2 " "$(dup_defs "$TMPROOT/dup-canary.sh")"
 
 # Реверсивна перевірка підключеності (корінь F-12 і F-13): скрипт, що називає
 # себе хуком, має бути або зареєстрований, або названий у переліку з причиною.
