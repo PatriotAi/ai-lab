@@ -23,12 +23,12 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.11.0
+  version: 1.11.1
   category: memory
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Continuation Memory — v1.11.0
+# Continuation Memory — v1.11.1
 > Працює українською за замовчуванням (українською-перша): пакети, нотатки й приклади — українською; перемикання лише слідом за користувачем.
 
 
@@ -332,6 +332,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.11.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.11.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.10.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `gsre-recovery` — «відновити прогрес/контекст» тут = стан ПОТОЧНОЇ лінії; forensic-пошук втраченого по чатах = gsre [#10]; H1-банер з версією + `last_updated` у metadata [#21/#45]. Лише опис/метадані. Рев'ю Codex PR #29: description ужато ≤1024 симв. (packaging-ліміт).
 - **v1.9.1** (2026-07-13) — G5 cold-start recovery gate: валідований патерн зовнішньої пам'яті проти прогалини G5 — self-contained critical refs (критичні URL/шляхи inline, не pointer-only) + recovery-checklist ДО тесту (об'єктивний вимір 100% критичних без повтору); крос-лінк `gmi-audit`. Лише додавання. _(Джерело: experiments/gmi-g5-memory — recovery 9/9.)_

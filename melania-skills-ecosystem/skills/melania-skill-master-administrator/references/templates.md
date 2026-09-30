@@ -17,7 +17,7 @@ allowed-tools:                     # Claude Code: declare required tools
   - Bash(python:*)
   - Read
   - Write
-license: MIT                       # or Proprietary
+license: MIT                       # політика лабораторії: MIT скрізь
 metadata:
   version: 1.0.0
   author: Melania
