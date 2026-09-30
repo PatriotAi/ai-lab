@@ -670,33 +670,6 @@ function defaultChain(settings = {}) {
   return chain;
 }
 
-/**
- * Перший вузол ланцюга, який зараз доступний: не в cooldown, не вичерпаний
- * у цьому проході й підтриманий можливостями пристрою.
- *
- * ВАЖЛИВО (спіймано браузерним прогоном 2026-09-28): офлайн НЕ береться, поки
- * лишається шанс на справжню відповідь. Інакше перший же 429 закривав завдання
- * деградованою заглушкою — тобто «затримка» знову ставала втратою. Офлайн
- * дозволяється лише явно: остання спроба, вибір користувача або коли інших
- * вузлів у пристрою просто немає.
- */
-function pickProvider(chain, o = {}) {
-  const now = o.now ?? Date.now();
-  const health = o.health || {};
-  const caps = o.caps || {};
-  const tried = new Set(o.tried || []);
-  for (const node of chain) {
-    if (tried.has(node.id)) continue;
-    if (node.kind === "offline" && o.allowOffline !== true) continue;
-    if ((health[node.id]?.cooldownUntil || 0) > now) continue;
-    if (node.kind === "cloud" && !(node.backup ? caps.hasBackupKey : caps.hasCloudKey)) continue;
-    if (node.kind === "cloud" && caps.online === false) continue;
-    if (node.kind === "local" && !caps.localReady) continue;
-    return node;
-  }
-  return null;
-}
-
 /** Невдача вузла: рахуємо поспіль і відсуваємо його на паузу. */
 function markFailure(health, id, o = {}) {
   const now = o.now ?? Date.now();
@@ -1456,7 +1429,7 @@ if (state.settings.updateUrl) checkUpdate(true);
 window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
-          classifyFailure, nextBackoffMs, defaultChain, pickProvider, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
+          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };

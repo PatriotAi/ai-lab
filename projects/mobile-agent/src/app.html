@@ -762,7 +762,7 @@ if (state.settings.updateUrl) checkUpdate(true);
 window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
-          classifyFailure, nextBackoffMs, defaultChain, pickProvider, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
+          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };
