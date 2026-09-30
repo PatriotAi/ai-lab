@@ -1,6 +1,6 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-09-28",
+ "built": "2026-09-30",
  "governance": "melania-skill-master-administrator v2.23.1",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
@@ -156,10 +156,10 @@
    ]
   },
   "multi-provider-ai-orchestration": {
-   "version": "1.6.1",
+   "version": "1.7.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "88a82e13d0e8fc21",
+    "SKILL.md": "d436a0108d794b5a",
     "evals/evals.json": "f27cc2eba09bd31d"
    },
    "files": [
