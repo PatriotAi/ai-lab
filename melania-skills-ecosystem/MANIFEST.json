@@ -156,10 +156,10 @@
    ]
   },
   "multi-provider-ai-orchestration": {
-   "version": "1.6.0",
+   "version": "1.7.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "bf6f0f54bbaa5915",
+    "SKILL.md": "1311ff2df3e24072",
     "evals/evals.json": "f27cc2eba09bd31d"
    },
    "files": [

@@ -6,7 +6,7 @@
 // Правило: усе, що можна перевірити без браузера, живе ТУТ.
 // Усе, що потребує DOM/мережі/WebGPU — в app.html і перевіряється браузерним прогоном.
 
-export const APP_VERSION = "0.1.0";
+export const APP_VERSION = "0.2.0";
 
 // Ідентифікатор моделі — це КОНФІГ застосунку, а не правило лабораторії
 // (закон не-старіння: назви моделей не живуть у правилах). Змінюється в налаштуваннях.
@@ -51,10 +51,11 @@ export function pickEngine(ctx = {}) {
   }
   if (prefer === "local") {
     if (localOk) return { engine: "local", reason: "обрано вручну", fallback: false };
+    // «Тільки локальна» — це обіцянка про дані: запит не залишає пристрій. Тому
+    // без локального двигуна ми НЕ йдемо в хмару, навіть якщо ключ відкритий
+    // (рев'ю Codex до PR #74: чіп казав «локальна», а запит летів у хмару).
     const why = !ctx.webgpu ? "нема WebGPU" : "не secure context (потрібен HTTPS)";
-    return cloudOk
-      ? { engine: "cloud", reason: `локальна недоступна (${why})`, fallback: true }
-      : { engine: "offline", reason: `локальна недоступна (${why})`, fallback: true };
+    return { engine: "offline", reason: `локальна недоступна (${why}); хмару не використовую — обрано «тільки локальна»`, fallback: true };
   }
   if (cloudOk) return { engine: "cloud", reason: "є мережа і ключ", fallback: false };
   if (localOk) return { engine: "local", reason: "нема хмари, є WebGPU", fallback: true };
@@ -351,4 +352,344 @@ export function redactSecrets(text) {
   return String(text ?? "")
     .replace(/\b(sk-[A-Za-z0-9_-]{8,})/g, "sk-***")
     .replace(/\b(xai-|gsk_|AIza)[A-Za-z0-9_-]{8,}/g, "$1***");
+}
+
+// ── Резервний контур: черга, повтори, ланцюг провайдерів ──────────────────
+// Навіщо: до цього падіння хмари НЕ затримувало роботу, а знищувало її —
+// єдина спроба, catch → офлайн-заглушка замість справжньої відповіді, і жодного
+// повтору. Контур міняє це: завдання не втрачається, а чекає й повторюється.
+// Уся логіка тут — чиста й детермінована (час і випадковість передаються ззовні),
+// тому перевіряється без браузера й без мережі.
+
+export const QUEUE_KEY = "pocket-agent.queue.v1";
+export const MAX_ATTEMPTS = 5;
+
+/**
+ * Класифікація збою: що це було і що з цим робити.
+ * Розрізняємо ТРИ різні речі, які легко сплутати:
+ *   retryable      — має сенс повторити те саме пізніше (ліміт, 5xx, нема мережі);
+ *   switchProvider — цьому провайдеру не допоможе повтор, потрібен наступний вузол;
+ *   fatal          — зламаний наш власний запит, повтор ніде не допоможе.
+ * @param {{status?:number, message?:string, retryAfter?:string|number|null, offline?:boolean}} o
+ */
+export function classifyFailure(o = {}) {
+  const status = Number(o.status) || 0;
+  const msg = String(o.message ?? "").toLowerCase();
+  const retryAfterMs = parseRetryAfter(o.retryAfter);
+
+  if (o.offline === true || (!status && /failed to fetch|networkerror|network request|load failed/.test(msg))) {
+    return { kind: "offline", retryable: true, switchProvider: false, retryAfterMs };
+  }
+  if (status === 429 || /\b429\b|rate.?limit|quota|too many requests/.test(msg)) {
+    return { kind: "rate-limit", retryable: true, switchProvider: true, retryAfterMs };
+  }
+  if (status === 408 || status === 425 || (status >= 500 && status <= 599) || /timeout|timed out|overloaded/.test(msg)) {
+    return { kind: "transient", retryable: true, switchProvider: status === 503, retryAfterMs };
+  }
+  if (status === 401 || status === 403) {
+    // Ключ не той — повторювати марно, але інший провайдер може спрацювати.
+    return { kind: "auth", retryable: false, switchProvider: true, retryAfterMs: null };
+  }
+  if (status === 404) {
+    return { kind: "not-found", retryable: false, switchProvider: true, retryAfterMs: null };
+  }
+  return { kind: "fatal", retryable: false, switchProvider: false, retryAfterMs: null };
+}
+
+/** Retry-After: секунди або HTTP-дата → мілісекунди. Сміття → null. */
+export function parseRetryAfter(value, now = Date.now()) {
+  if (value === null || value === undefined || value === "") return null;
+  const secs = Number(value);
+  if (Number.isFinite(secs)) return secs >= 0 ? Math.round(secs * 1000) : null;
+  const when = Date.parse(String(value));
+  if (Number.isNaN(when)) return null;
+  return Math.max(0, when - now);
+}
+
+/**
+ * Пауза перед наступною спробою: експонента + рівний джитер.
+ * Джитер обов'язковий — без нього всі клієнти повертаються одночасно і кладуть
+ * провайдера вдруге («громовий табун»). Половина паузи детермінована,
+ * половина випадкова, тому очікування ніколи не менше базового.
+ * Retry-After від провайдера має пріоритет над нашою формулою.
+ */
+export function nextBackoffMs(attempt, o = {}) {
+  const base = o.baseMs ?? 1000;
+  const cap = o.capMs ?? 60000;
+  const rand = o.rand ?? Math.random;
+  if (o.retryAfterMs !== null && o.retryAfterMs !== undefined) {
+    return Math.min(Math.max(0, Math.round(o.retryAfterMs)), cap);
+  }
+  const exp = Math.min(cap, base * 2 ** Math.max(0, attempt - 1));
+  return Math.round(exp / 2 + rand() * (exp / 2));
+}
+
+// ── Ланцюг провайдерів зі здоров'ям ────────────────────────────────────────
+/** Ланцюг за замовчуванням: хмара → запасна хмара → локальна → офлайн. */
+export function defaultChain(settings = {}) {
+  const chain = [{ id: "cloud", kind: "cloud" }];
+  if (settings.backupProvider) chain.push({ id: "cloud-backup", kind: "cloud", backup: true });
+  chain.push({ id: "local", kind: "local" }, { id: "offline", kind: "offline" });
+  return chain;
+}
+
+/**
+ * Перший вузол ланцюга, який зараз доступний: не в cooldown, не вичерпаний
+ * у цьому проході й підтриманий можливостями пристрою.
+ *
+ * ВАЖЛИВО (спіймано браузерним прогоном 2026-09-28): офлайн НЕ береться, поки
+ * лишається шанс на справжню відповідь. Інакше перший же 429 закривав завдання
+ * деградованою заглушкою — тобто «затримка» знову ставала втратою. Офлайн
+ * дозволяється лише явно: остання спроба, вибір користувача або коли інших
+ * вузлів у пристрою просто немає.
+ */
+export function pickProvider(chain, o = {}) {
+  const now = o.now ?? Date.now();
+  const health = o.health || {};
+  const caps = o.caps || {};
+  const tried = new Set(o.tried || []);
+  for (const node of chain) {
+    if (tried.has(node.id)) continue;
+    if (node.kind === "offline" && o.allowOffline !== true) continue;
+    if ((health[node.id]?.cooldownUntil || 0) > now) continue;
+    if (node.kind === "cloud" && !(node.backup ? caps.hasBackupKey : caps.hasCloudKey)) continue;
+    if (node.kind === "cloud" && caps.online === false) continue;
+    if (node.kind === "local" && !caps.localReady) continue;
+    return node;
+  }
+  return null;
+}
+
+/** Невдача вузла: рахуємо поспіль і відсуваємо його на паузу. */
+export function markFailure(health, id, o = {}) {
+  const now = o.now ?? Date.now();
+  const prev = health[id] || { fails: 0, cooldownUntil: 0 };
+  const fails = prev.fails + 1;
+  const pause = nextBackoffMs(fails, { retryAfterMs: o.retryAfterMs, rand: o.rand ?? (() => 0.5) });
+  return { ...health, [id]: { fails, cooldownUntil: now + pause, lastKind: o.kind || "unknown" } };
+}
+
+/** Успіх вузла стирає його історію: одна невдача не карає провайдера назавжди. */
+export function markSuccess(health, id) {
+  if (!health[id]) return health;
+  const next = { ...health };
+  delete next[id];
+  return next;
+}
+
+// ── Рішення диспетчера (чиста функція) ─────────────────────────────────────
+// Раніше ця логіка жила лише в app.html — і саме тому три P1 із рев'ю Codex
+// (PR #74) пройшли повз усі unit-тести: тестувати було нічого. Тепер кожен крок
+// обходу ланцюга — чиста функція від вхідних даних.
+
+/**
+ * Явний вибір користувача звужує ланцюг, а не лише підпис на чіпі.
+ * «Тільки локальна» — обіцянка про дані: запит не залишає пристрій.
+ */
+export function constrainChain(chain, prefer) {
+  if (prefer === "local") return chain.filter((n) => n.kind === "local");
+  return chain;
+}
+
+/**
+ * Що робити з завданням ЗАРАЗ. Повертає одне з:
+ *   {action:"run", node}                          — виконати цим вузлом;
+ *   {action:"wait", reason:"cooldown", untilMs}   — справжні вузли на паузі: чекати, НЕ витрачаючи спробу;
+ *   {action:"wait", reason:"locked"}              — ключ збережено, але ще не відкрито: чекати людину;
+ *   {action:"wait", reason:"network"}             — ключ є, мережі нема: чекати мережу;
+ *   {action:"exhausted"}                          — у цьому проході справжніх вузлів не лишилось.
+ *
+ * Три інваріанти (кожен — окреме зауваження Codex, кожен має регрес-тест):
+ *  1. Збережений, але замкнений ключ — це СТАН ОЧІКУВАННЯ, а не «ключа нема»:
+ *     інакше перезапуск тихо перетворює хмарне завдання на офлайн-заглушку.
+ *  2. Чекання cooldown не є невдачею й не витрачає спроб: інакше друге завдання
+ *     вичерпує всі спроби й іде в офлайн задовго до кінця вікна провайдера.
+ *  3. Явно обраний двигун обмежує ланцюг: «тільки локальна» ніколи не веде в хмару.
+ */
+export function planDispatch(o = {}) {
+  const now = o.now ?? Date.now();
+  const caps = o.caps || {};
+  const health = o.health || {};
+  const tried = new Set(o.tried || []);
+  const prefer = o.prefer || "auto";
+  const wantsCloud = o.wantsCloud === true;
+  const offlineNode = { id: "offline", kind: "offline" };
+
+  if (prefer === "offline") return { action: "run", node: offlineNode };
+
+  const real = constrainChain(o.chain || [], prefer).filter((n) => n.kind !== "offline" && !tried.has(n.id));
+  const cooling = [];
+  let available = null, lockedBlocked = false, networkBlocked = false;
+
+  for (const node of real) {
+    if (node.kind === "cloud") {
+      const has = node.backup ? caps.hasBackupKey : caps.hasCloudKey;
+      const locked = node.backup ? caps.backupKeyLocked : caps.keyLocked;
+      // Чекати ключа чи мережі мають лише завдання з наміром «хмара». Решта (створені
+      // за офлайн-чіпа) не блокуються тим, чого людина не збиралась чекати.
+      if (!has) { if (locked && wantsCloud) lockedBlocked = true; continue; }
+      if (caps.online === false) { if (wantsCloud) networkBlocked = true; continue; }
+    } else if (node.kind === "local") {
+      if (!caps.localReady) continue;
+    }
+    const until = health[node.id]?.cooldownUntil || 0;
+    if (until > now) { cooling.push(until); continue; }
+    if (!available) available = node;
+  }
+
+  if (available) return { action: "run", node: available };
+
+  // Уже щось пробували в цьому проході й нічого не лишилось: ланцюг вичерпано.
+  // Офлайн — лише як остання ланка на останній спробі.
+  if (tried.size > 0) {
+    return o.lastChance === true ? { action: "run", node: offlineNode } : { action: "exhausted" };
+  }
+
+  // Нічого не пробували, але справжні вузли існують — просто зараз недоступні.
+  if (cooling.length) return { action: "wait", reason: "cooldown", untilMs: Math.min(...cooling) };
+  if (lockedBlocked) return { action: "wait", reason: "locked" };
+  if (networkBlocked) return { action: "wait", reason: "network" };
+
+  // Справжніх вузлів нема взагалі — офлайн-структурування єдине, що можна дати.
+  return { action: "run", node: offlineNode };
+}
+
+/**
+ * Системне сповіщення про збій. Текст завдання туди НЕ потрапляє ніколи: тіло
+ * сповіщення видно на екрані блокування, а застосунок в усьому іншому тримає дані
+ * на пристрої (рев'ю Codex до PR #74). Приймає завдання лише щоб тест міг довести,
+ * що воно ігнорується.
+ */
+export function failureNotification(_task) {
+  return {
+    title: "Кишеньковий агент",
+    body: "Завдання не вдалося виконати. Відкрий застосунок, щоб повторити.",
+  };
+}
+
+// ── Черга завдань ──────────────────────────────────────────────────────────
+/** Завдання з детермінованих полів; id ззовні, щоб тест був відтворюваний. */
+export function makeTask({ input, kind = "ask", now = Date.now(), id, intent = "any" }) {
+  const text = String(input ?? "").trim();
+  return {
+    id: id || `t${now}-${Math.abs(hashString(text + now)).toString(36)}`,
+    input: text,
+    kind,
+    // Намір фіксується при створенні: якщо чіп казав «хмара», завдання має право
+    // ЧЕКАТИ ключа чи мережі. Якщо чіп казав «офлайн», людина очікує офлайн-відповіді
+    // одразу — змушувати її чекати ключа, якого вона не збиралась відкривати, помилка.
+    intent: intent === "cloud" ? "cloud" : "any",
+    status: "pending",
+    attempts: 0,
+    nextAttemptAt: now,
+    createdAt: now,
+    tried: [],
+    lastError: null,
+  };
+}
+
+/** Найстаріше завдання, якому вже час виконуватись. */
+export function nextRunnable(queue, now = Date.now()) {
+  return (queue || [])
+    .filter((t) => t.status === "pending" && !t.waiting && t.nextAttemptAt <= now)
+    .sort((a, b) => a.createdAt - b.createdAt)[0] || null;
+}
+
+/**
+ * Результат спроби → новий стан черги (чиста функція, вхідну чергу не мутує).
+ * Правила: успіх → done · вичерпані спроби → failed (НЕ зникає, лишається видимим
+ * і придатним до ручного повтору) · інакше → pending з розрахованою паузою.
+ */
+export function applyOutcome(queue, id, outcome, o = {}) {
+  const now = o.now ?? Date.now();
+  const maxAttempts = o.maxAttempts ?? MAX_ATTEMPTS;
+  return (queue || []).map((t) => {
+    if (t.id !== id) return t;
+    if (outcome.ok) {
+      return { ...t, status: "done", answer: outcome.answer, engine: outcome.engine, finishedAt: now, lastError: null };
+    }
+    const f = outcome.failure || { retryable: false, kind: "fatal" };
+    const attempts = t.attempts + 1;
+    const tried = outcome.tried || (outcome.engine ? [outcome.engine] : []);
+    const exhausted = !f.retryable || attempts >= maxAttempts;
+    if (exhausted) {
+      return { ...t, status: "failed", attempts, tried, lastError: outcome.error || f.kind, finishedAt: now };
+    }
+    // Новий раунд — чистий список: cooldown уже стримує щойно впалий вузол,
+    // а постійний «чорний список» назавжди відрізав би найкращого провайдера
+    // через одну тимчасову помилку.
+    // Новий раунд — чистий список: обхід ланцюга вже відбувся в межах проходу,
+    // а постійний «чорний список» назавжди відрізав би найкращого провайдера
+    // через одну тимчасову помилку (спіймано браузерним прогоном 2026-09-28).
+    const pause = nextBackoffMs(attempts, { retryAfterMs: f.retryAfterMs, rand: o.rand });
+    return { ...t, status: "pending", attempts, tried, lastError: outcome.error || f.kind, nextAttemptAt: now + pause };
+  });
+}
+
+/**
+ * Відкласти завдання БЕЗ витрати спроби. Чекання — не невдача: спробу з'їдає лише
+ * справжній виклик, що відмовив. Дві форми:
+ *   {untilMs}  — таймерне чекання (cooldown провайдера): пробудиться саме;
+ *   {waiting}  — чекання події («locked» — відкрий ключ, «network» — мережа):
+ *                таймера нема, будить `wakeWaiting`. Без цього спорожнення крутилось
+ *                би в холосту, бо завдання лишалось би «готовим» щоразу.
+ */
+export function deferTask(queue, id, o = {}) {
+  return (queue || []).map((t) => {
+    if (t.id !== id) return t;
+    if (o.waiting) return { ...t, waiting: o.waiting };
+    return { ...t, waiting: undefined, nextAttemptAt: Math.max(t.nextAttemptAt, o.untilMs ?? t.nextAttemptAt) };
+  });
+}
+
+/** Розбудити завдання, що чекали подію (усі або лише за причиною). */
+export function wakeWaiting(queue, reason) {
+  return (queue || []).map((t) =>
+    t.waiting && (!reason || t.waiting === reason) ? { ...t, waiting: undefined } : t,
+  );
+}
+
+/** Ручний повтор завдання, що вичерпало спроби: лічильник і історія — з нуля. */
+export function requeue(queue, id, now = Date.now()) {
+  return (queue || []).map((t) =>
+    t.id === id && t.status === "failed"
+      ? { ...t, status: "pending", attempts: 0, tried: [], nextAttemptAt: now, lastError: null }
+      : t,
+  );
+}
+
+/** Прибрати завершені — черга не має рости вічно. */
+export function pruneQueue(queue, o = {}) {
+  const keep = o.keepDone ?? 0;
+  const done = (queue || []).filter((t) => t.status === "done").sort((a, b) => b.finishedAt - a.finishedAt);
+  const keepIds = new Set(done.slice(0, keep).map((t) => t.id));
+  return (queue || []).filter((t) => t.status !== "done" || keepIds.has(t.id));
+}
+
+/**
+ * Зведення для сповіщення: що показати людині одним рядком.
+ * Головне — НЕ мовчати: якщо щось чекає або впало, це має бути видно без пошуку.
+ */
+export function queueSummary(queue, now = Date.now()) {
+  const list = queue || [];
+  const pending = list.filter((t) => t.status === "pending");
+  const failed = list.filter((t) => t.status === "failed");
+  const parkedLocked = pending.filter((t) => t.waiting === "locked");
+  const parkedNet = pending.filter((t) => t.waiting === "network");
+  const timed = pending.filter((t) => !t.waiting && t.nextAttemptAt > now);
+  const nextAt = timed.length ? Math.min(...timed.map((t) => t.nextAttemptAt)) : null;
+  let text = "";
+  if (failed.length) text = `${failed.length} не вдалося — потрібен ручний повтор`;
+  else if (parkedLocked.length) text = `${parkedLocked.length} чекає: відкрий ключ (⚙ → «Відкрити»)`;
+  else if (parkedNet.length) text = `${parkedNet.length} чекає на мережу`;
+  else if (timed.length) text = `${pending.length} у черзі · наступна спроба через ${Math.max(1, Math.round((nextAt - now) / 1000))} с`;
+  else if (pending.length) text = `${pending.length} у черзі · виконується`;
+  return {
+    pending: pending.length,
+    failed: failed.length,
+    done: list.filter((t) => t.status === "done").length,
+    nextAttemptIn: nextAt === null ? null : Math.max(0, nextAt - now),
+    needsAttention: failed.length > 0 || parkedLocked.length > 0,
+    text,
+  };
 }

@@ -1008,7 +1008,6 @@ check "pre-commit check-merge-conflict перевіряє і поза злитт
 printf '%s\n' "repos:" "  - repo: x" "    hooks:" "      - id: check-merge-conflict" "      - id: detect-private-key" > "$TMPROOT/pc-old.yaml"
 check "канарка: конфіг без прапорця (стан до 2026-09-28) ловиться" "no" "$(cmc_ok "$TMPROOT/pc-old.yaml")"
 
-echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
