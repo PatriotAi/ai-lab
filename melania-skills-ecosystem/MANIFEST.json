@@ -214,10 +214,10 @@
    ]
   },
   "pre-delivery-gate": {
-   "version": "1.4.0",
+   "version": "1.5.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "b203918e73823e51",
+    "SKILL.md": "a75ca72c66d4cf96",
     "evals/evals.json": "07f5158b582ddaf5"
    },
    "files": [
@@ -265,10 +265,10 @@
    ]
   },
   "safety-compliance-gate": {
-   "version": "1.4.0",
+   "version": "1.4.1",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "5aa31ec1592471c2",
+    "SKILL.md": "cdadf47a5e508277",
     "evals/evals.json": "e125b0560c380b0a"
    },
    "files": [

@@ -505,6 +505,26 @@ def verify() -> int:
         for h in secret_hits: print(f"  ! {h}")
     else:
         print("✅ секрет-скан чистий (нуль захардкоджених ключів/токенів)")
+    # Декларативні гейти навичок (точка `verify`): навичка сама заявляє, що перевіряти
+    # (gates.json), виконавець — scripts/run-gates.py. Так перевірка поверхні навичок
+    # вбудована без жорсткого вшивання в цей файл (рішення власника 2026-09-30).
+    # Пакет melania може жити ПОЗА ai-lab, де виконавця немає — тоді це видима
+    # примітка, а не падіння й не мовчання.
+    runner = REPO / "scripts" / "run-gates.py"
+    if runner.is_file():
+        import subprocess as _sp
+        res = _sp.run([sys.executable, str(runner), "--point", "verify", "--root", str(REPO)],
+                      capture_output=True, text=True)
+        if res.returncode != 0:
+            ok = False
+            print(f"\n❌ декларативні гейти (точка verify), код {res.returncode}:")
+        else:
+            print("✅ декларативні гейти навичок (точка verify):")
+        for ln in res.stdout.rstrip().splitlines():
+            print(f"  {ln.strip()}")
+    else:
+        print("ℹ️  декларативні гейти не запущено: scripts/run-gates.py поза цим пакетом "
+              "(пакет працює без ai-lab) — перевірку поверхні навичок треба запустити там, де виконавець є")
     return 0 if ok else 1
 
 

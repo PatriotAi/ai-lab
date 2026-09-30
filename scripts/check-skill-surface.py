@@ -13,6 +13,7 @@
     · `allowed-tools`  (що навичці дозволено викликати)
     · `hooks`          (блок у frontmatter, якщо є)
     · файли `scripts/` (код, який може виконатись)
+    · `gates.json`     (гейти, які `scripts/run-gates.py` ЗАПУСКАЄ як команди)
 
 ЩО РОБИТЬ. Порівнює поточну поверхню з базовою лінією
 `melania-skills-ecosystem/SURFACE.json`. РОЗШИРЕННЯ поверхні — нова навичка, додані
@@ -98,9 +99,11 @@ def surface(skill_dir: Path) -> dict:
             if not f.is_file() or SKIP_PARTS & set(f.parts) or f.suffix in SKIP_SUFFIXES:
                 continue
             scripts[str(f.relative_to(skill_dir))] = hashlib.sha256(f.read_bytes()).hexdigest()[:16]
+    gates_file = skill_dir / "gates.json"
     return {
         "tools": parse_tools(fm),
         "hooks": hashlib.sha256("\n".join(hooks).encode()).hexdigest()[:16] if hooks else None,
+        "gates": hashlib.sha256(gates_file.read_bytes()).hexdigest()[:16] if gates_file.is_file() else None,
         "scripts": scripts,
     }
 
@@ -143,6 +146,10 @@ def delta(cur: dict, base: dict | None) -> dict:
     if cur["hooks"] != base["hooks"]:
         expanding = True
         notes.append("змінено блок hooks")
+    # `.get`: бази, знятої до появи ключа, він не відомий — це «гейтів не було».
+    if cur["gates"] != base.get("gates"):
+        expanding = True
+        notes.append("змінено gates.json (гейти, що запускаються як команди)")
     cs, bs = cur["scripts"], base["scripts"]
     for name in sorted(set(cs) - set(bs)):
         expanding = True
@@ -183,7 +190,7 @@ def load_baseline(root: Path) -> dict | None:
 def write_baseline(root: Path, cur: dict[str, dict]) -> None:
     doc = {
         "schema": 1,
-        "about": ("Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts). "
+        "about": ("Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts · gates). "
                   "Звіряє scripts/check-skill-surface.py; розширення без запису в "
                   "security/consent.md (rule=skill-surface, ціль=назва навички) — помилка."),
         "skills": cur,

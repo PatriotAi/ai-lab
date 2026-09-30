@@ -1,8 +1,9 @@
 {
-  "about": "Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts). Звіряє scripts/check-skill-surface.py; розширення без запису в security/consent.md (rule=skill-surface, ціль=назва навички) — помилка.",
+  "about": "Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts · gates). Звіряє scripts/check-skill-surface.py; розширення без запису в security/consent.md (rule=skill-surface, ціль=назва навички) — помилка.",
   "schema": 1,
   "skills": {
     "ai-core-runtime": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -10,6 +11,7 @@
       "tools": null
     },
     "ai-dev-workflow": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -17,6 +19,7 @@
       "tools": null
     },
     "auth-session-manager": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "c398a76b88513031"
@@ -28,6 +31,7 @@
       ]
     },
     "browser-local-ai-webllm": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -35,6 +39,7 @@
       "tools": null
     },
     "collaborative-browser": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -42,11 +47,13 @@
       "tools": null
     },
     "content-pipeline": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "continuation-memory": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -54,11 +61,13 @@
       "tools": null
     },
     "experiment": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "github-collab": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -66,11 +75,13 @@
       "tools": null
     },
     "gmi-audit": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "gsre-recovery": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "2fd6229cfc4be315"
@@ -78,6 +89,7 @@
       "tools": null
     },
     "knowledge-synthesizer": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -85,6 +97,7 @@
       "tools": null
     },
     "llm-api-builder": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -92,6 +105,7 @@
       "tools": null
     },
     "melania-skill-master-administrator": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "d7a19832bceeb1b3"
@@ -103,6 +117,7 @@
       ]
     },
     "multi-provider-ai-orchestration": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -110,6 +125,7 @@
       "tools": null
     },
     "n8n-orchestrator": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -117,6 +133,7 @@
       "tools": null
     },
     "notebooklm-connector": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/SKILL_GUARD_USAGE.md": "2094ce5078a98d03",
@@ -126,6 +143,7 @@
       "tools": null
     },
     "pre-delivery-gate": {
+      "gates": "a1825d3a4ecc24d6",
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "2fd6229cfc4be315"
@@ -133,11 +151,13 @@
       "tools": null
     },
     "publish": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "pwa-to-android-app": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -145,6 +165,7 @@
       "tools": null
     },
     "rlm-harness": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "e1e916b5af0da3a7"
@@ -152,6 +173,7 @@
       "tools": null
     },
     "safety-compliance-gate": {
+      "gates": "4ae926efa6066535",
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -163,6 +185,7 @@
       ]
     },
     "semantic-router": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -170,6 +193,7 @@
       "tools": null
     },
     "skill-creation-guide": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -177,6 +201,7 @@
       "tools": null
     },
     "skill-ecosystem-auditor": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/audit_scan.py": "23c8aea105979a51",
@@ -189,6 +214,7 @@
       ]
     },
     "skill-marketplace-distribution": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -200,11 +226,13 @@
       ]
     },
     "skill-new": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "source-research-harvest": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -218,6 +246,7 @@
       ]
     },
     "surgical-code-refactoring": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -225,11 +254,13 @@
       "tools": null
     },
     "translate-uaen": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "validation-mesh": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -237,6 +268,7 @@
       "tools": null
     },
     "vercel-mcp-connector": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "2fd6229cfc4be315"
@@ -246,6 +278,7 @@
       ]
     },
     "webapp-testing": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"
@@ -253,11 +286,13 @@
       "tools": null
     },
     "weekly-review": {
+      "gates": null,
       "hooks": null,
       "scripts": {},
       "tools": null
     },
     "workflow-orchestration": {
+      "gates": null,
       "hooks": null,
       "scripts": {
         "scripts/skill_guard.py": "aafddda608d1be3f"

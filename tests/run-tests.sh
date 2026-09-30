@@ -1439,6 +1439,83 @@ $SF >/dev/null 2>&1 && ok "реальна поверхня навичок лаб
   || bad "реальна поверхня збігається з базою" "код 0" "$($SF 2>&1 | head -2)"
 
 echo ""
+echo "════════ 24. Декларативні гейти навичок (хвиля 7, W-9) ════════"
+# Рішення власника 2026-09-30 («Так» на W-9). Гейт виконує КОМАНДУ з файла навички,
+# тому канарки стоять у двох групах: (а) двокроковий контракт onError/blocking;
+# (б) усе, що можна заявити небезпечного — оболонка, чужий виконавець, вихід за репо.
+# Кожен випадок звіряє код І причину (урок хвилі 5: код без причини нічого не доводить).
+RG="python3 $REPO/scripts/run-gates.py"
+rg_root() { # rg_root <код-виходу-скрипта> <blocking> <onError> [timeout] [sleep]
+  local d; d=$(mktemp -d "$TMPROOT/rg-XXXXXX")
+  mkdir -p "$d/melania-skills-ecosystem/skills/alpha" "$d/scripts"
+  printf 'import sys,time\ntime.sleep(%s)\nprint("вердикт скрипта")\nsys.exit(%s)\n' "${5:-0}" "$1" > "$d/scripts/chk.py"
+  printf '{"schema":1,"gates":[{"id":"chk","point":"verify","command":["python3","scripts/chk.py"],"blocking":%s,"onError":"%s","timeout":%s,"why":"перевірка для канарки — причина достатньої довжини"}]}' \
+    "$2" "$3" "${4:-5}" > "$d/melania-skills-ecosystem/skills/alpha/gates.json"
+  printf '%s' "$d"
+}
+rg_case() { # rg_case <назва> <код> <фрагмент|-> <корінь> [аргументи...]
+  local name="$1" want="$2" why="$3" d="$4"; shift 4
+  local out rc; out=$($RG --root "$d" "$@" 2>&1); rc=$?
+  if [[ "$rc" != "$want" ]]; then bad "$name" "код $want" "код $rc: ${out:0:100}"
+  elif [[ "$why" != "-" && "$out" != *"$why"* ]]; then bad "$name" "причина «$why»" "${out:0:120}"
+  else ok "$name"; fi
+}
+d=$(rg_root 0 true halt);  rg_case "гейт відпрацював і пройшов → код 0" 0 "вердикт скрипта" "$d" --point verify
+d=$(rg_root 1 true halt);  rg_case "знахідка + blocking → зупинка (код 1)" 1 "знахідка (blocking)" "$d" --point verify
+d=$(rg_root 1 false halt); rg_case "знахідка + blocking:false → лише попередження (код 0)" 0 "не блокує" "$d" --point verify
+d=$(rg_root 2 true halt);  rg_case "перевірка сама впала + onError:halt → зупинка" 1 "onError=halt" "$d" --point verify
+d=$(rg_root 2 true skip);  rg_case "перевірка сама впала + onError:skip → попередження" 0 "onError=skip" "$d" --point verify
+d=$(rg_root 0 true halt 1 3); rg_case "таймаут = перевірка не відпрацювала → onError:halt" 1 "таймаут" "$d" --point verify
+d=$(rg_root 0 true halt);  rg_case "гейти іншої точки не запускаються" 0 "гейтів у точці" "$d" --point delivery
+rg_case "без --point → код 2" 2 "--point" "$d"
+rg_case "невідома точка → код 2" 2 "--point" "$d" --point ship
+
+# (б) Схема й небезпечні заяви: кожна мусить зупиняти з кодом 2 (а не мовчки ігноруватись).
+rg_bad() { # rg_bad <назва> <фрагмент-причини> <фрагмент gates.json замість command/порушення>
+  local d; d=$(rg_root 0 true halt); local f="$d/melania-skills-ecosystem/skills/alpha/gates.json"
+  python3 - "$f" "$3" <<'PY'
+import json, sys
+f, patch = sys.argv[1], json.loads(sys.argv[2])
+doc = json.load(open(f))
+g = doc["gates"][0]
+for k, v in patch.items():
+    if v is None: g.pop(k, None)
+    elif k == "__root__": doc.update(v)
+    else: g[k] = v
+json.dump(doc, open(f, "w"), ensure_ascii=False)
+PY
+  rg_case "$1" 2 "$2" "$d" --point verify
+}
+rg_bad "канарка: command — РЯДОК (оболонка) → код 2"      "command має бути списком"   '{"command":"python3 scripts/chk.py; rm x"}'
+rg_bad "канарка: чужий виконавець curl → код 2"           "заборонений"                '{"command":["curl","scripts/chk.py"]}'
+rg_bad "канарка: шлях із .. → код 2"                      "без «..»"                   '{"command":["python3","scripts/../chk.py"]}'
+rg_bad "канарка: абсолютний шлях → код 2"                 "відносним"                  '{"command":["python3","/etc/passwd"]}'
+rg_bad "канарка: скрипта не існує → код 2"                "не існує"                   '{"command":["python3","scripts/nope.py"]}'
+rg_bad "канарка: невідома точка у файлі → код 2"          "невідома точка"             '{"point":"ship"}'
+rg_bad "канарка: why закоротке → код 2"                   "why"                        '{"why":"коротко"}'
+rg_bad "канарка: невідомий ключ → код 2"                  "невідомі ключі"             '{"shell":true}'
+rg_bad "канарка: timeout поза межами → код 2"             "timeout"                    '{"timeout":9999}'
+rg_bad "канарка: бракує обов'язкового why → код 2"        "бракує"                     '{"why":null}'
+d=$(rg_root 0 true halt); ln -s /etc "$d/scripts/esc"; python3 - "$d/melania-skills-ecosystem/skills/alpha/gates.json" <<'PY'
+import json, sys
+f = sys.argv[1]; doc = json.load(open(f)); doc["gates"][0]["command"] = ["python3", "scripts/esc/hostname"]
+json.dump(doc, open(f, "w"), ensure_ascii=False)
+PY
+rg_case "канарка: симлінк виводить за межі репо → код 2" 2 "за межі репозиторію" "$d" --point verify
+d=$(rg_root 0 true halt); printf '{ не json' > "$d/melania-skills-ecosystem/skills/alpha/gates.json"
+rg_case "канарка: нечитабельний gates.json → код 2, не мовчазне «чисто»" 2 "нечитабельний" "$d" --point verify
+
+# Реальні гейти лабораторії; мутаційна перевірка самого виконавця; і що verify їх справді викликає.
+$RG --point delivery >/dev/null 2>&1 && ok "реальні гейти точки delivery проходять" || bad "реальні гейти delivery" "код 0" "$($RG --point delivery 2>&1 | tail -2 | tr '\n' ' ')"
+$RG --point verify >/dev/null 2>&1 && ok "реальні гейти точки verify проходять" || bad "реальні гейти verify" "код 0" "$($RG --point verify 2>&1 | tail -2 | tr '\n' ' ')"
+gm_out=$(python3 "$REPO/tests/mutation-gates.py" 2>&1); gm_rc=$?
+[[ "$gm_rc" == "0" ]] && ok "мутаційна перевірка виконавця гейтів: усі мутанти спіймані" \
+  || bad "мутаційна перевірка виконавця гейтів" "усі спіймані" "${gm_out: -160}"
+grep -q "run-gates.py" "$REPO/melania-skills-ecosystem/scripts/maintain.py" \
+  && ok "maintain.py verify справді викликає виконавець гейтів (точка verify)" \
+  || bad "verify викликає виконавець гейтів" "посилання на run-gates.py" "немає"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
