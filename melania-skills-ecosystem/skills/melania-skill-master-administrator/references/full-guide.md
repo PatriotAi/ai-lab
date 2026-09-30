@@ -95,7 +95,7 @@ description: "..."           # КРИТИЧНО: основний тригерн
 ---
 name: my-skill-name
 description: "..."
-license: MIT                 # або Proprietary. LICENSE.txt has complete terms
+license: MIT                 # політика лабораторії: MIT скрізь; повні умови — LICENSE.txt
 metadata:
   author: Ім'я
   version: 1.0.0

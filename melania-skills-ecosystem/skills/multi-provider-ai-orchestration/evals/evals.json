@@ -65,5 +65,5 @@
       ]
     }
   ],
-  "version_note": "evals authored at v1.0.0; cases 1-4 revalidated against skill v1.4.2 on 2026-07-03; case 5 (resilient-contour-outage) added at v1.7.2 on 2026-09-30"
+  "version_note": "evals authored at v1.0.0; cases 1-4 revalidated against skill v1.4.2 on 2026-07-03; case 5 (resilient-contour-outage) added at v1.7.3 on 2026-09-30"
 }

@@ -1,16 +1,16 @@
 ---
 name: surgical-code-refactoring
 description: "Token-efficient, dependency-aware methodology for modifying large existing codebases without breaking working functionality. Patch over rewrite, validate BEFORE integrating, regression-check after every change. ALWAYS use when editing a large single-file app, adding features to working code, fixing bugs in a big file, or the user says: не зламай робоче, економ токени, хірургічно, patch not rewrite, додай функцію не переписуючи, перевір перед інтеграцією, surgical, regression check, audit before changes. Also triggers for: великий HTML/JS файл, refactor without breaking, incremental feature integration, dependency-aware edits. DO NOT use for greenfield projects from scratch, or tiny scripts under 100 lines."
-license: Proprietary
+license: MIT
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   author: Melania (Master Administrator)
   category: code-refactoring
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Surgical Code Refactoring — v1.6.0
+# Surgical Code Refactoring — v1.6.1
 > Метод напрацьований на проєкті AI Gateway (2670-рядковий single-file React/HTML застосунок). Дозволяє додавати складні функції у великий робочий код без регресій і без перевитрати токенів.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -198,6 +198,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.6.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.3** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): синхрон H1-банера (був v1.0 при 1.5.2) + `last_updated` [#21/#45-клас]. Лише метадані.
 - **v1.5.2** (2026-06-26) — Stage 3 S-2: примітка про дубль v1.3.0 у changelog (вміст збережено, нумерацію не переписано). Лише додавання примітки.
