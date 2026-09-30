@@ -254,23 +254,25 @@ console.log('\n════════ 13. Ланцюг провайдерів 
 const chain = core.defaultChain({ backupProvider: "openai" });
 check("ланцюг: хмара → запасна → локальна → офлайн", "cloud,cloud-backup,local,offline", chain.map((n) => n.id).join(","));
 const capsAll = { online: true, hasCloudKey: true, hasBackupKey: true, localReady: true };
-check("за нормальних умов — основна хмара", "cloud", core.pickProvider(chain, { caps: capsAll }).id);
+const dp = (o) => core.planDispatch({ chain, now: 1000, ...o });
+const nodeOf = (r) => r.node?.id ?? `(${r.action})`;
+check("за нормальних умов — основна хмара", "cloud", nodeOf(dp({ caps: capsAll })));
 check("основна в cooldown → запасна", "cloud-backup",
-  core.pickProvider(chain, { caps: capsAll, now: 1000, health: { cloud: { cooldownUntil: 9999 } } }).id);
+  nodeOf(dp({ caps: capsAll, health: { cloud: { cooldownUntil: 9999 } } })));
 check("обидві хмари в cooldown → локальна", "local",
-  core.pickProvider(chain, { caps: capsAll, now: 1000, health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 } } }).id);
-check("нема мережі → одразу локальна", "local", core.pickProvider(chain, { caps: { ...capsAll, online: false } }).id);
-// Регрес на дефект, спійманий браузерним прогоном 2026-09-28: офлайн «з'їдав»
-// завдання після першого ж 429, і затримка знову ставала втратою відповіді.
-check("офлайн НЕ береться, поки лишається шанс на справжню відповідь", null,
-  core.pickProvider(chain, { caps: { online: true, hasCloudKey: false, hasBackupKey: false, localReady: false } }));
-check("офлайн береться, коли його явно дозволено (остання спроба)", "offline",
-  core.pickProvider(chain, { allowOffline: true, caps: { online: true, hasCloudKey: false, hasBackupKey: false, localReady: false } }).id);
-check("усі справжні вузли в паузі → чекаємо, а не деградуємо", null,
-  core.pickProvider(chain, { caps: capsAll, now: 1000,
-    health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 }, local: { cooldownUntil: 9999 } } }));
+  nodeOf(dp({ caps: capsAll, health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 } } })));
+check("нема мережі → одразу локальна", "local", nodeOf(dp({ caps: { ...capsAll, online: false } })));
+// Регрес на дефект, спійманий браузерним прогоном 2026-09-28: офлайн «з'їдав» завдання
+// після першого ж 429, і затримка знову ставала втратою відповіді.
+check("справжніх вузлів нема взагалі → офлайн одразу (чекати нема чого)", "offline",
+  nodeOf(dp({ caps: { online: true, hasCloudKey: false, hasBackupKey: false, localReady: false } })));
+check("усі справжні вузли в паузі → чекаємо, а не деградуємо (регрес 2026-09-28)", "(wait)",
+  nodeOf(dp({ caps: capsAll,
+    health: { cloud: { cooldownUntil: 9999 }, "cloud-backup": { cooldownUntil: 9999 }, local: { cooldownUntil: 9999 } } })));
 check("вузол, який уже пробували в цьому проході, пропускається", "cloud-backup",
-  core.pickProvider(chain, { caps: capsAll, tried: ["cloud"] }).id);
+  nodeOf(dp({ caps: capsAll, tried: ["cloud"] })));
+check("прохід пробував, і вузлів більше нема → exhausted, а не тихий офлайн", "(exhausted)",
+  nodeOf(dp({ caps: { online: true, hasCloudKey: true, hasBackupKey: false, localReady: false }, tried: ["cloud"] })));
 const h1 = core.markFailure({}, "cloud", { now: 1000, kind: "rate-limit" });
 truthy("невдача ставить вузол на паузу", h1.cloud.cooldownUntil > 1000);
 const h2 = core.markFailure(h1, "cloud", { now: 1000 });
