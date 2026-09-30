@@ -1,16 +1,16 @@
 ---
 name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
-license: Proprietary
+license: MIT
 metadata:
-  version: 1.7.1
+  version: 1.7.2
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-09-29
+  last_updated: 2026-09-30
 ---
 
-# Multi-Provider AI Orchestration — v1.7.1
+# Multi-Provider AI Orchestration — v1.7.2
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -288,6 +288,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.7.2** (2026-09-30) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й Pattern 2b незмінні.
 - **v1.7.1** (2026-09-29) — Pattern 2b доповнено чотирма інваріантами з рев'ю Codex до PR #74 (усі перевірені кодом): замкнений ключ = очікування, а не «ключа нема» (лише для наміру «хмара», зафіксованого при створенні); чекання (cooldown/ключ/мережа) не витрачає спроб і будиться подією та на старті; явно обраний двигун звужує ланцюг («тільки локальна» не веде в хмару); рішення диспетчера — чиста тестована функція. **Звужено власне твердження v1.7.0:** «Retry-After має пріоритет» — лише коли сторінка його бачить; у браузері `fetch` повертає `null`, доки провайдер не розкрив заголовок через `Access-Control-Expose-Headers` (Critical Facts, [E]: `tests/mobile-agent-browser.mjs`, 2026-09-29). Раніше це було перевірено лише на юніт-рівні. Лише додавання і звуження.
 - **v1.7.0** (2026-09-28) — **Pattern 2b «Резервний контур»**: черга з durable-станом + пауза з джитером (Retry-After має пріоритет) + cooldown ВУЗЛА замість вічного чорного списку + деградація як остання ланка + сповіщення як частина контуру + класифікація збою (retryable / switchProvider / fatal — три різні речі). Закриває прогалину: Pattern 2 відповідав «куди перемкнутись», але не «що буде із завданням, поки всі впали» — без черги перший збій втрачав роботу. Здобуто з власного коду: `projects/mobile-agent` мав одну спробу й деградацію в заглушку; браузерний прогін спіймав ще й те, що офлайн «з'їдав» завдання після першого 429 (unit-тести це пропускали). Референс + мутаційний прогін 7/7. Лише додавання.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.

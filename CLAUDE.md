@@ -22,6 +22,7 @@
 - `experiments/` — маленькі експерименти-гіпотези (кожен: тека з README)
 - `skills/` — індекс навичок (канонічні SKILL.md версіоновані в `.claude/skills/<name>/`)
 - `melania-skills-ecosystem/` — керована бібліотека AI-навичок (governance melania); активні через симлінки в `.claude/skills/`
+- `.claude-plugin/` + `plugins/` — власний маркетплейс плагінів `patriotai-lab` (роздає навички ЗЗОВНІ; гейт `scripts/verify-marketplace.py`); канон — `docs/marketplace.md`
 - `automations/` — хуки/скрипти/пайплайни (джерело; активуються через `.claude`/settings)
 - `scripts/` — допоміжні утиліти
 - `templates/` — шаблони
