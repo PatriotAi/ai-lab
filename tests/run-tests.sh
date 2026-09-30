@@ -1342,6 +1342,103 @@ if [[ "$mp_out" == *"схемну валідацію пропущено"* ]]; th
 fi
 
 echo ""
+echo "════════ 23. Підпис виконуваної поверхні навичок (хвиля 7) ════════"
+# Інцидент, який ця перевірка закриває (виміряно 2026-09-30 на повній копії
+# дерева): скілу з `allowed-tools: Read` дописали `Bash(*)` і `WebFetch`, пройшли
+# штатний `resync` → `verify` — exit 0 і жодного слова про права. Перелік нижче —
+# ПЕРЕЛІК способів розширити поверхню, а не число: права · новий скрипт · змінений
+# скрипт · знята заява · нова навичка · зарезервований префікс. Кожен випадок звіряє
+# і код, і ПРИЧИНУ (без цього канарка проходить з чужої причини — урок хвилі 5).
+SF="python3 $REPO/scripts/check-skill-surface.py"
+sf_tomorrow=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=1)).isoformat())")
+sf_new() { # створює тимчасовий корінь із однією навичкою й базою; друкує шлях
+  local d; d=$(mktemp -d "$TMPROOT/sf-XXXXXX")
+  mkdir -p "$d/melania-skills-ecosystem/skills/alpha/scripts" "$d/security"
+  printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n---\n# alpha\n' \
+    > "$d/melania-skills-ecosystem/skills/alpha/SKILL.md"
+  printf 'print(1)\n' > "$d/melania-skills-ecosystem/skills/alpha/scripts/guard.py"
+  printf '| rule | until | причина | ціль |\n|---|---|---|---|\n' > "$d/security/consent.md"
+  $SF --root "$d" --init >/dev/null 2>&1
+  printf '%s' "$d"
+}
+sf_case() { # sf_case <назва> <очікуваний-код> <фрагмент-причини|-> <корінь> [прапорці]
+  local name="$1" want="$2" why="$3" d="$4"; shift 4
+  local out rc; out=$($SF --root "$d" "$@" 2>&1); rc=$?
+  if [[ "$rc" != "$want" ]]; then bad "$name" "код $want" "код $rc: ${out:0:90}"
+  elif [[ "$why" != "-" && "$out" != *"$why"* ]]; then bad "$name" "причина «$why»" "${out:0:110}"
+  else ok "$name"; fi
+}
+SKA="melania-skills-ecosystem/skills/alpha"
+
+d=$(sf_new); sf_case "чиста навичка збігається з базою → код 0" 0 "збігається" "$d"
+
+# Розширення поверхні — кожен спосіб окремо.
+d=$(sf_new); printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n  - Bash(*)\n  - WebFetch\n---\n# alpha\n' > "$d/$SKA/SKILL.md"
+sf_case "канарка: додано права Bash(*) і WebFetch → спіймано" 1 "додано: Bash(*), WebFetch" "$d"
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
+sf_case "канарка: додано скрипт → спіймано" 1 "додано скрипт scripts/new.py" "$d"
+d=$(sf_new); printf 'print(999)\n' > "$d/$SKA/scripts/guard.py"
+sf_case "канарка: змінено наявний скрипт → спіймано" 1 "змінено скрипт scripts/guard.py" "$d"
+d=$(sf_new); printf -- '---\nname: alpha\n---\n# alpha\n' > "$d/$SKA/SKILL.md"
+sf_case "канарка: знято заяву allowed-tools (це розширення) → спіймано" 1 "ЗНЯТО" "$d"
+d=$(sf_new); mkdir -p "$d/melania-skills-ecosystem/skills/beta"; printf -- '---\nname: beta\n---\n' > "$d/melania-skills-ecosystem/skills/beta/SKILL.md"
+sf_case "канарка: нова навичка без згоди → спіймано" 1 "нова навичка" "$d"
+d=$(sf_new); mkdir -p "$d/melania-skills-ecosystem/skills/claude-helper"; printf -- '---\nname: claude-helper\n---\n' > "$d/melania-skills-ecosystem/skills/claude-helper/SKILL.md"
+sf_case "канарка: зарезервований префікс claude- → спіймано" 1 "зарезервованим префіксом" "$d"
+
+# Дзеркальні «не кричи даремно»: інакше перевірку навчаться ігнорувати.
+d=$(sf_new); printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n---\n# alpha\nдописали тіло — поверхня та сама\n' > "$d/$SKA/SKILL.md"
+sf_case "зміна лише ТЕКСТУ навички поверхню не чіпає → код 0" 0 "збігається" "$d"
+# Звуження: база має ДВА права (Read, Write), у навички лишили одне.
+d2=$(mktemp -d "$TMPROOT/sf-XXXXXX"); mkdir -p "$d2/melania-skills-ecosystem/skills/alpha" "$d2/security"
+printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n  - Write\n---\n' > "$d2/melania-skills-ecosystem/skills/alpha/SKILL.md"
+printf '| rule | until | причина | ціль |\n|---|---|---|---|\n' > "$d2/security/consent.md"
+$SF --root "$d2" --init >/dev/null 2>&1
+printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n---\n' > "$d2/melania-skills-ecosystem/skills/alpha/SKILL.md"
+sf_case "звуження прав (прибрали Write) — лише інформація → код 0" 0 "звуження" "$d2"
+# Найпідступніший шум: `resync` переписує .snapshots і кеш щоразу — це НЕ поверхня.
+d=$(sf_new); mkdir -p "$d/$SKA/scripts/.snapshots" "$d/$SKA/scripts/__pycache__"
+printf '{"x":1}' > "$d/$SKA/scripts/.snapshots/latest.json"; printf 'junk' > "$d/$SKA/scripts/__pycache__/g.cpython-311.pyc"; printf '{}' > "$d/$SKA/scripts/audit.jsonl"
+sf_case ".snapshots, __pycache__ і audit.jsonl поверхнею не вважаються → код 0" 0 "збігається" "$d"
+
+# Записана згода: точкова, датована, іменна.
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
+printf '| skill-surface | %s | Власник дозволив новий скрипт для навички alpha у тесті | alpha |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+sf_case "згода з ціллю alpha покриває розширення → код 0" 0 "СХВАЛЕНО" "$d"
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
+printf '| skill-surface | %s | Власник дозволив новий скрипт для іншої навички beta | beta |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+sf_case "канарка: згода на ІНШУ навичку не покриває → спіймано" 1 "без записаної згоди" "$d"
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
+printf '| skill-surface | %s | Рядок без цілі не має покривати жодну навичку зовсім | |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+sf_case "канарка: згода БЕЗ цілі не діє → спіймано" 1 "без записаної згоди" "$d"
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
+printf '| skill-surface | 2000-01-01 | Прострочена згода на новий скрипт для alpha в тесті | alpha |\n' >> "$d/security/consent.md"
+sf_case "канарка: прострочена згода не діє → спіймано" 1 "без записаної згоди" "$d"
+
+# --update не має права тихо освіжити базу й стерти слід.
+d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"; before=$(md5sum "$d/melania-skills-ecosystem/SURFACE.json")
+sf_case "канарка: --update ВІДМОВЛЯЄ, поки є розширення без згоди" 1 "без записаної згоди" "$d" --update
+after=$(md5sum "$d/melania-skills-ecosystem/SURFACE.json")
+[[ "$before" == "$after" ]] && ok "після відмови база лишилась незмінною" || bad "база не змінена після відмови" "той самий хеш" "змінилась"
+printf '| skill-surface | %s | Власник дозволив новий скрипт для навички alpha у тесті | alpha |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+sf_case "--update із згодою оновлює базу → код 0" 0 "оновлено" "$d" --update
+sf_case "після оновлення розширення вже в базі → код 0, без згоди" 0 "збігається" "$d"
+
+# Відсутня база — окремий стан, не «чисто».
+d=$(mktemp -d "$TMPROOT/sf-XXXXXX"); mkdir -p "$d/melania-skills-ecosystem/skills/alpha"; printf -- '---\nname: alpha\n---\n' > "$d/melania-skills-ecosystem/skills/alpha/SKILL.md"
+sf_case "немає базової лінії → код 2, не мовчазне «чисто»" 2 "спершу --init" "$d"
+
+# Зелений набір доводить рівно стільки, скільки в ньому перевірок, що ЗДАТНІ червоніти.
+# Тому сам скрипт ламається навмисно: кожен мутант мусить бути спійманий канаркою.
+mut_out=$(python3 "$REPO/tests/mutation-surface.py" 2>&1); mut_rc=$?
+[[ "$mut_rc" == "0" ]] && ok "мутаційна перевірка поверхні: усі мутанти спіймані" \
+  || bad "мутаційна перевірка поверхні" "усі спіймані" "${mut_out: -160}"
+
+# Реальне дерево лабораторії — і що база справді лежить у репо.
+$SF >/dev/null 2>&1 && ok "реальна поверхня навичок лабораторії збігається з базою" \
+  || bad "реальна поверхня збігається з базою" "код 0" "$($SF 2>&1 | head -2)"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then

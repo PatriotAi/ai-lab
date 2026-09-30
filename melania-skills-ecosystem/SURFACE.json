@@ -1,0 +1,268 @@
+{
+  "about": "Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts). Звіряє scripts/check-skill-surface.py; розширення без запису в security/consent.md (rule=skill-surface, ціль=назва навички) — помилка.",
+  "schema": 1,
+  "skills": {
+    "ai-core-runtime": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "ai-dev-workflow": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "auth-session-manager": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "c398a76b88513031"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "Write"
+      ]
+    },
+    "browser-local-ai-webllm": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "collaborative-browser": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "content-pipeline": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "continuation-memory": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "experiment": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "github-collab": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "gmi-audit": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "gsre-recovery": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "2fd6229cfc4be315"
+      },
+      "tools": null
+    },
+    "knowledge-synthesizer": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "llm-api-builder": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "melania-skill-master-administrator": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "d7a19832bceeb1b3"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "Write"
+      ]
+    },
+    "multi-provider-ai-orchestration": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "n8n-orchestrator": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "notebooklm-connector": {
+      "hooks": null,
+      "scripts": {
+        "scripts/SKILL_GUARD_USAGE.md": "2094ce5078a98d03",
+        "scripts/baseline.json": "40a590aecdb9a4f8",
+        "scripts/skill_guard.py": "f70afb55cc0b0317"
+      },
+      "tools": null
+    },
+    "pre-delivery-gate": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "2fd6229cfc4be315"
+      },
+      "tools": null
+    },
+    "publish": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "pwa-to-android-app": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "rlm-harness": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "e1e916b5af0da3a7"
+      },
+      "tools": null
+    },
+    "safety-compliance-gate": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "Write"
+      ]
+    },
+    "semantic-router": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "skill-creation-guide": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "skill-ecosystem-auditor": {
+      "hooks": null,
+      "scripts": {
+        "scripts/audit_scan.py": "23c8aea105979a51",
+        "scripts/skill_guard.py": "cc10d9eb76353b57"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "Write"
+      ]
+    },
+    "skill-marketplace-distribution": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "Write"
+      ]
+    },
+    "skill-new": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "source-research-harvest": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": [
+        "Bash(python:*)",
+        "Read",
+        "WebFetch",
+        "WebSearch",
+        "Write"
+      ]
+    },
+    "surgical-code-refactoring": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "translate-uaen": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "validation-mesh": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "vercel-mcp-connector": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "2fd6229cfc4be315"
+      },
+      "tools": [
+        "Read"
+      ]
+    },
+    "webapp-testing": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    },
+    "weekly-review": {
+      "hooks": null,
+      "scripts": {},
+      "tools": null
+    },
+    "workflow-orchestration": {
+      "hooks": null,
+      "scripts": {
+        "scripts/skill_guard.py": "aafddda608d1be3f"
+      },
+      "tools": null
+    }
+  }
+}

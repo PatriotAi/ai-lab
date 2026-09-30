@@ -265,10 +265,10 @@
    ]
   },
   "safety-compliance-gate": {
-   "version": "1.3.0",
+   "version": "1.4.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "1c854edb9aa2efe4",
+    "SKILL.md": "5aa31ec1592471c2",
     "evals/evals.json": "e125b0560c380b0a"
    },
    "files": [
