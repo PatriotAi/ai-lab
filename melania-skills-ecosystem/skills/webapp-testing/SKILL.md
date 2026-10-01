@@ -1,16 +1,16 @@
 ---
 name: webapp-testing
 description: "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs. Use this skill when testing web applications, running browser automation, debugging frontend UI, or capturing screenshots of local apps. Також використовуй, коли користувач хоче: протестувати веб-застосунок, налаштувати Playwright-автоматизацію браузера, перевірити UI / доступність / мобільні вьюпорти, зробити visual regression чи скриншоти локального застосунку. НЕ використовувати для не-браузерних юніт-тестів чи бекенд-логіки без UI, ані для спільного інтерактивного веб-серфінгу з агентом (collaborative-browser) — тут лише автоматизовані Playwright-тести."
-license: Apache-2.0 — повні умови в LICENSE.txt кореня екосистеми
+license: MIT
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   author: Melania (Master Administrator)
   category: testing
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Web Application Testing — v1.6.0
+# Web Application Testing — v1.6.1
 > Пояснення — українською за замовчуванням (українською-перша); код, селектори та команди лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -217,6 +217,7 @@ for vp in VIEWPORTS:
 ---
 
 ## Зміни
+- **v1.6.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Decision Tree більше не вдає локальний `with_server.py` — явний крок web_fetch перед викликом (файл живе в anthropics/skills; Нотатка була, дерево їй суперечило) [#43]; сирітських/мертвих references не виявлено — `e2e-patterns.md` підключений [#15 перевірено]; межа з `collaborative-browser` у описі [#41]; ліцензійний покажчик на корінь екосистеми [#25/#44]; H1 з версією. Лише документація/межі.
 - **v1.4.0** (2026-06-26) — Повна UA-локалізація (Task 1): ранню прозу (Decision Tree, with_server, Reconnaissance, Common Pitfall, Best Practices, Reference-файли) перекладено українською; код / селектори / команди лишаються англійською. +власні `evals/` (5, канон-схема). **S-2:** дубль v1.2.0 у changelog консолідовано + впорядковано (вміст збережено). Переклад + додавання; функціонал не змінено.

@@ -26,6 +26,17 @@ build_digest() {
     printf '\n'
   fi
 
+  # Рівень пояснень. Один рядок, бо він потрапляє в кешований префікс і
+  # перечитується щоходу — довша довідка з'їла б те, заради чого існує.
+  # Живе тут, а не в окремому хуці: відповідальність та сама (контекст сесії),
+  # а другий процес коштував би більше за сам рядок.
+  if [ -f .claude/ai-lab.json ] && command -v python3 >/dev/null 2>&1; then
+    lvl="$(python3 -c 'import json;print(json.load(open(".claude/ai-lab.json")).get("explain_level","brief"))' 2>/dev/null || true)"
+    if [ -n "${lvl:-}" ]; then
+      printf '**Рівень пояснень:** `%s` (`.claude/ai-lab.json`). Звіти про ризик, питання про згоду й чесність про межі не скорочуються за жодного рівня.\n\n' "$lvl"
+    fi
+  fi
+
   if [ -f docs/PLAN.md ]; then
     printf '**Статус плану (docs/PLAN.md):**\n'
     grep -E '^## Фаза' docs/PLAN.md 2>/dev/null | sed 's/^## /- /' || true

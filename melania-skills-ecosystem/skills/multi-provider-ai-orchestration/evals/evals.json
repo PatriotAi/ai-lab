@@ -48,7 +48,22 @@
         "Uses path-based response extraction (responsePath)",
         "Supports openai and raw formats"
       ]
+    },
+    {
+      "id": 5,
+      "name": "resilient-contour-outage",
+      "prompt": "API провайдера лягає посеред робочого дня — зроби так, щоб завдання не губились і застосунок працював далі",
+      "expected_output": "Claude builds a resilience contour (durable queue, jittered backoff, per-node cooldown, degradation as the LAST link, waiting that does not burn attempts) — not just a try/catch fallback to a stub",
+      "assertions": [
+        "Task is a durable queue record (pending → done/failed) that survives restart — not a bare call",
+        "Backoff with jitter; Retry-After honoured only where the page can actually read it (CORS Access-Control-Expose-Headers), otherwise exponential",
+        "Cooldown is per provider NODE, not per task; success clears it",
+        "Degradation (local/offline) is the last link, not the first; waiting (cooldown, locked key, no network) does NOT consume attempts",
+        "A stored-but-locked key is a waiting state, and an explicit 'local only' choice narrows the chain (never falls through to cloud)",
+        "Failure notification is part of the contour and does not leak task text; the dispatch decision is a pure, tested function",
+        "Any 'tested' claim is backed by a mutation run, not only green tests"
+      ]
     }
   ],
-  "version_note": "evals authored at v1.0.0, revalidated against skill v1.4.2 on 2026-07-03"
+  "version_note": "evals authored at v1.0.0; cases 1-4 revalidated against skill v1.4.2 on 2026-07-03; case 5 (resilient-contour-outage) added at v1.7.3 on 2026-09-30"
 }

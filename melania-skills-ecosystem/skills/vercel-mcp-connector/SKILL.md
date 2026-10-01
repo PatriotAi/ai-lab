@@ -19,16 +19,16 @@ compatibility: >
   VS Code Copilot. Потрібен підключений Vercel MCP (OAuth, mcp.vercel.com).
 allowed-tools:
   - Read
-license: Proprietary
+license: MIT
 metadata:
-  version: 1.2.0
+  version: 1.2.1
   author: Melania (Master Administrator)
   category: connector
   created: 2026-06-12
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Vercel MCP Connector — v1.2.0
+# Vercel MCP Connector — v1.2.1
 > Меланія · українською-перша · скіл-компаньйон для офіційного Vercel MCP (`mcp.vercel.com`).
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією/комерціалізацією).
 >
@@ -121,6 +121,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.2.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.2.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): голі тригери «deploy/хостинг» кваліфіковано контекстом Vercel — без згадки платформи скіл не перехоплює запит [#42]; синхрон H1-банера (був v1.0 при version 1.0.2) [#34-клас]. Лише опис/метадані.
 - **v1.0.2** (2026-06-26) — Ре-верифікація: +guard-скрипт (snapshot/validate, additive-only) — паритет з екосистемою. Лише додавання.

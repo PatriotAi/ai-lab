@@ -20,16 +20,16 @@ allowed-tools:
   - Bash(python:*)
   - Read
   - Write
-license: Proprietary
+license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.3.1
   author: Melania (Master Administrator)
   category: skill-distribution
   created: 2026-06-14
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Skill Marketplace Distribution — v0.3.0
+# Skill Marketplace Distribution — v0.3.1
 > Українською-перша: рішення/приклади — українською; код/ідентифікатори — англійською.
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (ОБОВ'ЯЗКОВО перед пакуванням/публікацією/комерціалізацією).
 
@@ -130,6 +130,7 @@ author (skill-creation-guide) → validate (validation-mesh)
 curl-синтаксис, умови виплат, submission-флоу).
 
 ## Зміни
+- **v0.3.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v0.3.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v0.2.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): синхрон H1-банера з frontmatter (був v0.1.1 при version 0.2.0) [#34]; знято хибний тег *(заплановано)* з `references/marketplaces.md` — файл наявний [#35]; виправлено лічильник eval-кейсів у записі v0.2.0 (4, не 5 — фактична похибка) [#31]. Лише документація/метадані; поведінка незмінна.
 - **v0.2.0** (2026-06-26) — Stage 3: **S-3** +власні `evals/` (4, канон-схема). Лише додавання.

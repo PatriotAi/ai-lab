@@ -10,16 +10,16 @@ description: >
   Використовуй цей skill коли: "відкрий браузер", "collaborative browser", "спільний браузер",
   "агент у браузері", "веб-серфінг з агентом", "досліди сайт", "відкрий сторінку", "AI браузер",
   потрібен автономний ресерч у вебі, генерація mini-app, або спільна веб-сесія з агентом. DO NOT use for plain web search without an interactive browser, backend scraping scripts, or automated E2E/Playwright test suites (webapp-testing).
-license: Proprietary
+license: MIT
 metadata:
-  version: 3.2.0
+  version: 3.2.1
   author: Melania (Master Administrator)
   category: browser
   created: 2026-05-27
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Collaborative Browser Skill v3.2.0
+# Collaborative Browser Skill v3.2.1
 > Українською-перша: весь UI, пояснення й приклади — українською за замовчуванням (артефакт має перемикач 🇺🇦/🇬🇧/🇩🇪/🇫🇷/🇵🇱/🇪🇸); перемикання лише слідом за користувачем.
 
 
@@ -447,6 +447,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v3.2.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; артефакт і поведінка незмінні.
 - **v3.2.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v3.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): опис у frontmatter більше не хардкодить версію артефакту (був дрейф v2.7.1 vs 3.0.1 у router-видимому описі) [#40]; DO NOT-межа з `webapp-testing` — автоматизовані E2E/Playwright-сьюти поза скоупом [#41]. Лише опис/метадані; артефакт незмінний.
 - **v3.0.1** (2026-07-16) — Security-фікс (повний аудит екосистеми): з `browser-artifact.html` прибрано захардкоджений Google Maps API-ключ у `Maps.embedUrl()` (мертвий шлях `renderEmbed`; живий шлях `showMapEmbed` уже був безключовим `output=embed`) — embedUrl переведено на той самий безключовий варіант; ключ Embed API v1 за потреби — лише з SecretsManager (`google-maps-api-key`). Функціональність не змінена. Лише артефакт; SKILL.md — тільки цей запис і bump.
