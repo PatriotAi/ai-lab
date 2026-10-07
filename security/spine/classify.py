@@ -42,6 +42,7 @@ class Verdict:
     target: str = ""                 # що саме зачіпається (шлях/команда)
     resolved_target: str = ""        # реальна ціль після розрізу симлінка
     notes: list[str] = field(default_factory=list)
+    scope: str = ""                  # ціль незворотної дії (owner/repo#N), якщо відома — F-17
 
     @property
     def rank(self) -> int:
@@ -210,6 +211,22 @@ def _match_path(pattern: str, rel_target: str, raw_target: str) -> bool:
     return False
 
 
+def _mcp_scope(tool_input: dict) -> str:
+    """Ціль незворотної MCP-дії — `owner/repo#N`, якщо її видно з аргументів.
+
+    Навіщо (F-17): записана згода ключувалась лише на інструмент, тож рядок
+    «лише на PR #45» відкривав злиття БУДЬ-ЯКОГО PR — слова «лише на #45»
+    читала людина, а не код. Порожній рядок = ціль невідома; тоді, як і раніше,
+    діє лише згода без цілі.
+    """
+    owner = str(tool_input.get("owner") or "").strip()
+    repo = str(tool_input.get("repo") or "").strip()
+    number = tool_input.get("pullNumber", tool_input.get("pull_number"))
+    if not owner or not repo or number in (None, ""):
+        return ""
+    return f"{owner}/{repo}#{number}".lower()
+
+
 def classify(tool_name: str, tool_input: dict, root: Path | None = None,
              policy: dict | None = None) -> Verdict:
     root = root or repo_root()
@@ -302,6 +319,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
                 rule_id=f"mcp-{suffix}",
                 why=mcp.get("why", ""), alternatives=mcp.get("alternatives", ""),
                 target=tool_name, resolved_target=resolved or tool_name, notes=notes,
+                scope=_mcp_scope(tool_input),
             )
         if any(v in low for v in mcp.get("read_verbs", [])):
             return Verdict("R0", f"MCP-інструмент читання ({tool_name})", notes=notes)

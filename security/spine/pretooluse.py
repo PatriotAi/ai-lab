@@ -76,22 +76,34 @@ def is_self_modification(target: str, policy: dict) -> bool:
     return False
 
 
-def active_consent(rule_id: str) -> tuple[str, str] | None:
+def active_consent(rule_id: str, scope: str = "") -> tuple[str, str] | None:
     """Шукає ЧИННУ записану згоду для правила у `security/consent.md`.
 
     Повертає (до-якої-дати, причина) або None. Прострочений запис ігнорується
     мовчки — згода не має «залипати» назавжди. Порожній rule_id ніколи не
     збігається: інакше один рядок відкривав би все підряд.
+
+    Рядок може називати ціль: `правило@owner/repo#N` (F-17). Ціль має збігтися
+    ТОЧНО (без урахування регістру): рядок без цілі не відкриває дію, ціль якої
+    відома, а рядок із ціллю — дію без цілі. Інакше згода «лише на PR #45»
+    відкривала б злиття будь-якого PR до кінця свого строку.
     """
     if not rule_id or not CONSENT.is_file():
         return None
+    scope = (scope or "").lower()
     today = datetime.now(timezone.utc).date().isoformat()
     try:
         for line in CONSENT.read_text(encoding="utf-8").splitlines():
             if not line.startswith("|"):
                 continue
             cells = [c.strip() for c in line.strip("|").split("|")]
-            if len(cells) < 3 or cells[0] != rule_id:
+            if len(cells) < 3:
+                continue
+            row_rule, _, row_scope = cells[0].partition("@")
+            if row_rule.strip() != rule_id:
+                continue
+            row_scope = row_scope.strip().lower()
+            if row_scope != scope:
                 continue
             until, reason = cells[1], cells[2]
             if len(until) == 10 and until >= today and len(reason) >= 20:
@@ -158,13 +170,15 @@ def main() -> int:
     target_path = verdict.resolved_target or verdict.target
     self_mod = is_self_modification(target_path, policy)
 
-    consent = active_consent(verdict.rule_id)
+    consent = active_consent(verdict.rule_id, verdict.scope)
     if action == "deny" and consent:
         record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
+                "scope": verdict.scope,
                 "decision": "ЗГОДА-ЗАПИСАНА", "consent_until": consent[0],
                 "consent_reason": consent[1], "self_modification": self_mod,
                 "target": target_path[:300]})
-        print(f"🔓 записана згода ({verdict.rule_id}, до {consent[0]}): {consent[1][:120]}",
+        key = f"{verdict.rule_id}@{verdict.scope}" if verdict.scope else verdict.rule_id
+        print(f"🔓 записана згода ({key}, до {consent[0]}): {consent[1][:120]}",
               file=sys.stderr)
         return 0
 
