@@ -124,6 +124,11 @@ def render(v: Verdict, tool_name: str, decision: str) -> str:
             "і я виконаю її з твоєю згодою. Якщо ти не розумієш, навіщо вона — "
             "це достатня причина сказати «ні»: без неї нічого не зламається."
         )
+        if v.scope:
+            lines.append(
+                f"   Записана згода на цю дію має називати ціль: `{v.rule_id}@{v.scope}` "
+                "у security/consent.md — рядок без цілі її не відкриває."
+            )
 
     return "\n".join(lines)
 
