@@ -19,8 +19,8 @@
 `melania-skills-ecosystem/SURFACE.json`. РОЗШИРЕННЯ поверхні — нова навичка, додані
 права, зміна/додавання скрипта, зняття обмеження — без записаної згоди є
 ПОМИЛКОЮ. Звуження й видалення — лише інформація. Згода — це рядок
-`skill-surface` у `security/consent.md` з ЦІЛЛЮ = назва навички (та сама точкова
-механіка, що для найдорожчих правил безпекового гейта).
+`skill-surface@<назва навички>` у `security/consent.md` (той самий синтаксис цілі,
+що F-17 для злиття PR: точний збіг, рядок без цілі нічого не відкриває).
 
 ЧЕСНА МЕЖА. Згоду записує той самий агент, що правит навичку, тож це РЕЄСТРАТОР,
 а не бар'єр: він робить розширення видимим, названим і датованим у діффі PR
@@ -163,12 +163,15 @@ def delta(cur: dict, base: dict | None) -> dict:
 
 
 def consented(root: Path, name: str) -> bool:
-    """Чи є ЧИННИЙ рядок `skill-surface` із ціллю = назва навички.
+    """Чи є ЧИННИЙ рядок `skill-surface@<назва навички>` у `security/consent.md`.
 
-    Логіку (дата, довжина причини, збіг цілі) беремо з `pretooluse.active_consent`,
-    щоб не мати двох різних тлумачень «що таке згода». Шлях до файла підміняється
-    на файл переданого кореня — так перевірки на тимчасовому дереві не читають
-    справжній consent.md.
+    Логіку згоди (дата, довжина причини, ТОЧНИЙ збіг цілі, рядок без цілі не
+    відкриває дію з відомою ціллю) беремо з `pretooluse.active_consent` — механізм
+    цілі F-17 у `main`. Другого тлумачення «що таке згода» тут нема навмисно:
+    раніше ця перевірка мала власну колонку «ціль» поруч із F-17 — два синтаксиси
+    для одного поняття, і це було б дрейфом. Шлях до файла підміняється на файл
+    переданого кореня — перевірки на тимчасовому дереві не читають справжній
+    consent.md.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "security" / "spine"))
     try:
@@ -176,8 +179,7 @@ def consented(root: Path, name: str) -> bool:
     finally:
         sys.path.pop(0)
     pretooluse.CONSENT = root / "security" / "consent.md"
-    policy = {"rules": [{"id": RULE_ID, "require_target": True}]}
-    return pretooluse.active_consent(RULE_ID, name, policy) is not None
+    return pretooluse.active_consent(RULE_ID, name) is not None
 
 
 def load_baseline(root: Path) -> dict | None:
@@ -192,7 +194,7 @@ def write_baseline(root: Path, cur: dict[str, dict]) -> None:
         "schema": 1,
         "about": ("Підпис виконуваної поверхні навичок (allowed-tools · hooks · scripts · gates). "
                   "Звіряє scripts/check-skill-surface.py; розширення без запису в "
-                  "security/consent.md (rule=skill-surface, ціль=назва навички) — помилка."),
+                  "security/consent.md (skill-surface@<назва навички>) — помилка."),
         "skills": cur,
     }
     (root / BASELINE_REL).write_text(
@@ -213,7 +215,7 @@ def problems(root: Path, cur: dict[str, dict], base: dict | None) -> tuple[list[
         line = f"{name}: " + "; ".join(d["notes"])
         if d["expanding"] and not consented(root, name):
             errs.append(line + "  → поверхню РОЗШИРЕНО без записаної згоди "
-                        f"(rule={RULE_ID}, ціль={name})")
+                        f"({RULE_ID}@{name})")
         elif d["expanding"]:
             info.append(line + "  → розширення СХВАЛЕНО записаною згодою")
         else:

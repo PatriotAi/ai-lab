@@ -833,60 +833,6 @@ other = base64.b64decode('c2VjcmV0cw==').decode()
 print('ok' if p.active_consent('') is None and p.active_consent(other) is None else 'leak')" 2>/dev/null)
 check "записана згода не відкриває інші правила" "ok" "$consent_scope"
 
-# ── Згода мусить називати ЦІЛЬ (2026-09-27) ──
-# Рядок ключується за правилом, тож одна згода «merge-to-main» покривала будь-яке
-# злиття до кінця дня — включно з наступним PR, якого власник не бачив. Дзеркало
-# F-14: там та сама дія іншим каналом мала інший ключ, тут — один ключ на різні дії.
-# Прапорці мусять бути в політиці, інакше перевірки нижче не перевіряють нічого.
-flags=$(cd "$REPO" && python3 -c "
-import tomllib
-d = tomllib.load(open('security/policy.toml','rb'))
-need = {'workflows','agent-settings','secrets','merge-to-main','publish-outward'}
-have = {r['id'] for r in d['rules'] if r.get('require_target')}
-print('ok' if need <= have and d.get('mcp',{}).get('require_target') else f'бракує: {need-have}')" 2>&1)
-check "require_target стоїть на найдорожчих правилах" "ok" "$flags"
-
-# Рядок із ціллю діє лише на свою ціль — на ІЗОЛЬОВАНОМУ дереві.
-# Перша версія читала робочий `consent.md` і померла від календаря рівно
-# наступного дня (рядки мають `until`, і це правильно). Тест, чий результат
-# залежить від дати, перевіряє календар, а не поведінку — той самий клас, що
-# F-16. Тому фікстура створює власний файл згоди з датою «завтра».
-CT2="$TMPROOT/consent-target"
-mkdir -p "$CT2/security/spine"
-cp "$REPO/security/spine/pretooluse.py" "$REPO/security/spine/classify.py" \
-   "$REPO/security/spine/explain.py" "$CT2/security/spine/" 2>/dev/null
-cp "$REPO/security/policy.toml" "$CT2/security/"
-tomorrow2=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=1)).isoformat())")
-printf '%s\n' '| rule | until | причина | ціль |' '|---|---|---|---|' \
-  "| agent-settings | $tomorrow2 | причина достатньої довжини для перевірки формату | security/policy.toml |" \
-  > "$CT2/security/consent.md"
-consent_target=$(cd "$CT2" && python3 -c "
-import sys; sys.path.insert(0,'security/spine')
-import pretooluse as p
-from classify import load_policy
-pol = load_policy()
-same  = p.active_consent('agent-settings', 'security/policy.toml', pol)
-other = p.active_consent('agent-settings', '.claude/settings.json', pol)
-print('ok' if same and not other else f'same={bool(same)} other={bool(other)}')" 2>&1)
-check "згода з ціллю діє лише на свою ціль" "ok" "$consent_target"
-
-# Сумісність зі СТАРОЮ трирядковою формою — на ізольованому дереві, бо в робочому
-# файлі всіх активних правил require_target, тобто «порожньо» тут нічого б не довело.
-CT="$TMPROOT/consent-compat"
-mkdir -p "$CT/security/spine"
-cp "$REPO/security/spine/pretooluse.py" "$REPO/security/spine/classify.py" \
-   "$REPO/security/spine/explain.py" "$CT/security/spine/" 2>/dev/null
-cp "$REPO/security/policy.toml" "$CT/security/"
-tomorrow=$(python3 -c "import datetime;print((datetime.date.today()+datetime.timedelta(days=1)).isoformat())")
-printf '%s\n' '| rule | until | причина |' '|---|---|---|' \
-  "| skip-verification | $tomorrow | причина достатньої довжини для перевірки формату |" \
-  > "$CT/security/consent.md"
-compat=$(cd "$CT" && python3 -c "
-import sys; sys.path.insert(0,'security/spine')
-import pretooluse as p
-from classify import load_policy
-print('ok' if p.active_consent('skip-verification','git commit', load_policy()) else 'стара форма перестала діяти')" 2>&1)
-check "стара трирядкова згода діє для правил без require_target" "ok" "$compat"
 
 echo ""
 echo "════════ 14. Переносимість, старіння, самозміна ════════"
@@ -954,7 +900,7 @@ other = p.is_self_modification('docs/learnings.md', pol)
 print('ok' if gate and cfg and not other else f'{gate}/{cfg}/{other}')")
 check "самозміна гейта помітна, звичайна правка — ні" "ok" "$selfmod"
 
-echo "════════ 22. Профіль можливостей виконавця (Фаза 8) ════════"
+echo "════════ 26. Профіль можливостей виконавця (Фаза 8) ════════"
 cd "$REPO" || exit 1
 PROBE="$REPO/automations/capability-probe/capability-probe.sh"
 SCAN="$REPO/scripts/capability-scan.py"
@@ -1169,7 +1115,7 @@ else
 fi
 
 echo ""
-echo "════════ 21. Тріаж входу в момент читання (PostToolUse) ════════"
+echo "════════ 25. Тріаж входу в момент читання (PostToolUse) ════════"
 # НАВІЩО. Скан зовнішнього входу існував із 2026-07, але автоматичним був лише
 # шлях пам'яті (F-1). Веб і читання файлів заходили в контекст без перевірки —
 # та сама конструкція «перевірка існує, але не стоїть на шляху». Канарки нижче
@@ -1380,6 +1326,38 @@ if [[ "$mp_out" == *"схемну валідацію пропущено"* ]]; th
 fi
 
 echo ""
+echo "════════ 21. Переносний стандарт (гейт синхронності зі штампом) ════════"
+# Сам гейт scripts/check-portable-standard.py ганяє pre-commit (а отже й CI), а ЩО він ловить —
+# доводять ці канарки: кожна поломка має завершитись потрібним кодом І з потрібної причини,
+# контролі (чистий стан, кінцеві пробіли, зміна поза секцією) — пройти мовчки. Сценарії легкі
+# (2 файли в тимчасовій теці, ~0,3 с), тому, на відміну від канарок маркетплейсу, входять у набір.
+# Тихий збій заборонено (Core Rule 15): без рядка DONE, що збігається з кількістю виконаних
+# сценаріїв, прогін не зараховується — інакше падіння канарки виглядало б чистотою.
+ps_out=$(python3 tests/portable-standard-canary.py 2>&1); ps_rc=$?
+ps_n=0
+while IFS=$'\t' read -r ps_st ps_name ps_want ps_got; do
+  case "$ps_st" in
+    OK)  ok  "$ps_name"; ps_n=$((ps_n+1)) ;;
+    BAD) bad "$ps_name" "$ps_want" "$ps_got"; ps_n=$((ps_n+1)) ;;
+  esac
+done <<< "$ps_out"
+ps_done=$(printf '%s\n' "$ps_out" | awk -F'\t' '$1=="DONE"{print $2}')
+[[ "$ps_n" -gt 0 && "$ps_done" == "$ps_n" ]] \
+  && ok "канарки переносного стандарту дійшли до кінця (DONE = кількість сценаріїв)" \
+  || bad "канарки переносного стандарту дійшли до кінця" "DONE = кількості виконаних сценаріїв (>0)" \
+         "сценаріїв: $ps_n, DONE: ${ps_done:-немає}, exit канарки: $ps_rc"
+
+echo ""
+echo "════════ 22. Згода прив'язана до цілі (F-17) ════════"
+# Записана згода ключувалась лише на інструмент: рядок «лише на PR #45» відкривав злиття
+# будь-якого PR до кінця строку. Стенд ганяє справжній pretooluse.py на копії security/ з
+# власним consent.md (робочі файли не чіпаються). Режим --mutants вносить у копію поломки,
+# зокрема поведінку до виправлення, — кожна має бути спіймана, інакше стенд нічого не доводить.
+cs=$(python3 tests/probe-consent-scope.py >/dev/null 2>&1; echo $?)
+check "згода з ціллю: ціль, регістр, строк, інший репо, правила без цілі" "0" "$cs"
+csm=$(python3 tests/probe-consent-scope.py --mutants >/dev/null 2>&1; echo $?)
+check "стенд згоди ловить свої мутанти (зокрема поведінку до F-17)" "0" "$csm"
+
 echo "════════ 23. Підпис виконуваної поверхні навичок (хвиля 7) ════════"
 # Інцидент, який ця перевірка закриває (виміряно 2026-09-30 на повній копії
 # дерева): скілу з `allowed-tools: Read` дописали `Bash(*)` і `WebFetch`, пройшли
@@ -1395,7 +1373,7 @@ sf_new() { # створює тимчасовий корінь із однією 
   printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n---\n# alpha\n' \
     > "$d/melania-skills-ecosystem/skills/alpha/SKILL.md"
   printf 'print(1)\n' > "$d/melania-skills-ecosystem/skills/alpha/scripts/guard.py"
-  printf '| rule | until | причина | ціль |\n|---|---|---|---|\n' > "$d/security/consent.md"
+  printf '| rule | until | причина |\n|---|---|---|\n' > "$d/security/consent.md"
   $SF --root "$d" --init >/dev/null 2>&1
   printf '%s' "$d"
 }
@@ -1430,7 +1408,7 @@ sf_case "зміна лише ТЕКСТУ навички поверхню не �
 # Звуження: база має ДВА права (Read, Write), у навички лишили одне.
 d2=$(mktemp -d "$TMPROOT/sf-XXXXXX"); mkdir -p "$d2/melania-skills-ecosystem/skills/alpha" "$d2/security"
 printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n  - Write\n---\n' > "$d2/melania-skills-ecosystem/skills/alpha/SKILL.md"
-printf '| rule | until | причина | ціль |\n|---|---|---|---|\n' > "$d2/security/consent.md"
+printf '| rule | until | причина |\n|---|---|---|\n' > "$d2/security/consent.md"
 $SF --root "$d2" --init >/dev/null 2>&1
 printf -- '---\nname: alpha\nallowed-tools:\n  - Read\n---\n' > "$d2/melania-skills-ecosystem/skills/alpha/SKILL.md"
 sf_case "звуження прав (прибрали Write) — лише інформація → код 0" 0 "звуження" "$d2"
@@ -1441,16 +1419,16 @@ sf_case ".snapshots, __pycache__ і audit.jsonl поверхнею не вваж
 
 # Записана згода: точкова, датована, іменна.
 d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
-printf '| skill-surface | %s | Власник дозволив новий скрипт для навички alpha у тесті | alpha |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+printf '| skill-surface@alpha | %s | Власник дозволив новий скрипт для навички alpha у тесті |\n' "$sf_tomorrow" >> "$d/security/consent.md"
 sf_case "згода з ціллю alpha покриває розширення → код 0" 0 "СХВАЛЕНО" "$d"
 d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
-printf '| skill-surface | %s | Власник дозволив новий скрипт для іншої навички beta | beta |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+printf '| skill-surface@beta | %s | Власник дозволив новий скрипт для іншої навички beta |\n' "$sf_tomorrow" >> "$d/security/consent.md"
 sf_case "канарка: згода на ІНШУ навичку не покриває → спіймано" 1 "без записаної згоди" "$d"
 d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
-printf '| skill-surface | %s | Рядок без цілі не має покривати жодну навичку зовсім | |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+printf '| skill-surface | %s | Рядок без цілі не має покривати жодну навичку зовсім |\n' "$sf_tomorrow" >> "$d/security/consent.md"
 sf_case "канарка: згода БЕЗ цілі не діє → спіймано" 1 "без записаної згоди" "$d"
 d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"
-printf '| skill-surface | 2000-01-01 | Прострочена згода на новий скрипт для alpha в тесті | alpha |\n' >> "$d/security/consent.md"
+printf '| skill-surface@alpha | 2000-01-01 | Прострочена згода на новий скрипт для alpha в тесті |\n' >> "$d/security/consent.md"
 sf_case "канарка: прострочена згода не діє → спіймано" 1 "без записаної згоди" "$d"
 
 # --update не має права тихо освіжити базу й стерти слід.
@@ -1458,7 +1436,7 @@ d=$(sf_new); printf 'print(2)\n' > "$d/$SKA/scripts/new.py"; before=$(md5sum "$d
 sf_case "канарка: --update ВІДМОВЛЯЄ, поки є розширення без згоди" 1 "без записаної згоди" "$d" --update
 after=$(md5sum "$d/melania-skills-ecosystem/SURFACE.json")
 [[ "$before" == "$after" ]] && ok "після відмови база лишилась незмінною" || bad "база не змінена після відмови" "той самий хеш" "змінилась"
-printf '| skill-surface | %s | Власник дозволив новий скрипт для навички alpha у тесті | alpha |\n' "$sf_tomorrow" >> "$d/security/consent.md"
+printf '| skill-surface@alpha | %s | Власник дозволив новий скрипт для навички alpha у тесті |\n' "$sf_tomorrow" >> "$d/security/consent.md"
 sf_case "--update із згодою оновлює базу → код 0" 0 "оновлено" "$d" --update
 sf_case "після оновлення розширення вже в базі → код 0, без згоди" 0 "збігається" "$d"
 

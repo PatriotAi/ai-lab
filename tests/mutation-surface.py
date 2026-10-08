@@ -46,7 +46,7 @@ def tree(work: pathlib.Path, tag: str, consent_rows: str = ""):
     (sk / "SKILL.md").write_text("---\nname: alpha\nallowed-tools:\n  - Read\n---\n# a\n", encoding="utf-8")
     (sk / "scripts" / "guard.py").write_text("print(1)\n", encoding="utf-8")
     (d / "security" / "consent.md").write_text(
-        "| rule | until | причина | ціль |\n|---|---|---|---|\n" + consent_rows, encoding="utf-8")
+        "| rule | until | причина |\n|---|---|---|\n" + consent_rows, encoding="utf-8")
     return d, sk
 
 
@@ -64,7 +64,7 @@ def added_script(work, script, tag):
 
 def consent_other_skill(work, script, tag):
     d, sk = tree(work, tag, consent_rows=(
-        f"| skill-surface | {TOMORROW} | Згода на інший скіл beta, не на alpha, у пробі | beta |\n"))
+        f"| skill-surface@beta | {TOMORROW} | Згода на інший скіл beta, не на alpha, у пробі |\n"))
     run(script, d, "--init")
     (sk / "scripts" / "new.py").write_text("print(2)\n", encoding="utf-8")
     return run(script, d)
@@ -99,8 +99,8 @@ MUTANTS = [
     ("нові скрипти більше не є розширенням",
      '        expanding = True\n        notes.append(f"додано скрипт',
      '        notes.append(f"додано скрипт', added_script, 1),
-    ("згода діє на БУДЬ-ЯКУ ціль (ціль не звіряється)",
-     '"require_target": True}]}', '"require_target": False}]}', consent_other_skill, 1),
+    ("ціль згоди захардкоджена (назва навички не передається)",
+     "active_consent(RULE_ID, name) is not None", 'active_consent(RULE_ID, "beta") is not None', consent_other_skill, 1),
     (".snapshots рахується поверхнею",
      'SKIP_PARTS = {".snapshots", "__pycache__"}', "SKIP_PARTS = set()", snapshots_noise, 0),
     ("нові права більше не є розширенням",
