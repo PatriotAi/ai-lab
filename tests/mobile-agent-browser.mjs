@@ -202,9 +202,20 @@ try {
   await page.waitForFunction(() => document.querySelectorAll("#queue .qitem").length === 1);
   ok("завдання одразу стало в чергу, а не зникло");
   check("поле вводу звільнилось одразу (можна писати далі)", "", await page.inputValue("#input"));
-  truthy("після 429 завдання чекає на повтор, а не провалилось",
-    (await page.textContent("#queueStatus")).includes("черзі"));
-  truthy("видно, коли буде наступна спроба", /через \d+ с/.test(await page.textContent("#queueStatus")));
+  // Стан «чекає повтору» триває лише ≈1 с (базова пауза). Одноразове читання після кількох раундтрипів
+  // програвало гонку під навантаженням (спіймано мутаційним прогоном 2026-09-30: 1 із 3 запусків), тому
+  // чекаємо САМУ появу стану, а не знімаємо його наосліп. Збій дає реальний текст, а не голий виняток.
+  let waitText;
+  try {
+    waitText = await (await page.waitForFunction(() => {
+      const t = document.getElementById("queueStatus").textContent;
+      return t.includes("черзі") && /через \d+ с/.test(t) ? t : false;
+    }, null, { polling: "raf", timeout: 8000 })).jsonValue();
+  } catch {
+    waitText = await page.textContent("#queueStatus");
+  }
+  truthy("після 429 завдання чекає на повтор, а не провалилось", waitText.includes("черзі"), waitText);
+  truthy("видно, коли буде наступна спроба", /через \d+ с/.test(waitText), waitText);
 
   await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
   truthy("після повтору прийшла СПРАВЖНЯ відповідь, не офлайн-заглушка",
@@ -251,6 +262,12 @@ try {
     window.PocketAgent.render(); })()`);
   const okAnswer = (text) => (route) => route.fulfill({ status: 200, contentType: "application/json",
     body: JSON.stringify({ content: [{ type: "text", text }] }) });
+  // Очікування стану З ІМЕНЕМ: голий таймаут Playwright дає «прогін завершився винятком» без вказівки,
+  // ЩО саме не настало, і мутаційний прогін не може відрізнити влучний збій від випадкового.
+  const until = async (name, fn, timeout = 15000) => {
+    try { await page.waitForFunction(fn, null, { timeout }); }
+    catch { bad(name, "стан настав", `не настав за ${timeout} мс`); throw new Error(`не настало: ${name}`); }
+  };
 
   // P1-1: замкнений ключ після перезапуску — очікування, а не тиха деградація
   await page.unroute("**/api.anthropic.com/**");
@@ -265,7 +282,8 @@ try {
       attempts: 0, nextAttemptAt: Date.now() - 1000, createdAt: Date.now() - 2000, tried: [], lastError: null }]));
   });
   await page.reload({ waitUntil: "networkidle" });   // ключ у пам'яті сесії порожній: він замкнений
-  await page.waitForFunction(() => document.getElementById("queueStatus").textContent.includes("відкрий ключ"));
+  await until("P1-1: після перезапуску завдання чекає відкриття ключа",
+    () => document.getElementById("queueStatus").textContent.includes("відкрий ключ"));
   ok("P1-1: після перезапуску завдання чекає відкриття ключа");
   await page.waitForTimeout(1500);                    // тиша не є доказом — даємо шанс деградувати
   check("P1-1: завдання не деградувало в офлайн-нотатку", 0, await page.locator(".note").count());
@@ -275,7 +293,8 @@ try {
   await page.click("#openSettings");
   await page.fill("#passphrase", "фраза-розблокування");
   await page.click("#unlockKey");
-  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  await until("P1-1: розблокування будить чергу — завдання виконалось без ручного повтору",
+    () => document.querySelectorAll(".note").length === 1);
   truthy("P1-1: після розблокування прийшла СПРАВЖНЯ відповідь",
     (await page.textContent(".note .a")).includes("відповідь після розблокування"));
   check("P1-1: хмару викликано рівно раз", 1, lockedCalls);
@@ -347,7 +366,8 @@ try {
       createdAt: Date.now() - 2000, tried: [], lastError: null }]));
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.waitForFunction(() => document.querySelectorAll(".note").length === 1, null, { timeout: 15000 });
+  await until("застарілий прапорець очікування після перезапуску не заморозив завдання",
+    () => document.querySelectorAll(".note").length === 1);
   ok("застарілий прапорець очікування після перезапуску не заморозив завдання");
   await reset();
 

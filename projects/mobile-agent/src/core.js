@@ -433,33 +433,6 @@ export function defaultChain(settings = {}) {
   return chain;
 }
 
-/**
- * Перший вузол ланцюга, який зараз доступний: не в cooldown, не вичерпаний
- * у цьому проході й підтриманий можливостями пристрою.
- *
- * ВАЖЛИВО (спіймано браузерним прогоном 2026-09-28): офлайн НЕ береться, поки
- * лишається шанс на справжню відповідь. Інакше перший же 429 закривав завдання
- * деградованою заглушкою — тобто «затримка» знову ставала втратою. Офлайн
- * дозволяється лише явно: остання спроба, вибір користувача або коли інших
- * вузлів у пристрою просто немає.
- */
-export function pickProvider(chain, o = {}) {
-  const now = o.now ?? Date.now();
-  const health = o.health || {};
-  const caps = o.caps || {};
-  const tried = new Set(o.tried || []);
-  for (const node of chain) {
-    if (tried.has(node.id)) continue;
-    if (node.kind === "offline" && o.allowOffline !== true) continue;
-    if ((health[node.id]?.cooldownUntil || 0) > now) continue;
-    if (node.kind === "cloud" && !(node.backup ? caps.hasBackupKey : caps.hasCloudKey)) continue;
-    if (node.kind === "cloud" && caps.online === false) continue;
-    if (node.kind === "local" && !caps.localReady) continue;
-    return node;
-  }
-  return null;
-}
-
 /** Невдача вузла: рахуємо поспіль і відсуваємо його на паузу. */
 export function markFailure(health, id, o = {}) {
   const now = o.now ?? Date.now();
