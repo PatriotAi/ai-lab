@@ -4,7 +4,7 @@
  "governance": "melania-skill-master-administrator v2.24.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
- "total_eval_cases": 135,
+ "total_eval_cases": 136,
  "eval_schema": "canonical: top-level version + evals[].name/prompt/expected_output/assertions",
  "provenance_note": "v4 rebuilt from live disk 2026-07-05. source-research-harvest recovered via GSRE (lost in parallel sessions). All 27 eval sets restored from v3 zip + regenerated where missing. collaborative-browser upgraded 2.7.2->3.0.0.",
  "install_entrypoint": "README-FOR-AI.md",
@@ -341,11 +341,11 @@
    ]
   },
   "source-research-harvest": {
-   "version": "0.3.1",
-   "eval_cases": 5,
+   "version": "0.4.0",
+   "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "f7fb8d175bc98d13",
-    "evals/evals.json": "743b2a904107efce"
+    "SKILL.md": "7b27d526aa8b9a10",
+    "evals/evals.json": "92ccf2fff431d5d6"
    },
    "files": [
     "SKILL.md",

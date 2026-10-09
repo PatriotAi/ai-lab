@@ -1532,6 +1532,118 @@ grep -q "run-gates.py" "$REPO/melania-skills-ecosystem/scripts/maintain.py" \
   || bad "verify викликає виконавець гейтів" "посилання на run-gates.py" "немає"
 
 echo ""
+echo "════════ 27. Git як субстрат: union-журнал і радар розходження ════════"
+# Навіщо — docs/reviews/2026-10-09-git-substrate-audit.md: 13 із 22 конфліктних злиттів
+# історії були в docs/learnings.md, а дубль F-17 виявився лише під час злиття.
+# Фікстури — тимчасові репозиторії: перевірки не залежать від історії клону й мережі.
+CUJ="$REPO/scripts/check-union-journal.py"; CMD="$REPO/scripts/check-main-drift.py"
+GCH="$REPO/scripts/git-conflict-hotspots.py"
+J0='# Журнал\n\n## 2026-01-01 — Перший\n- Дія: лишили.\n'
+
+check "docs/learnings.md має merge=union у робочому репо" "union" \
+  "$(git -C "$REPO" check-attr merge -- docs/learnings.md | awk '{print $NF}')"
+
+# Дві гілки дописують по запису в журнал; друкує код злиття. З реальним .gitattributes
+# і БЕЗ нього: контроль доводить, що злиття проходить саме завдяки атрибуту.
+uj_merge() { # uj_merge <тека> <yes|no — копіювати .gitattributes репо>
+  mk_repo "$1"; mkdir -p docs
+  [[ "$2" == yes ]] && cp "$REPO/.gitattributes" .gitattributes
+  printf "$J0" > docs/learnings.md; git add -A; git commit -q --no-gpg-sign -m base
+  git checkout -q -b side
+  printf '\n## 2026-01-02 — З гілки\n- Дія: лишили.\n' >> docs/learnings.md; git commit -qa --no-gpg-sign -m side
+  git checkout -q main
+  printf '\n## 2026-01-03 — З main\n- Дія: лишили.\n' >> docs/learnings.md; git commit -qa --no-gpg-sign -m main
+  git merge -q --no-edit --no-gpg-sign side >/dev/null 2>&1; echo $?
+}
+rc=$(uj_merge uj_attr yes); f="$TMPROOT/uj_attr/docs/learnings.md"
+check "union: паралельні записи в журнал зливаються без конфлікту" "0" "$rc"
+grep -q "З гілки" "$f" && grep -q "З main" "$f" && ! grep -q '^<<<<<<<' "$f" \
+  && ok "union: обидва записи на місці, маркерів немає" \
+  || bad "union: обидва записи на місці" "обидва записи, без маркерів" "$(tr '\n' '|' < "$f" | head -c 160)"
+rc=$(uj_merge uj_noattr no)
+[[ "$rc" != "0" ]] && ok "контроль: без атрибута те саме злиття конфліктує (тест доводить саме атрибут)" \
+  || bad "контроль: без атрибута — конфлікт" "ненульовий код злиття" "$rc"
+
+# Корінь — явно: попередні секції лишають поточну теку в тимчасовому репо, і без
+# аргументу скрипт перевірив би його (без .gitattributes — вхолосту «чисто»).
+out=$(python3 "$CUJ" "$REPO" 2>&1); rc=$?
+[[ "$rc" == "0" && "$out" == *"docs/learnings.md"* ]] && ok "реальний репозиторій: union-журнал безпечний" \
+  || bad "реальний union-журнал" "код 0 і docs/learnings.md у звіті" "код $rc · ${out:0:140}"
+uj_case() { # uj_case <назва> <код> <фрагмент|-> <вміст .gitattributes> <вміст журналу|->
+  local d="$TMPROOT/ujc_$RANDOM$RANDOM"; mkdir -p "$d/docs"
+  printf "$4" > "$d/.gitattributes"; [[ "$5" != "-" ]] && printf "$5" > "$d/docs/learnings.md"
+  local out; out=$(python3 "$CUJ" "$d" 2>&1); local rc=$?
+  if [[ "$rc" == "$2" && ( "$3" == "-" || "$out" == *"$3"* ) ]]; then ok "$1"
+  else bad "$1" "код $2 · «$3»" "код $rc · ${out:0:140}"; fi
+}
+UA='docs/learnings.md merge=union\n'
+uj_case "чистий журнал → 0"                                  0 -                       "$UA" "$J0"
+uj_case "канарка: атрибут -diff (ховає зміни) → 1"           1 "заборонений атрибут"   "${UA}secret.txt -diff\n" "$J0"
+uj_case "канарка: linguist-generated (згортає діф на GitHub) → 1" 1 "заборонений атрибут" "${UA}x.md linguist-generated=true\n" "$J0"
+uj_case "канарка: union на шаблон шляхів → 1"                1 "не є наявним файлом"   'docs/*.md merge=union\n' "$J0"
+uj_case "канарка: union на неіснуючий файл → 1"              1 "не є наявним файлом"   "$UA" -
+uj_case "канарка: union на файл без записів журналу → 1"     1 "лише для журналів"     "$UA" '# просто текст\n'
+uj_case "канарка: заголовок запису повторюється → 1"         1 "повторюється"          "$UA" "${J0}\n## 2026-01-01 — Перший\n- Дія: лишили.\n"
+uj_case "канарка: два рядки «- Дія:» в одному записі (слід union) → 1" 1 "рядки «- Дія:»" "$UA" "${J0}- Дія: лишили; Змержено.\n"
+
+# Радар: гілка й main змінили один файл; main — комітом «F-99», що вже робить те саме.
+mk_repo radar; mkdir -p docs; cp "$REPO/.gitattributes" .gitattributes
+printf 'x\n' > core.py; printf "$J0" > docs/learnings.md; git add -A; git commit -q --no-gpg-sign -m base
+git update-ref refs/remotes/origin/main HEAD; RBASE=$(git rev-parse HEAD)
+git checkout -q -b feature
+printf 'mine\n' > core.py; printf '\n## 2026-01-02 — B\n- Дія: лишили.\n' >> docs/learnings.md
+git commit -qa --no-gpg-sign -m "моя хвиля: власна механіка"
+git checkout -q main
+printf 'theirs\n' > core.py; printf '\n## 2026-01-03 — C\n- Дія: лишили.\n' >> docs/learnings.md
+git commit -qa --no-gpg-sign -m "F-99: main уже зробив цю механіку"
+git update-ref refs/remotes/origin/main HEAD; git checkout -q feature
+out=$(python3 "$CMD" 2>&1); rc=$?
+check "радар: звіт без --strict → код 0" "0" "$rc"
+[[ "$out" == *"Злиття дасть конфлікт (1): core.py"* ]] && ok "радар: прогнозує конфлікт саме в core.py" \
+  || bad "радар: прогноз конфлікту" "конфлікт (1): core.py" "${out:0:200}"
+[[ "$out" == *"F-99"* ]] && ok "радар: показує, що main уже зробив у спільному файлі (тема F-99)" \
+  || bad "радар: тема коміту main" "F-99 у звіті" "${out:0:200}"
+grep "Злиття дасть конфлікт" <<<"$out" | grep -q "learnings" \
+  && bad "радар: union-журнал не рахується конфліктом" "без docs/learnings.md" "$(grep 'Злиття дасть' <<<"$out")" \
+  || ok "радар: union-журнал не рахується конфліктом (merge-tree бачить .gitattributes)"
+python3 "$CMD" --strict >/dev/null 2>&1; check "радар --strict: прогнозований конфлікт → код 1" "1" "$?"
+out=$(python3 "$CMD" --quiet --base feature 2>&1); rc=$?
+[[ -z "$out" && "$rc" == "0" ]] && ok "радар --quiet: розходження немає → тиша й код 0" \
+  || bad "радар --quiet без розходження" "порожньо, код 0" "код $rc · ${out:0:120}"
+# Паралельна незлита гілка (як PR #80 для сесії F-17) торкається того самого файла.
+git checkout -q -b other "$RBASE"; printf 'other\n' > core.py
+git commit -qa --no-gpg-sign -m "Хвиля X: та сама механіка в паралельній гілці"
+git update-ref refs/remotes/origin/claude/other HEAD
+git update-ref refs/remotes/origin/dependabot/bump HEAD; git checkout -q feature
+out=$(python3 "$CMD" --quiet --branches 2>&1)
+[[ "$out" == *"origin/claude/other"* && "$out" == *"Хвиля X"* ]] \
+  && ok "радар --branches: бачить незлиту гілку з тим самим файлом і її тему" \
+  || bad "радар --branches" "origin/claude/other + Хвиля X" "${out:0:200}"
+out=$(python3 "$CMD" --head origin/main --quiet --inflight 2>&1)
+[[ "$out" == *"origin/claude/other: 1 файл"* && "$out" != *"dependabot"* ]] \
+  && ok "радар --inflight: карта паралельної роботи на старті сесії (dependabot — поза картою)" \
+  || bad "радар --inflight" "origin/claude/other: 1 файл, без dependabot" "${out:0:200}"
+grep -q "check-main-drift.py" "$REPO/automations/session-start/session-start.sh" \
+  && ok "SessionStart-хук справді викликає радар" || bad "SessionStart викликає радар" "виклик check-main-drift.py" "немає"
+
+# Вимірювач історії: одне злиття з конфліктом у журналі, розв'язане людиною.
+mk_repo hot; mkdir -p docs; printf "$J0" > docs/learnings.md; git add -A; git commit -q --no-gpg-sign -m base
+git checkout -q -b side; printf '\n## 2026-01-02 — S\n- Дія: лишили.\n' >> docs/learnings.md; git commit -qa --no-gpg-sign -m side
+git checkout -q main; printf '\n## 2026-01-03 — M\n- Дія: лишили.\n' >> docs/learnings.md; git commit -qa --no-gpg-sign -m main
+git merge -q --no-edit --no-gpg-sign side >/dev/null 2>&1
+printf "${J0}\n## 2026-01-02 — S\n- Дія: лишили.\n\n## 2026-01-03 — M\n- Дія: лишили.\n" > docs/learnings.md
+git add -A; git commit -q --no-gpg-sign --no-edit
+out=$(python3 "$GCH" --revs HEAD --replay-union docs/learnings.md 2>&1)
+[[ "$out" == *"з конфліктами: 1"* && "$out" == *"union розв'язує 1/1"* ]] \
+  && ok "вимірювач історії: знаходить конфлікт і показує, що union його розв'язує" \
+  || bad "вимірювач історії" "з конфліктами: 1 · union розв'язує 1/1" "${out:0:200}"
+cd "$REPO" || exit 1
+# ── кінець перевірок секції 27 (межа вирізки для tests/mutation-git-substrate.sh) ──
+mg_out=$(bash "$REPO/tests/mutation-git-substrate.sh" 2>&1); mg_rc=$?
+[[ "$mg_rc" == "0" ]] && ok "мутаційна перевірка секції 27: $(tail -1 <<<"$mg_out")" \
+  || bad "мутаційна перевірка секції 27" "усі мутанти спіймані" "$(grep -E 'ВИЖИВ|❌' <<<"$mg_out" | head -3 | tr '\n' ' ')"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
