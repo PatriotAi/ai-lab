@@ -92,6 +92,29 @@ mk_repo recursion; echo dirty >> seed.txt
 rc=$(bash "$HOOK" <<<'{"stop_hook_active":true}' >/dev/null 2>&1; echo $?)
 check "stop_hook_active=true → exit 0 (без рекурсії)" "0" "$rc"
 
+# 1.6 Те саме БЕЗ jq (F-18, перенесено з PR #71). На раннері CI jq є, тож без цього
+# тесту запасна python-гілка не виконувалась би ніколи і її поломка лишилась би
+# непоміченою. PATH без jq: посилання на всі виконувані файли, крім jq.
+NOJQ="$TMPROOT/nojq-bin"; mkdir -p "$NOJQ"
+IFS=: read -ra _pdirs <<<"$PATH"
+for _d in "${_pdirs[@]}"; do
+  for _f in "$_d"/*; do
+    _n="${_f##*/}"
+    [[ "$_n" == jq || -e "$NOJQ/$_n" || ! -x "$_f" ]] && continue
+    ln -s "$_f" "$NOJQ/$_n" 2>/dev/null
+  done
+done
+if PATH="$NOJQ" command -v jq >/dev/null 2>&1; then
+  skip "без jq: stop_hook_active=true → exit 0" "не вдалося сховати jq"
+else
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":true}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=true → exit 0" "0" "$rc"
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":false}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=false → перевірка працює (exit 2)" "2" "$rc"
+  rc=$(PATH="$NOJQ" bash "$HOOK" <<<'{"stop_hook_active":1}' >/dev/null 2>&1; echo $?)
+  check "без jq: stop_hook_active=1 (не булеве) → перевірка працює (exit 2)" "2" "$rc"
+fi
+
 echo ""
 echo "════════ 2. G5: витяг памʼяті (g5-retrieve) ════════"
 cd "$REPO" || exit 1
@@ -179,13 +202,22 @@ echo ""
 echo "════════ 5. SessionStart: контекст сесії ════════"
 ss=$(bash automations/session-start/session-start.sh 2>&1); rc=$?
 check "session-start завершується успішно" "0" "$rc"
-python3 -c "
+# Без jq хук свідомо віддає текст: для SessionStart Claude Code додає в контекст і
+# звичайний stdout, тож це не деградація. Контракт — відповідно до наявності jq
+# (перенесено з PR #71).
+if command -v jq >/dev/null 2>&1; then
+  python3 -c "
 import json,sys
 d=json.loads(sys.stdin.read())
 assert d['hookSpecificOutput']['hookEventName']=='SessionStart'
 assert len(d['hookSpecificOutput']['additionalContext'])>50
 " <<<"$ss" 2>/dev/null && ok "віддає валідний JSON hookSpecificOutput" \
-  || bad "віддає валідний JSON hookSpecificOutput" "валідний JSON" "невалідний/порожній"
+    || bad "віддає валідний JSON hookSpecificOutput" "валідний JSON" "невалідний/порожній"
+else
+  [[ "$ss" == *"Контекст лабораторії ai-lab"* && ${#ss} -gt 50 ]] \
+    && ok "без jq: віддає текстовий контекст" \
+    || bad "без jq: віддає текстовий контекст" "дайджест як текст" "порожньо/без заголовка"
+fi
 
 echo ""
 echo "════════ 6. Проєкт: кишеньковий агент (projects/mobile-agent) ════════"
@@ -766,6 +798,19 @@ import memory_guard as g
 _, admitted = g.guard(Path('experiments/чужий/g5-package.md'), '## 1. STATE\n- ок\n', g.load_policy())
 print('admitted' if admitted else 'blocked')" 2>/dev/null)
 check "пакет поза переліком шляхів не подається" "blocked" "$mem_path"
+
+# Файл ПОЗА репозиторієм (F-19, перенесено з PR #71): абсолютний шлях раніше давав
+# необроблений ValueError, а відносний `../` за порожнього переліку обходив межу.
+# Тепер — блок завжди, і за реальної політики, і за порожнього переліку.
+mem_out=$(cd "$REPO" && python3 -c "
+import sys; sys.path.insert(0,'security/spine')
+from pathlib import Path
+import memory_guard as g
+p = Path('$CLEAN')
+r = [g.guard(q, '## 1. STATE\n- ок\n', pol)[1]
+     for q in (p, Path('../../tmp/package.md')) for pol in (g.load_policy(), {})]
+print('blocked' if not any(r) else 'admitted:' + str(r))" 2>&1)
+check "пакет поза репозиторієм (абсолютний і ../) не подається, і за порожнього переліку" "blocked" "$mem_out"
 
 # Обрамлення: текст мусить прийти позначеним як ДАНІ, інакше наступна сесія
 # читатиме його як інструкцію (офіційна рекомендація для непрямих ін'єкцій).

@@ -38,8 +38,25 @@
 #   (пропускає перевірки чистоти дерева; ганяє лише класифікатор на діапазоні)
 
 # --- Вхід і захист від рекурсії (як у базовій версії хука) ---
+# Без `jq` у PATH `echo | jq` мовчки дає порожній рядок, тож захист від рекурсії
+# вимикався у ВІДКРИТУ позицію: хук ішов далі в перевірку git-стану так, ніби
+# stop_hook_active завжди false (F-18). python3 — уже жорстка залежність гейтів
+# лабораторії, тож це надійний другий шар. Семантика як у `jq -r`: перевірку
+# вимикає лише булеве true або рядок "true" (`is True`, а не `==`: інакше 1 і 1.0
+# теж вимикали б її — рев'ю Codex у PR #71). Перенесено з PR #71 (2026-09-27).
 input=$(cat)
-stop_hook_active=$(echo "$input" | jq -r '.stop_hook_active' 2>/dev/null)
+if command -v jq >/dev/null 2>&1; then
+  stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active // empty' 2>/dev/null)
+else
+  stop_hook_active=$(printf '%s' "$input" | python3 -c '
+import json, sys
+try:
+    v = json.load(sys.stdin).get("stop_hook_active")
+    print("true" if v is True or v == "true" else "")
+except Exception:
+    print("")
+' 2>/dev/null)
+fi
 if [[ "$stop_hook_active" = "true" ]]; then
   exit 0
 fi
