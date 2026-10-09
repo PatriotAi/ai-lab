@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "gates": [
+    {
+      "id": "skill-surface",
+      "point": "verify",
+      "command": ["python3", "scripts/check-skill-surface.py"],
+      "blocking": true,
+      "onError": "halt",
+      "timeout": 30,
+      "why": "Блок C: розширення виконуваної поверхні навички без записаної згоди resync мовчки легітимізує"
+    }
+  ]
+}
