@@ -42,6 +42,7 @@ class Verdict:
     target: str = ""                 # що саме зачіпається (шлях/команда)
     resolved_target: str = ""        # реальна ціль після розрізу симлінка
     notes: list[str] = field(default_factory=list)
+    scope: str = ""                  # ціль незворотної дії (owner/repo#N), якщо відома — F-17
 
     @property
     def rank(self) -> int:
@@ -96,6 +97,16 @@ def _resolve_symlink(root: Path, raw: str) -> tuple[str, list[str]]:
 # Без цього переліку `cat > файл` вважався читанням (реальна дірка 2026-07-27).
 WRITE_OPS = (">", ">>", "|", "&&", "||", ";", "$(", "`", "<(", "tee ")
 
+# Роздільники, що перетворюють одну команду на ЛАНЦЮЖОК. Перелік `WRITE_OPS`
+# їх майже покриває, але не бачив **перенесення рядка** — а це теж роздільник.
+# Наслідок був реальний: після послаблення «читання пропускає правила-підрядки»
+# (2026-09-27) команда `cat README.md\ngit push --force origin main` ставала R0,
+# бо починалась із читального префікса й не мала жодного оператора з переліку.
+# Мої власні канарки цього не спіймали — усі були однорядкові; спіймав
+# property-тест монотонності з `main` (`tests/property-classify.py`, Фаза S5):
+# «додавання небезпечного фрагмента не може знизити рівень».
+CHAIN_OPS = WRITE_OPS + ("\n", "\r")
+
 
 # Ознаки того, що вміст лапок — це КОД, який виконають, а не текст-дані.
 SHELL_INVOKERS = (
@@ -104,6 +115,37 @@ SHELL_INVOKERS = (
     # Пропуск, знайдений канаркою 2026-07-27: `bash <<'EOF' … rm -rf … EOF`
     # давав R2, бо тіло відкидалося як «дані». Це вже не шум, а дірка.
     "bash <<", "sh <<", "zsh <<", "bash -s", "sh -s",
+    # Оболонка — не єдиний спосіб виконати текст. До 2026-09-27 перелік
+    # закінчувався на `sh -s`, тож `python3 -c "…"`, `node -e "…"` і
+    # `python3 - <<'PY' … PY` давали R2: лапки й тіло heredoc відкидались
+    # як «дані», хоча інтерпретатор саме їх і виконує. Виміряно ділом на
+    # трьох формах — усі три проходили повз правила. Це пропуск, а не шум:
+    # напрям, протилежний до хибної тривоги, і тому небезпечніший.
+    "python -c", "python3 -c", "python -", "python3 -",
+    "node -e", "node --eval", "node -", "perl -e", "ruby -e", "php -r",
+)
+
+# Ознаки того, що «читальна» команда насправді ВИКОНУЄ дію — без жодного
+# оператора оболонки, тому `WRITE_OPS` їх не бачить. Без цього переліку
+# послаблення для читання (`is_pure_read` нижче) прорубало б власну дірку:
+# `find . -name x -delete` теж починається з читального префікса.
+# Знайдено при проєктуванні самого фіксу: перевіряли не «чи ловить»,
+# а «що саме НЕ ловитиме» (Core Rule 15).
+EXEC_MARKERS = ("-exec", "-execdir", "-delete", "-ok", "--exec")
+
+# Ознаки ЗАПИСУ всередині інлайн-коду інтерпретатора. Потрібні, щоб правила на
+# шляхи ловили `python3 - <<PY  open('security/policy.toml','w')  PY`, але НЕ
+# кричали на `python3 -c 'print(".github/workflows/x.yml")'` — друк шляху не є
+# дією (наявний стенд `tests/probe-classify.py` фіксує це як R2, і він має рацію:
+# перевірка, що кричить на згадку, вчить себе ігнорувати).
+#
+# ЧЕСНА МЕЖА ПОКРИТТЯ: перелік іменний, тож екзотична форма запису поза ним
+# лишається пропуском. Це краще за попередній стан, де інлайн-код не бачився
+# ВЗАГАЛІ, і краще за суцільну тривогу на кожну згадку шляху.
+INLINE_WRITE_HINTS = (
+    "write", "'w'", '"w"', "'a'", '"a"', "'x'", "truncate", "unlink", "remove",
+    "rmtree", "rename", "replace(", "copy", "move", "dump", "mkdir", "symlink",
+    "chmod", "touch", "appendfile", "createwritestream", "outputfile", "save",
 )
 
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -146,6 +188,52 @@ def executable_part(command: str) -> str:
     return stripped
 
 
+def executes_inline_code(command: str) -> bool:
+    """Чи команда віддає ТЕКСТ інтерпретаторові на виконання.
+
+    `bash -c "…"`, `eval`, `| sh`, `python3 - <<PY … PY`, `node -e "…"`.
+    Ознака шукається після відкидання даних — з тієї ж причини, що в
+    `executable_part`: згадка `| sh` у прозі не робить команду виконанням.
+    """
+    if not command:
+        return False
+    stripped = _QUOTED.sub(" ", _HEREDOC.sub(r"\1", command))
+    return any(inv in stripped.lower() for inv in SHELL_INVOKERS)
+
+
+def is_pure_read(command: str, policy: dict) -> bool:
+    """Чи команда лише ЧИТАЄ — тобто фізично не здатна виконати незворотну дію.
+
+    НАВІЩО. Правило-підрядок на читальній команді міряє ЗГАДКУ, а не дію:
+    пошук по документації за назвою небезпечного прапорця нічого не обходить —
+    він показує текст. До цього фіксу такий пошук класифікувався як R4, і та
+    сама хибна тривога двічі зупинила дослідження `gsd-core` — причому вдруге
+    саме на спробі ЗАПИСАТИ висновок про неї в журнал. Перевірка, що кричить
+    на згадку, вчить себе ігнорувати (`docs/security/research-2026-07.md`),
+    тож це не косметика, а зношування гейта.
+
+    МЕЖА ПОСЛАБЛЕННЯ. Діє, лише коли команда не має жодного оператора
+    запису чи ланцюжка (`WRITE_OPS`), жодної ознаки виконання
+    (`SHELL_INVOKERS`) і жодного маркера дії без оболонки (`EXEC_MARKERS`).
+    Інакше `cat f | sh` або `find . -delete` пролізли б як «читання».
+    Правила на ШЛЯХИ це послаблення не зачіпає взагалі.
+    """
+    if not command:
+        return False
+    stripped = executable_part(command).strip()
+    if not stripped:
+        return False
+    low = stripped.lower()
+    if any(op in stripped for op in CHAIN_OPS):
+        return False
+    if any(inv in low for inv in SHELL_INVOKERS):
+        return False
+    if any(marker in low for marker in EXEC_MARKERS):
+        return False
+    prefixes = policy.get("levels", {}).get("R0", {}).get("bash_prefixes", [])
+    return any(stripped == pref or stripped.startswith(pref + " ") for pref in prefixes)
+
+
 def _write_targets(command: str) -> list[str]:
     """Витягує з команди те, у що вона СПРАВДІ пише.
 
@@ -183,10 +271,31 @@ def _tool_managed(resolved: str, policy: dict) -> bool:
 
 
 def _command_touches_path(command: str, pattern: str) -> bool:
-    """Чи пише команда в захищений шлях."""
+    """Чи пише команда в захищений шлях.
+
+    ДРУГИЙ ШЛЯХ, знайдений 2026-09-27 під час хвилі 4: інлайн-код в
+    інтерпретаторі пише куди завгодно БЕЗ операторів оболонки —
+    `python3 - <<PY` з `open('security/policy.toml','w')` усередині не має ні
+    `>`, ні `tee`, тож перевірка цілей запису його не бачила. Знайдено на власній
+    дії: саме так у цій сесії правилась політика, і гейт змовчав.
+
+    Тому там, де команда ВИКОНУЄ текст і в цьому тексті є ознака ЗАПИСУ
+    (`INLINE_WRITE_HINTS`), захищений шлях шукається в усій команді. Ознака
+    потрібна, щоб не кричати на друк шляху: `print("<шлях>")` — не дія, і
+    наявний стенд справедливо чекає там R2.
+    """
     for target in _write_targets(command):
         if _match_path(pattern, target.lstrip("./"), target):
             return True
+    low = command.lower()
+    if executes_inline_code(command) and any(h in low for h in INLINE_WRITE_HINTS):
+        # Токен МУСИТЬ допускати провідну точку: `.github/workflows/*` і
+        # `.claude/settings.json` — саме такі. Перша версія регулярки починалась
+        # із `[\w]`, тож зрізала точку й обидва найважливіші правила проходили
+        # повз (спіймано пробою одразу після фіксу, до коміту).
+        for token in re.findall(r"[.\w][\w./-]*", command):
+            if _match_path(pattern, token.lstrip("./"), token):
+                return True
     return False
 
 
@@ -210,6 +319,22 @@ def _match_path(pattern: str, rel_target: str, raw_target: str) -> bool:
     return False
 
 
+def _mcp_scope(tool_input: dict) -> str:
+    """Ціль незворотної MCP-дії — `owner/repo#N`, якщо її видно з аргументів.
+
+    Навіщо (F-17): записана згода ключувалась лише на інструмент, тож рядок
+    «лише на PR #45» відкривав злиття БУДЬ-ЯКОГО PR — слова «лише на #45»
+    читала людина, а не код. Порожній рядок = ціль невідома; тоді, як і раніше,
+    діє лише згода без цілі.
+    """
+    owner = str(tool_input.get("owner") or "").strip()
+    repo = str(tool_input.get("repo") or "").strip()
+    number = tool_input.get("pullNumber", tool_input.get("pull_number"))
+    if not owner or not repo or number in (None, ""):
+        return ""
+    return f"{owner}/{repo}#{number}".lower()
+
+
 def classify(tool_name: str, tool_input: dict, root: Path | None = None,
              policy: dict | None = None) -> Verdict:
     root = root or repo_root()
@@ -227,6 +352,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     )
 
     exec_part = executable_part(command) if command else ""
+    pure_read = is_pure_read(command, pol) if command else False
 
     notes: list[str] = []
     resolved = raw_path
@@ -265,6 +391,11 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         exceptions = [e.lower() for e in rule.get("except_commands", [])]
         if command and any(exc in exec_part.lower() for exc in exceptions):
             continue
+        # Читальна команда пропускає правила-підрядки: показати текст — не те
+        # саме, що виконати дію. Правила на ШЛЯХИ (вище в цьому ж циклі)
+        # лишаються чинними завжди, бо вони дивляться на ціль запису.
+        if command and pure_read:
+            continue
         for needle in rule.get("match_commands", []):
             # Збіг шукається лише у ВИКОНУВАНІЙ частині: назва дії в лапках
             # чи в тілі heredoc — це дані, а не команда.
@@ -302,6 +433,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
                 rule_id=f"mcp-{suffix}",
                 why=mcp.get("why", ""), alternatives=mcp.get("alternatives", ""),
                 target=tool_name, resolved_target=resolved or tool_name, notes=notes,
+                scope=_mcp_scope(tool_input),
             )
         if any(v in low for v in mcp.get("read_verbs", [])):
             return Verdict("R0", f"MCP-інструмент читання ({tool_name})", notes=notes)
@@ -326,7 +458,8 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             if stripped == prefix or stripped.startswith(prefix + " "):
                 # Ланцюжок АБО перенаправлення можуть ховати запис за читанням:
                 # `cat > файл` — це запис, хоч і починається з `cat`.
-                if any(op in stripped for op in WRITE_OPS):
+                if any(op in stripped for op in CHAIN_OPS) or \
+                        any(marker in stripped.lower() for marker in EXEC_MARKERS):
                     break
                 return Verdict("R0", f"команда читання ({prefix})", notes=notes)
 
