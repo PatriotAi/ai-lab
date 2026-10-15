@@ -1754,6 +1754,92 @@ mg_out=$(bash "$REPO/tests/mutation-git-substrate.sh" 2>&1); mg_rc=$?
   || bad "мутаційна перевірка секції 27" "усі мутанти спіймані" "$(grep -E 'ВИЖИВ|❌' <<<"$mg_out" | head -3 | tr '\n' ' ')"
 
 echo ""
+echo "════════ 28. Дата збірки Melania — похідна від вмісту (W-21) ════════"
+# Інцидент (рев'ю Codex до PR #90): resync перерахував 136→142 eval-кейсів, а BOOTSTRAP
+# далі казав іншим AI «повністю перевірено 2026-09-30, не перевіряй повторно» — про
+# кейси, доданих 2026-10-15. Двічі поспіль. Перевірки стоять на ЗЛАМАНИХ станах.
+dt_unit=$(python3 - <<'PY'
+import sys, json, copy, pathlib
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import build_date_problems, stamp_build_date, restamp_doc_dates
+man = json.loads(pathlib.Path('melania-skills-ecosystem/MANIFEST.json').read_text(encoding='utf-8'))
+out = [len(build_date_problems(man))]                       # чистий стан мовчить
+m1 = copy.deepcopy(man); m1['skills']['pre-delivery-gate']['sha256_16']['evals/evals.json'] = '0' * 16
+out.append(len(build_date_problems(m1)))                    # змінено evals без дати
+m2 = copy.deepcopy(man); m2['skills']['pre-delivery-gate']['version'] = '9.9.9'
+out.append(len(build_date_problems(m2)))                    # змінено версію без дати
+out.append(stamp_build_date(m1, '2099-01-02'))              # штамп ставиться…
+out.append(m1['built']); out.append(len(build_date_problems(m1)))
+out.append(stamp_build_date(m1, '2099-12-31'))              # …і не повзе без зміни вмісту
+out.append(m1['built'])
+fx = ('<!-- Стан зафіксовано: 2026-09-30 -->\nперевірено 2026-09-30: ok\n'
+      '(версії актуальні на 2026-09-30)\nзбірка 2026-09-30 · MANIFEST верифіковано 2026-09-30\n'
+      'Дата збірки: 2026-09-30\n## 2026-01-01 — Запис журналу\nвиміряно 2026-10-09\n')
+r = restamp_doc_dates(fx, '2099-01-02')
+out.append(r.count('2099-01-02')); out.append(r.count('2026-01-01') + r.count('2026-10-09'))
+print(' '.join(map(str, out)))
+PY
+)
+read -r d_clean d_evals d_ver d_st1 d_b1 d_after d_st2 d_b2 d_new d_kept <<<"$dt_unit"
+check "дата збірки: реальний пакет — без тривоги" "0" "$d_clean"
+check "дата збірки: змінені evals без нової дати — спіймано" "1" "$d_evals"
+check "дата збірки: змінена версія без нової дати — спіймано" "1" "$d_ver"
+check "дата збірки: зміна вмісту ставить нову дату" "True 2099-01-02 0" "$d_st1 $d_b1 $d_after"
+check "дата збірки: без зміни вмісту дата не повзе" "False 2099-01-02" "$d_st2 $d_b2"
+check "дата збірки: переписано всі 6 згадок, чужі дати не зачеплено" "6 2" "$d_new $d_kept"
+
+# Наскрізно на копії пакета: старий узгоджений стан (2000-01-01) → resync.
+dt_copy() { # dt_copy <тека> <yes|no — додати eval-кейс>
+  local root="$TMPROOT/$1/melania-skills-ecosystem"; mkdir -p "$TMPROOT/$1"
+  cp -r "$REPO/melania-skills-ecosystem" "$root"
+  python3 - "$root" "$2" <<'PY'
+import sys, json, pathlib
+sys.path.insert(0, sys.argv[1] + '/scripts')
+from maintain import restamp_doc_dates
+root = pathlib.Path(sys.argv[1]); mp = root / 'MANIFEST.json'
+man = json.loads(mp.read_text(encoding='utf-8')); man['built'] = '2000-01-01'
+mp.write_text(json.dumps(man, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+for doc in ('MELANIA-BOOTSTRAP.md', 'README-FOR-HUMANS.md'):
+    p = root / doc; p.write_text(restamp_doc_dates(p.read_text(encoding='utf-8'), '2000-01-01'), encoding='utf-8')
+if sys.argv[2] == 'yes':
+    ep = root / 'skills/pre-delivery-gate/evals/evals.json'
+    ev = json.loads(ep.read_text(encoding='utf-8')); ev['evals'].append(dict(ev['evals'][0], id=999, name='canary'))
+    ep.write_text(json.dumps(ev, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    # Як робив старий resync (сам інцидент): хеш і лічильники оновлено, дату — ні.
+    from maintain import sha16, eval_count
+    meta = man['skills']['pre-delivery-gate']; n = eval_count(ep)
+    man['total_eval_cases'] += n - meta['eval_cases']
+    meta['eval_cases'], meta['sha256_16']['evals/evals.json'] = n, sha16(ep)
+    mp.write_text(json.dumps(man, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+PY
+}
+dt_copy dt_same no
+python3 "$TMPROOT/dt_same/melania-skills-ecosystem/scripts/maintain.py" resync >/dev/null 2>&1
+check "resync без зміни вмісту не чіпає дату (контроль)" "2000-01-01" \
+  "$(python3 -c "import json;print(json.load(open('$TMPROOT/dt_same/melania-skills-ecosystem/MANIFEST.json'))['built'])")"
+dt_copy dt_changed yes
+DTR="$TMPROOT/dt_changed/melania-skills-ecosystem"
+grep -q "змінено після дати збірки" <(python3 "$DTR/scripts/maintain.py" verify 2>&1) \
+  && ok "verify ловить інцидент: хеші й лічильники оновлено, дату — ні" \
+  || bad "verify ловить інцидент: хеші й лічильники оновлено, дату — ні" "«змінено після дати збірки»" "мовчить"
+python3 "$DTR/scripts/maintain.py" resync >/dev/null 2>&1
+DT_TODAY=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).date())")
+check "resync після зміни вмісту ставить сьогоднішню дату в MANIFEST" "$DT_TODAY" \
+  "$(python3 -c "import json;print(json.load(open('$DTR/MANIFEST.json'))['built'])")"
+check "resync переписує дати в BOOTSTRAP і README (старих не лишилось)" "0" \
+  "$(cat "$DTR/MELANIA-BOOTSTRAP.md" "$DTR/README-FOR-HUMANS.md" | grep -c '2000-01-01')"
+grep -q "змінено після дати збірки" <(python3 "$DTR/scripts/maintain.py" verify 2>&1) \
+  && bad "після resync verify про дату мовчить" "мовчить" "тривога лишилась" \
+  || ok "після resync verify про дату мовчить"
+# Фальсифікація з'єднання: verify зі старим кодом (без виклику гейта) інцидент пропускає.
+sed 's/^    problems += build_date_problems(man)$/    pass/' "$REPO/melania-skills-ecosystem/scripts/maintain.py" \
+  > "$TMPROOT/dt_changed_old.py"
+dt_copy dt_mut yes; cp "$TMPROOT/dt_changed_old.py" "$TMPROOT/dt_mut/melania-skills-ecosystem/scripts/maintain.py"
+grep -q "змінено після дати збірки" <(python3 "$TMPROOT/dt_mut/melania-skills-ecosystem/scripts/maintain.py" verify 2>&1) \
+  && bad "мутант «гейт не викликано» справді сліпий (контроль тесту)" "мовчить" "ловить" \
+  || ok "мутант «гейт не викликано» справді сліпий (контроль тесту)"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then

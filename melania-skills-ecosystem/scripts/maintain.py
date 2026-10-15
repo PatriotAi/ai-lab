@@ -8,8 +8,9 @@
   python3 maintain.py resync   # після свідомого оновлення білду: пере-знімає baseline
                                #   для змінених SKILL.md, перераховує похідні поля MANIFEST
                                #   (хеші, лічильники evals, підсумки) і лічильники у
-                               #   MELANIA-BOOTSTRAP.md. Версії/дата білду беруться з
-                               #   frontmatter/пакета — не вигадуються. Наприкінці — verify.
+                               #   MELANIA-BOOTSTRAP.md. Версії беруться з frontmatter;
+                               #   дата збірки — сьогоднішня, ЛИШЕ коли змінився вміст
+                               #   (відбиток built_fingerprint, W-21). Наприкінці — verify.
 
   python3 maintain.py package [skill|all]
                                # upload-safe .skill-пакети для скіл-стору claude.ai:
@@ -21,6 +22,7 @@
 Запускати з будь-якої теки: шляхи визначаються відносно розташування скрипта.
 """
 import json, hashlib, re, sys, subprocess, os
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent          # melania-skills-ecosystem/
@@ -44,6 +46,56 @@ SECRET_SCAN_EXT = {".md", ".py", ".json", ".html", ".txt", ".yml", ".yaml", ".js
 SUBCMD_GUARDS = {"notebooklm-connector": ("snapshot", "validate")}
 # Скіли, чий guard не тримає читабельний baseline з md5 (перевірка суто інваріантна).
 NO_MD5_BASELINE = {"rlm-harness"}
+
+# Документи, чиї похідні лічильники й дати звіряє verify і переписує resync.
+DOC_TARGETS = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
+               ROOT / "README-FOR-AI.md", ROOT / "INSTALL-PROMPT.txt",
+               ROOT.parent / "README.md"]
+# Згадка дати збірки/перевірки пакета в цих документах = MANIFEST.built.
+# «зафіксовано:» і «актуальні на» додано 2026-10-15: дві такі дати в BOOTSTRAP
+# проходили повз перевірку.
+BUILD_DATE_MENTION = re.compile(
+    r"((?:збірк[аи]|зафіксовано:?|верифіковано|перевірено|актуальні на|Дата збірки:)\s*)"
+    r"(\d{4}-\d{2}-\d{2})")
+
+
+# ---------------------------------------------------------------- дата збірки
+# W-21 (рев'ю Codex до PR #90): resync перераховував лічильники, але дату збірки
+# лишав старою, тож BOOTSTRAP казав іншим AI «перевірено 2026-09-30» про eval-кейси,
+# доданих 2026-10-15. Двічі поспіль (135→136 і 136→142). Дата прив'язується до
+# відбитка вмісту: змінився вміст — змінюється дата; не змінився — дата стоїть.
+def content_fingerprint(man: dict) -> str:
+    """Відбиток вмісту пакета за MANIFEST: скіли, версії, хеші SKILL.md і evals.
+    MANIFEST ↔ файли звіряє verify окремо, тож відбиток MANIFEST = відбиток вмісту."""
+    rows = []
+    for name, meta in sorted(man.get("skills", {}).items()):
+        sha = meta.get("sha256_16", {})
+        rows.append(f"{name}|{meta.get('version')}|{sha.get('SKILL.md')}|{sha.get('evals/evals.json')}")
+    return hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()[:16]
+
+
+def build_date_problems(man: dict) -> list[str]:
+    """Дата збірки застаріла, якщо вміст змінився після неї (відбиток не збігається)."""
+    want = content_fingerprint(man)
+    if man.get("built_fingerprint") != want:
+        return [f"вміст пакета змінено після дати збірки {man.get('built')} "
+                f"(відбиток {man.get('built_fingerprint')} != {want}) — "
+                "запусти resync: він оновить дату"]
+    return []
+
+
+def stamp_build_date(man: dict, today: str) -> bool:
+    """Ставить built=today лише при зміні вмісту. True — якщо дату оновлено."""
+    want = content_fingerprint(man)
+    if man.get("built_fingerprint") == want:
+        return False
+    man["built"], man["built_fingerprint"] = today, want
+    return True
+
+
+def restamp_doc_dates(txt: str, built: str) -> str:
+    """Переписує в тексті згадки дати збірки/перевірки на built (інші дати не чіпає)."""
+    return BUILD_DATE_MENTION.sub(lambda m: m.group(1) + built, txt)
 
 
 def md5_text(p: Path) -> str:
@@ -371,10 +423,8 @@ def verify() -> int:
         problems.append(f"MANIFEST.governance v{gov.group(1)} != melania {mel_ver}")
 
     # Похідні лічильники в будь-якому документі екосистеми та ключових файлах репо
-    doc_targets = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
-                   ROOT / "README-FOR-AI.md", ROOT / "INSTALL-PROMPT.txt",
-                   ROOT.parent / "README.md"]
-    for doc in doc_targets:
+    problems += build_date_problems(man)
+    for doc in DOC_TARGETS:
         if not doc.exists():
             continue
         txt = doc.read_text(encoding="utf-8", errors="replace")
@@ -392,9 +442,7 @@ def verify() -> int:
                 problems.append(f"{rel}: governance v{m_gov} != melania {mel_ver}")
         # дати «збірка/зафіксовано/верифіковано» = MANIFEST.built
         built = man.get("built", "")
-        stale_dates = {d for d in re.findall(
-            r"(?:збірк[аи]|зафіксовано|верифіковано|перевірено|Дата збірки:)\s*(\d{4}-\d{2}-\d{2})", txt)
-            if d != built}
+        stale_dates = {m.group(2) for m in BUILD_DATE_MENTION.finditer(txt) if m.group(2) != built}
         if stale_dates:
             problems.append(f"{rel}: застаріла дата {sorted(stale_dates)} != built {built}")
 
@@ -543,7 +591,7 @@ def resync() -> int:
             code, first = run_guard(name, "snapshot")
             resnapped.append(f"{name}: {first}")
 
-    # Перерахунок похідних полів MANIFEST (версія/дата білду — авторитетні, не чіпаємо)
+    # Перерахунок похідних полів MANIFEST (версії — з frontmatter; дата — нижче, за відбитком)
     man = json.loads(MANIFEST.read_text(encoding="utf-8"))
     changed_manifest = False
     total = 0
@@ -571,6 +619,9 @@ def resync() -> int:
         want_gov = f"melania-skill-master-administrator v{mel_v}"
         if man.get("governance") != want_gov:
             man["governance"] = want_gov; changed_manifest = True
+    today = datetime.now(timezone.utc).date().isoformat()
+    restamped = stamp_build_date(man, today)
+    changed_manifest |= restamped
     if changed_manifest:
         MANIFEST.write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -585,11 +636,21 @@ def resync() -> int:
         for name in dirs:
             if name not in txt:
                 bootstrap_warn.append(name)
+    # Дати збірки в документах = MANIFEST.built (ідемпотентно: без зміни вмісту дата та сама)
+    redated = []
+    for doc in DOC_TARGETS:
+        if doc.exists():
+            txt = doc.read_text(encoding="utf-8")
+            new_txt = restamp_doc_dates(txt, man.get("built", ""))
+            if new_txt != txt:
+                doc.write_text(new_txt, encoding="utf-8"); redated.append(doc.name)
 
     print("resync:")
     print(f"  пере-знято baseline: {len(resnapped)}")
     for r in resnapped: print(f"    · {r}")
     print(f"  MANIFEST оновлено: {'так' if changed_manifest else 'без змін'} (skills={len(dirs)}, evals={total})")
+    print(f"  дата збірки: {man.get('built')}{' (оновлено — вміст змінився)' if restamped else ' (вміст той самий)'}"
+          + (f"; дати переписано в: {', '.join(redated)}" if redated else ""))
     if bootstrap_warn:
         print(f"  ⚠️  нема рядка в маршрутній таблиці MELANIA-BOOTSTRAP.md (додати вручну): {bootstrap_warn}")
     print("\n--- фінальний verify ---")
