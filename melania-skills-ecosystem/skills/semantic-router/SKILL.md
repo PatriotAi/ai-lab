@@ -20,12 +20,12 @@ description: >
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.16.0
+  version: 1.16.1
   category: routing
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Semantic Router — v1.16.0
+# Semantic Router — v1.16.1
 > Працює українською за замовчуванням (українською-перша): рішення про маршрут і пояснення — українською; перемикання лише слідом за користувачем.
 
 
@@ -355,6 +355,7 @@ Load only on demand — not proactively.
 
 ## Changelog
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (v1.6.0 двічі — артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.16.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.16.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.15.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Routing Map — додано primary-рядок для `workflow-orchestration` («розбий на агентів»/subagents/agent team/топологія; був лише secondary при rlm-harness) [#4]; легасі-рядок «Complex build + deploy» роздвоєно за платформою (Vercel → vercel-mcp-connector; n8n-пайплайн → n8n-orchestrator; був беззастережний n8n) [#7]; H1-банер з версією + `last_updated` [#21/#45]. Лише Routing Map/метадані. _(Merge-reconcile: рядок `github-collab` з v1.14.1 main збережено в Routing Map.)_
 - **v1.14.1** (2026-07-21) — Routing Map: +рядок `github-collab` (нова навичка GitHub-автоматизації та співпраці; болі своїми словами: PR/CI/issues/«поверни як було»; secondary — continuation-memory для циклу compact). Лише додавання рядка, семантичний принцип без змін.

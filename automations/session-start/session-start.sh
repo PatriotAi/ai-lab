@@ -50,6 +50,19 @@ build_digest() {
     fi
   fi
 
+  # Радар розходження: main, що пішов уперед у моїх файлах; незлиті гілки, що
+  # торкаються тих самих файлів; карта паралельної роботи. Друкує лише знахідки.
+  # Навіщо — виміряний дубль F-17 (docs/reviews/2026-10-09-git-substrate-audit.md).
+  # Мережа лише на fetch, з тайм-аутом; збій не ламає старт сесії.
+  if command -v python3 >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1 \
+     && [ -f scripts/check-main-drift.py ]; then
+    drift="$(timeout 25 python3 scripts/check-main-drift.py --fetch --quiet --branches --inflight \
+             --max-files 3 --max-subjects 1 2>/dev/null || true)"
+    if [ -n "${drift:-}" ]; then
+      printf '%s\n\n' "$drift"
+    fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi

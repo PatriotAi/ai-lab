@@ -1,6 +1,7 @@
 ---
 name: weekly-review
 description: Щотижнева ретроспектива лабораторії — git-історія тижня + learnings + статус PLAN → підсумок і пріоритети наступного тижня. Застосовуй на "підбий тиждень", "ретроспектива", "weekly review", або за розкладом через /loop чи send_later.
+license: MIT
 ---
 
 # weekly-review — щотижнева ретроспектива / weekly retrospective

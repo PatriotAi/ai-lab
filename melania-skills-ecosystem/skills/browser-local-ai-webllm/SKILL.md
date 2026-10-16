@@ -1,16 +1,16 @@
 ---
 name: browser-local-ai-webllm
 description: "Run local LLMs directly in the browser via WebLLM (WebGPU) with NO middleware app — no Ollama, no PocketPal, no PC. Covers lazy-loading the ESM lib, WebGPU/HTTPS requirements, device analysis (RAM/VRAM), model-fit ranking, the Chrome 8GB deviceMemory cap, and OpenAI-compatible call/stream. ALWAYS use when adding in-browser local AI, running models client-side without a server, or the user says: локальний AI у браузері, WebLLM, без посередників, модель прямо в застосунку, WebGPU AI, браузерний AI, офлайн модель у браузері, run model in browser, on-device browser inference. Also triggers for: device analysis for model fit, VRAM detection, prebuiltAppConfig, MLCEngine. DO NOT use for server-side inference, native mobile inference, or when Ollama/LM Studio is the intended runtime (those are external providers)."
-license: Proprietary
+license: MIT
 metadata:
-  version: 1.2.5
+  version: 1.2.6
   author: Melania (Master Administrator)
   category: browser-ai
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Browser-Local AI via WebLLM — v1.2.5
+# Browser-Local AI via WebLLM — v1.2.6
 > Напрацьовано на AI Gateway. Реальне рішення локального AI БЕЗ посередників: модель працює прямо в браузері/застосунку через WebGPU. Підтверджено тестуванням @mlc-ai/web-llm v0.2.84 (163 моделі, OpenAI-сумісний API).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 >
@@ -219,6 +219,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.2.6** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.2.5** (2026-07-26) — Core Rule 14 Claim-evidence: 4 факти в Critical Facts отримали теги **[C]** (PocketPal без API-сервера, window.ai не на Android, cap deviceMemory 8GB, фіксований список моделей) — усі із зовнішніх джерел, власного прогону під них нема. Лише тегування, тіло незмінне.
 - **v1.2.4** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): дубль secure-context правила замінено покажчиком на канон у `pwa-to-android-app` Core Rule (WebGPU-специфічна перевірка лишилась тут) [#46]; синхрон H1-банера (був v1.0 при 1.2.3) + `last_updated` [#21/#45]. Лише де-дублювання/метадані.
 - **v1.2.3** (2026-06-26) — Stage 3 S-2: примітка про дубль v1.2.0 у changelog (вміст збережено, нумерацію не переписано). Лише додавання примітки.

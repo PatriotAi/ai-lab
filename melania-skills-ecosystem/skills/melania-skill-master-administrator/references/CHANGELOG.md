@@ -3,6 +3,13 @@
 > Формат версій: `major.minor.patch`  
 > major = breaking change · minor = нова функція · patch = виправлення
 
+## [2.23.1] — 2026-09-28
+### Changed
+- **Ліцензія екосистеми уніфікована: MIT скрізь** (директива власника). Поле `license:` у всіх 28 SKILL.md мало чотири різні значення (`Proprietary`, `MIT`, `Apache-2.0`, одне невизначене) при Apache-2.0 у `LICENSE.txt` — розбіжність усунено, `LICENSE.txt` кореня екосистеми й `LICENSE` репозиторію переведено на MIT.
+- Усі 28 скілів отримали patch-bump: змінюються умови, за якими споживач отримує скіл, тому версія мусить це показати.
+
+---
+
 ## [2.4.0] — 2026-06-02
 ### Added
 - Core Rule 6 (UA-first) та Core Rule 7 (Decision Gate: update-before-create) — наскрізні governance-гейти.

@@ -13,11 +13,23 @@ repos:
       - id: check-json
       - id: check-added-large-files
         args: ["--maxkb=2048"]
+      # Без --assume-in-merge хук перевіряє ЛИШЕ під час незавершеного злиття
+      # (є .git/MERGE_HEAD) — у CI (`run --all-files`) він тихо звітує «Passed»,
+      # нічого не перевіривши. Так маркери конфлікту пролежали в main два місяці.
       - id: check-merge-conflict
+        args: ["--assume-in-merge"]
       - id: detect-private-key
       - id: mixed-line-ending
         exclude: '^melania-skills-ecosystem/'
 
+  - repo: local
+    hooks:
+      - id: portable-standard-sync
+        name: переносний стандарт узгоджений із CLAUDE.md
+        entry: python3 scripts/check-portable-standard.py
+        language: system
+        pass_filenames: false
+        files: ^(CLAUDE\.md|docs/portable-standard\.md|scripts/check-portable-standard\.py)$
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2
     hooks:

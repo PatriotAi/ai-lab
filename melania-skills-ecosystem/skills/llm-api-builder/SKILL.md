@@ -1,16 +1,16 @@
 ---
 name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
-license: Apache-2.0 — повні умови в LICENSE.txt кореня екосистеми
+license: MIT
 metadata:
-  version: 1.5.0
+  version: 1.5.1
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-07-26
+  last_updated: 2026-09-28
 ---
 
-# Building LLM-Powered Applications with Claude — v1.5.0
+# Building LLM-Powered Applications with Claude — v1.5.1
 > Пояснення — українською за замовчуванням (українською-перша); код, ідентифікатори та поля API лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -208,6 +208,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.5.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.5.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.4.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): ліцензійний покажчик виправлено на корінь екосистеми (локального LICENSE.txt не існувало) [#25/#44]; H1-банер з версією [#21/#45-клас]. Лише метадані.
 - **v1.4.0** (2026-07-11) — Frontier-research harvest + принцип модельної агностичності: **(A)** Секцію «Поточні моделі» де-піновано: таблиця конкретних ID/цін → покажчик на спільний датований снапшот у `multi-provider` (DRY) + правило «найновіша доступна». **(B)** Compaction розширено (агностично): `context_management.edits`, конфігурований поріг, `pause_after_compaction`, попередження про кеш-префікс. **(C)** НОВА секція Memory Tool: sandbox-патерн, path-traversal захист, емпірика +39%/−84%, pre-compaction flush — без прив'язки до поколінь. **(D)** НОВА секція Advanced Tool Use: Programmatic Tool Calling (−37% токенів), Tool Search Tool (−85% контексту), Tool Use Examples (72→90%). **(E)** Pitfalls: +Batch довгий output (beta, звір хедер у docs). Лише додавання/де-пін; API-ідентифікатори (tool-типи, beta-хедери) збережені — це документація API, не пін моделей. _(Джерело: дослідницький звіт 2026-07-11 + правило агностичності MA.)_

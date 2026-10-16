@@ -1,6 +1,7 @@
 ---
 name: skill-new
 description: Створити нову навичку (skill) Claude Code за стандартом цієї лабораторії. Застосовуй, коли користувач просить "створи навичку", "нова навичка", "skill-new", або хоче оформити повторюване завдання багаторазовою навичкою. Скоуп — легкий лабораторний стандарт ai-lab (мінімальний frontmatter за templates/skill.md); для навичок екосистеми melania діють її повні вимоги (frontmatter/evals/guard) — skill-creation-guide.
+license: MIT
 ---
 
 # skill-new — фабрика навичок / skill factory
@@ -17,7 +18,8 @@ description: Створити нову навичку (skill) Claude Code за �
    **тригер** (коли застосовувати — від нього залежить авто-виклик).
 2. Створи `.claude/skills/<name>/SKILL.md` за шаблоном `templates/skill.md`
    (структура розділів — у шаблоні, він єдине джерело правди; frontmatter:
-   `name` + `description`, де description = чіткий тригер).
+   `name` + `description` (чіткий тригер) + `license: MIT` — політика лабораторії «MIT скрізь»;
+   без поля гейт `scripts/verify-marketplace.py` падає).
 3. Документи — **UA-канон**; ключові терміни дублюй EN.
 4. Якщо навичка варта каталогізації — згадай її в `skills/README.md`.
 5. Запропонуй маленький тест: один реальний вхід → очікуваний результат.

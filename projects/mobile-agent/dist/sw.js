@@ -1,5 +1,5 @@
-// sw.js — офлайн-оболонка «Кишенькового агента» 0.1.0. Згенеровано build.mjs.
-const CACHE = 'pocket-agent-0.1.0';
+// sw.js — офлайн-оболонка «Кишенькового агента» 0.2.0. Згенеровано build.mjs.
+const CACHE = 'pocket-agent-0.2.0';
 const SKIP = /\/v1\/|api\.|esm\.run|huggingface|version\.json/;
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {

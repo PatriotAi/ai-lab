@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "gates": [
+    {
+      "id": "windows",
+      "point": "delivery",
+      "command": ["python3", "scripts/check-windows.py"],
+      "blocking": true,
+      "onError": "halt",
+      "timeout": 30,
+      "why": "п.10 чек-листа: відкритий борг мусить бути названий у здачі; зламаний реєстр — зупинка"
+    },
+    {
+      "id": "reversibility",
+      "point": "delivery",
+      "command": ["python3", "scripts/check-reversibility.py"],
+      "blocking": true,
+      "onError": "halt",
+      "timeout": 30,
+      "why": "рішення one-way без рішення власника не можна віддавати як готове (методологія, незворотність)"
+    },
+    {
+      "id": "abstentions",
+      "point": "delivery",
+      "command": ["python3", "scripts/check-abstentions.py"],
+      "blocking": true,
+      "onError": "halt",
+      "timeout": 30,
+      "why": "абстенція [?] без «бракує:» не підказує дії й нічим не краща за впевнену помилку"
+    }
+  ]
+}
