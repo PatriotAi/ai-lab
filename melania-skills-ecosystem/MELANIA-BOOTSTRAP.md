@@ -55,7 +55,7 @@
 | ai-core-runtime | 3.13.1 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
 | rlm-harness | 0.8.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.6.1 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
-| multi-provider-ai-orchestration | 1.7.3 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
+| multi-provider-ai-orchestration | 1.7.4 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.4.1 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
 | skill-creation-guide | 1.11.1 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура (авторинг; governance/оновлення → SMA) |
 | skill-ecosystem-auditor | 1.8.1 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
@@ -67,13 +67,13 @@
 | continuation-memory | 1.11.1 | стиснення довгої сесії в continuation package, resume, compaction-дисципліна |
 | gsre-recovery | 1.2.1 | пошук/відновлення втрачених напрацювань по минулих чатах, "чи щось не загубилося" |
 | knowledge-synthesizer | 1.2.1 | неочевидні зв'язки між нотатками/джерелами, синтез ідей, інсайт-дайджест |
-| llm-api-builder | 1.5.1 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
+| llm-api-builder | 1.5.2 | код з Claude API / Anthropic SDK: tool use, memory tool, streaming, batch, caching (НЕ для openai) |
 | auth-session-manager | 1.5.1 | cookie/OAuth/сесії/токени для браузер- і MCP-автоматизації, AES-GCM секрети |
 | collaborative-browser | 3.2.1 | браузерний артефакт зі спільною роботою агент+користувач, Autopilot-ресерч |
 | notebooklm-connector | 4.4.1 | усе з Google NotebookLM: джерела, Audio/Video Overview, цитовані відповіді |
 | browser-local-ai-webllm | 1.2.6 | локальний LLM прямо в браузері (WebLLM/WebGPU), без сервера й посередників |
 | webapp-testing | 1.6.1 | Playwright-тестування локальних веб-застосунків, скриншоти, UI-дебаг |
-| n8n-orchestrator | 2.10.1 | будь-що про n8n: workflow JSON, вебхуки, автоматизації, пайплайни |
+| n8n-orchestrator | 2.10.2 | будь-що про n8n: workflow JSON, вебхуки, автоматизації, пайплайни |
 | vercel-mcp-connector | 1.2.1 | робота з Vercel: деплой, build/runtime логи, "чому впав білд", домени |
 | github-collab | 1.1.1 | GitHub без знання термінів: біль своїми словами → PR/Issues/CI/releases/Pages через MCP; цикли checkup/compact/rewind; merge у main — лише за згодою власника |
 | pwa-to-android-app | 1.4.2 | упакувати HTML/JS-застосунок як PWA/APK, авто-оновлення, встановлення на смартфон |

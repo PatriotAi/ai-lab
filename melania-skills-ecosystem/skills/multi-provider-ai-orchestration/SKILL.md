@@ -3,14 +3,14 @@ name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
 license: MIT
 metadata:
-  version: 1.7.3
+  version: 1.7.4
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-09-30
+  last_updated: 2026-10-16
 ---
 
-# Multi-Provider AI Orchestration — v1.7.3
+# Multi-Provider AI Orchestration — v1.7.4
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -210,7 +210,7 @@ function validateCustomCfg(raw){ /* JSON parse + name + endpoint http(s) пер�
 ## Provider Matrix (модельно-агностична)
 
 > **Конкретні моделі/ціни/ctx НЕ живуть тут** — вони в датованому замінному файлі
-> `references/model-snapshot-YYYY-MM.md` (поточний: `model-snapshot-2026-07.md`). Снапшот застарів →
+> `references/model-snapshot-YYYY-MM.md` (поточний — найновіший файл `model-snapshot-*.md` у теці; свіжість стереже `maintain.py verify`). Снапшот застарів →
 > заміни файл, SKILL.md не чіпай. Це гарантує роботу скіла з будь-якими майбутніми/невідомими моделями.
 
 Структура рядка матриці: **провайдер/модель · ціна I/O $/1M · ctx · сильні сторони · reasoning-тип**.
@@ -294,6 +294,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.7.4** (2026-10-16) — Вказівник на знімок моделей став не-старіючим: «поточний — найновіший файл» замість зашитого `model-snapshot-2026-07.md`. Сам знімок замінено на `model-snapshot-2026-10.md` (покоління Claude 5.5, GPT-6, Grok 4.7, Kimi K3; з'явився середній клас Sonnet; рейтинги AA Cyber Index і AA-3D) — дослідження `docs/reviews/2026-10-16-tools-harvest.md`, рішення власника. Логіка скіла не змінена.
 - **v1.7.3** (2026-09-30) — Pattern 2b: сніпет обходу ланцюга переписано під реальну чисту функцію `planDispatch` (`run`/`wait`/`exhausted`; попередній `pick(chain,…)` описував API, якого більше нема — дубль диспетчера видалено з коду). Твердження про мутаційний прогін замінено відтворюваним: скрипт `tests/mutation-mobile-agent.py` (21 мутант: 16 у ядрі + 5 у браузері; кожен мусить бути спійманий саме тією перевіркою, заради якої придуманий — інакше «спіймано» може бути випадковим збоєм). Попереднє «7/7» від 2026-09-28 скрипта не мало й відтворити його не можна. Додано eval-кейс 5 (`resilient-contour-outage`). Версію піднято до 1.7.3, бо 1.7.2 у `main` уже зайнята зміною ліцензії на MIT. Лише додавання і уточнення.
 - **v1.7.2** (2026-09-30) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й Pattern 2b незмінні.
 - **v1.7.1** (2026-09-29) — Pattern 2b доповнено чотирма інваріантами з рев'ю Codex до PR #74 (усі перевірені кодом): замкнений ключ = очікування, а не «ключа нема» (лише для наміру «хмара», зафіксованого при створенні); чекання (cooldown/ключ/мережа) не витрачає спроб і будиться подією та на старті; явно обраний двигун звужує ланцюг («тільки локальна» не веде в хмару); рішення диспетчера — чиста тестована функція. **Звужено власне твердження v1.7.0:** «Retry-After має пріоритет» — лише коли сторінка його бачить; у браузері `fetch` повертає `null`, доки провайдер не розкрив заголовок через `Access-Control-Expose-Headers` (Critical Facts, [E]: `tests/mobile-agent-browser.mjs`, 2026-09-29). Раніше це було перевірено лише на юніт-рівні. Лише додавання і звуження.

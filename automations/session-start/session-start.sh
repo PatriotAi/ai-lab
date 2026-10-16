@@ -63,6 +63,15 @@ build_digest() {
     fi
   fi
 
+  # Свіжість знімка моделей: можливості ринку старіють так само, як можливості харнесу
+  # (docs/reviews/2026-10-16-tools-harvest.md). Друкує лише попередження; збій мовчить.
+  if command -v python3 >/dev/null 2>&1 && [ -f melania-skills-ecosystem/scripts/maintain.py ]; then
+    snap="$(python3 melania-skills-ecosystem/scripts/maintain.py snapshot-age 2>/dev/null || true)"
+    if [ -n "${snap:-}" ]; then
+      printf '%s\n\n' "$snap"
+    fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi

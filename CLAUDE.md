@@ -32,6 +32,7 @@
   `consent.md` (записана згода власника), конфіги сканерів. Політика — `SECURITY.md`;
   що це і як переносити — `security/README.md`; модель загроз — `docs/security/threat-model.md`
 - `.github/` — CI (security, code-quality, dependencies), CODEOWNERS, Dependabot, шаблони Issue/PR
+- `AGENTS.md` — тонкий вказівник для інших агентів (рев'ю Codex тощо): канон — цей файл, там лише інваріанти для рев'ю
 
 ## Методологія
 Експеримент-орієнтована: **гіпотеза → дизайн → запуск → вимір → лиши/прибери → висновок**.

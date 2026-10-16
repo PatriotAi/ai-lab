@@ -1865,6 +1865,63 @@ grep -q "змінено після дати збірки" <(python3 "$TMPROOT/dt
   || ok "мутант «гейт не викликано» справді сліпий (контроль тесту)"
 
 echo ""
+echo "════════ 29. Свіжість знімка моделей (дослідження 2026-10-16) ════════"
+# Інцидент: знімок «клас → модель» 97 днів мовчки старів (без класу Sonnet і поколінь
+# 5.5 / GPT-6) — docs/reviews/2026-10-16-tools-harvest.md. Дата «сьогодні» передається
+# явно: тест не залежить від календаря (урок F-16).
+SA="$TMPROOT/snapages"; mkdir -p "$SA/old" "$SA/both" "$SA/nodate" "$SA/empty"
+printf '# Model Snapshot\n(знімок 2026-07-11)\n' > "$SA/old/model-snapshot-2026-07.md"
+cp "$SA/old/model-snapshot-2026-07.md" "$SA/both/"
+printf '# Model Snapshot\n**Знімок 2026-10-16.**\n' > "$SA/both/model-snapshot-2026-10.md"
+printf '# Model Snapshot без дати\n' > "$SA/nodate/model-snapshot-2026-01.md"
+sa_out=$(python3 - "$SA" <<'PY'
+import sys, pathlib
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import snapshot_age_warnings as w
+r = pathlib.Path(sys.argv[1])
+print(len(w('2026-10-16', r / 'old')), len(w('2026-07-20', r / 'old')),
+      len(w('2026-10-16', r / 'both')), len(w('2026-10-16', r / 'nodate')),
+      len(w('2026-10-16', r / 'empty')), len(w('2026-10-20')))
+PY
+)
+read -r sa_stale sa_fresh sa_newest sa_nodate sa_empty sa_real <<<"$sa_out"
+check "знімок старший за поріг — попередження (інцидент 97 днів)" "1" "$sa_stale"
+check "свіжий знімок — тиша" "0" "$sa_fresh"
+check "поточний — найновіший файл: старий поруч не дає тривоги" "0" "$sa_newest"
+check "без дати в тексті — береться місяць з імені файла" "1" "$sa_nodate"
+check "знімка немає — попередження, а не тиша" "1" "$sa_empty"
+check "реальний знімок репозиторію свіжий" "0" "$sa_real"
+python3 melania-skills-ecosystem/scripts/maintain.py snapshot-age >/dev/null 2>&1
+check "maintain.py snapshot-age не ламає старт сесії (exit 0)" "0" "$?"
+grep -q "snapshot_age_warnings(datetime" melania-skills-ecosystem/scripts/maintain.py \
+  && grep -q "maintain.py snapshot-age" automations/session-start/session-start.sh \
+  && ok "попередження підключене у verify і в SessionStart" \
+  || bad "попередження підключене у verify і в SessionStart" "обидва виклики" "бракує"
+
+echo ""
+echo "════════ 30. AGENTS.md — тонкий вказівник для інших агентів ════════"
+# Codex рецензує PR лабораторії (10 PR у docs/learnings.md), але CLAUDE.md не читає.
+# AGENTS.md дає йому інваріанти — і не має права розійтись із каноном: кожне посилання
+# «CLAUDE.md §N» веде на наявний пункт стандарту, кожен шлях у `…` існує.
+agents_check() { # agents_check <файл> → кількість битих посилань
+  python3 - "$1" <<'PY'
+import sys, re, pathlib
+t = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')
+canon = pathlib.Path('CLAUDE.md').read_text(encoding='utf-8')
+bad = [n for n in re.findall(r'`CLAUDE\.md` §(\d+)', t) if not re.search(rf'^{n}\. \*\*', canon, re.M)]
+paths = [p.split()[0] for p in re.findall(r'`([^`]+)`', t) if '/' in p]
+bad += [p for p in paths if not pathlib.Path(p).exists()]
+print(len(bad))
+PY
+}
+[[ -f AGENTS.md ]] && grep -q "Канон правил цього репозиторію — \`CLAUDE.md\`" AGENTS.md \
+  && ok "AGENTS.md є і називає канон — CLAUDE.md" || bad "AGENTS.md є і називає канон" "так" "ні"
+check "AGENTS.md: усі посилання на CLAUDE.md і шляхи ведуть на наявне" "0" "$(agents_check AGENTS.md)"
+sed -e 's/`CLAUDE.md` §10/`CLAUDE.md` §99/' -e 's#scripts/check-action-pinning.sh#scripts/nope.sh#' AGENTS.md > "$TMPROOT/AGENTS.broken.md"
+check "AGENTS.md: зламані посилання ловляться (канарка)" "2" "$(agents_check "$TMPROOT/AGENTS.broken.md")"
+check "AGENTS.md лишається тонким (≤ 40 рядків)" "1" "$(( $(wc -l < AGENTS.md) <= 40 ))"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then

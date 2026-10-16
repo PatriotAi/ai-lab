@@ -106,6 +106,41 @@ def restamp_doc_dates(txt: str, built: str) -> str:
     return BUILD_DATE_MENTION.sub(lambda m: m.group(1) + built, txt)
 
 
+# ---------------------------------------------------------------- свіжість знімка моделей
+# Дослідження 2026-10-16 (docs/reviews/2026-10-16-tools-harvest.md): знімок моделей,
+# з якого правило економії бере мапінг «клас → модель», 97 днів мовчки старів — без
+# класу Sonnet і поколінь 5.5 / GPT-6. Можливості харнесу лабораторія перевіряє щосесії,
+# можливості ринку — ніде. Попередження, не блок: блок на першому ж прогоні вчить обходу.
+SNAPSHOT_DIR = SKILLS / "multi-provider-ai-orchestration" / "references"
+SNAPSHOT_MAX_AGE_DAYS = 60
+SNAPSHOT_DATE = re.compile(r"знімок\s+(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
+
+
+def snapshot_age_warnings(today: str, snap_dir: Path = SNAPSHOT_DIR,
+                          max_age: int = SNAPSHOT_MAX_AGE_DAYS) -> list[str]:
+    """Поточний знімок — найновіший model-snapshot-YYYY-MM.md; дата — перша «знімок YYYY-MM-DD»
+    у тексті (інакше перше число місяця з імені файла). Старший за max_age днів → попередження."""
+    from datetime import date
+    snaps = sorted(snap_dir.glob("model-snapshot-*.md"))
+    if not snaps:
+        return [f"знімок моделей не знайдено в {snap_dir.name}/ — маршрутизація «клас → модель» без даних"]
+    cur = snaps[-1]
+    m = SNAPSHOT_DATE.search(cur.read_text(encoding="utf-8", errors="replace"))
+    if m:
+        taken = date.fromisoformat(m.group(1))
+    else:
+        ym = re.search(r"(\d{4})-(\d{2})", cur.name)
+        if not ym:
+            return [f"{cur.name}: дату знімка не визначено — немає «знімок YYYY-MM-DD» і місяця в імені"]
+        taken = date(int(ym.group(1)), int(ym.group(2)), 1)
+    age = (date.fromisoformat(today) - taken).days
+    if age > max_age:
+        return [f"знімок моделей {cur.name} від {taken} — {age} дн. (поріг {max_age}): ринок моделей "
+                "міг змінитись, маршрутизація «клас → модель» може бути застарілою — онови знімок "
+                "(дослідження за source-research-harvest)"]
+    return []
+
+
 def md5_text(p: Path) -> str:
     return hashlib.md5(p.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
 
@@ -528,6 +563,9 @@ def verify() -> int:
         for p in problems: print(f"  ✗ {p}")
     else:
         print("✅ MANIFEST цілісний (хеші, версії, лічильники збігаються)")
+    # Попередження, не провал: exit-код не змінюється (див. snapshot_age_warnings).
+    for w in snapshot_age_warnings(datetime.now(timezone.utc).date().isoformat()):
+        print(f"⚠️  {w}")
     if claim_problems:
         ok = False; print(f"\n❌ доказовість тверджень (Core Rule 14) — {len(claim_problems)}:")
         for c in claim_problems: print(f"  ✗ {c}")
@@ -712,5 +750,9 @@ if __name__ == "__main__":
         sys.exit(verify())
     elif cmd == "resync":
         sys.exit(resync())
+    elif cmd == "snapshot-age":   # дешево, для SessionStart: друкує лише попередження
+        for w in snapshot_age_warnings(datetime.now(timezone.utc).date().isoformat()):
+            print(f"⚠️ {w}")
+        sys.exit(0)
     else:
         print(__doc__); sys.exit(2)
