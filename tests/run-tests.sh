@@ -1758,35 +1758,54 @@ echo "════════ 28. Дата збірки Melania — похід�
 # Інцидент (рев'ю Codex до PR #90): resync перерахував 136→142 eval-кейсів, а BOOTSTRAP
 # далі казав іншим AI «повністю перевірено 2026-09-30, не перевіряй повторно» — про
 # кейси, доданих 2026-10-15. Двічі поспіль. Перевірки стоять на ЗЛАМАНИХ станах.
-dt_unit=$(python3 - <<'PY'
-import sys, json, copy, pathlib
+dt_unit=$(python3 - "$TMPROOT" <<'PY'
+import sys, json, pathlib, shutil, tempfile
 sys.path.insert(0, 'melania-skills-ecosystem/scripts')
 from maintain import build_date_problems, stamp_build_date, restamp_doc_dates
 man = json.loads(pathlib.Path('melania-skills-ecosystem/MANIFEST.json').read_text(encoding='utf-8'))
+def fresh():  # копія навичок: мутації лише тут, робочі файли не чіпаються
+    d = pathlib.Path(tempfile.mkdtemp(dir=sys.argv[1])) / 'skills'
+    shutil.copytree('melania-skills-ecosystem/skills', d); return d
+def bump(path, tail='\nзмінено\n'):
+    path.write_text(path.read_text(encoding='utf-8') + tail, encoding='utf-8')
 out = [len(build_date_problems(man))]                       # чистий стан мовчить
-m1 = copy.deepcopy(man); m1['skills']['pre-delivery-gate']['sha256_16']['evals/evals.json'] = '0' * 16
-out.append(len(build_date_problems(m1)))                    # змінено evals без дати
-m2 = copy.deepcopy(man); m2['skills']['pre-delivery-gate']['version'] = '9.9.9'
-out.append(len(build_date_problems(m2)))                    # змінено версію без дати
-out.append(stamp_build_date(m1, '2099-01-02'))              # штамп ставиться…
-out.append(m1['built']); out.append(len(build_date_problems(m1)))
-out.append(stamp_build_date(m1, '2099-12-31'))              # …і не повзе без зміни вмісту
+d = fresh(); bump(d / 'ai-core-runtime/references/token-efficiency.md')
+out.append(len(build_date_problems(man, d)))                # довідковий файл (друге рев'ю Codex)
+e = fresh(); bump(e / 'pre-delivery-gate/evals/evals.json', ' ')
+out.append(len(build_date_problems(man, e)))                # evals
+v = fresh(); sk = v / 'pre-delivery-gate/SKILL.md'
+sk.write_text(sk.read_text(encoding='utf-8').replace('version: 1.6.0', 'version: 9.9.9', 1), encoding='utf-8')
+out.append(len(build_date_problems(man, v)))                # версія у frontmatter
+s = fresh()                                                 # службове — не вміст
+(s / 'pre-delivery-gate/.snapshots/x.json').write_text('{}', encoding='utf-8')
+(s / 'pre-delivery-gate/scripts/__pycache__').mkdir(parents=True, exist_ok=True)
+(s / 'pre-delivery-gate/scripts/__pycache__/g.cpython-311.pyc').write_bytes(b'\0')
+(s / 'pre-delivery-gate/audit.jsonl').write_text('{}\n', encoding='utf-8')
+out.append(len(build_date_problems(man, s)))
+m1 = dict(man)
+out.append(stamp_build_date(m1, '2099-01-02', d))           # штамп ставиться…
+out.append(m1['built']); out.append(len(build_date_problems(m1, d)))
+out.append(stamp_build_date(m1, '2099-12-31', d))           # …і не повзе без зміни вмісту
 out.append(m1['built'])
 fx = ('<!-- Стан зафіксовано: 2026-09-30 -->\nперевірено 2026-09-30: ok\n'
       '(версії актуальні на 2026-09-30)\nзбірка 2026-09-30 · MANIFEST верифіковано 2026-09-30\n'
-      'Дата збірки: 2026-09-30\n## 2026-01-01 — Запис журналу\nвиміряно 2026-10-09\n')
+      'Дата збірки: 2026-09-30\nПеревірено 2026-09-30.\nЗбірка 2026-09-30\n'
+      '## 2026-01-01 — Запис журналу\nвиміряно 2026-10-09\n')
 r = restamp_doc_dates(fx, '2099-01-02')
 out.append(r.count('2099-01-02')); out.append(r.count('2026-01-01') + r.count('2026-10-09'))
+out.append(int('Перевірено 2099-01-02' in r))               # регістр першої літери збережено
 print(' '.join(map(str, out)))
 PY
 )
-read -r d_clean d_evals d_ver d_st1 d_b1 d_after d_st2 d_b2 d_new d_kept <<<"$dt_unit"
+read -r d_clean d_ref d_evals d_ver d_svc d_st1 d_b1 d_after d_st2 d_b2 d_new d_kept d_case <<<"$dt_unit"
 check "дата збірки: реальний пакет — без тривоги" "0" "$d_clean"
+check "дата збірки: змінений довідковий файл без нової дати — спіймано" "1" "$d_ref"
 check "дата збірки: змінені evals без нової дати — спіймано" "1" "$d_evals"
 check "дата збірки: змінена версія без нової дати — спіймано" "1" "$d_ver"
+check "дата збірки: службові файли (.snapshots, __pycache__, audit.jsonl) — без тривоги" "0" "$d_svc"
 check "дата збірки: зміна вмісту ставить нову дату" "True 2099-01-02 0" "$d_st1 $d_b1 $d_after"
 check "дата збірки: без зміни вмісту дата не повзе" "False 2099-01-02" "$d_st2 $d_b2"
-check "дата збірки: переписано всі 6 згадок, чужі дати не зачеплено" "6 2" "$d_new $d_kept"
+check "дата збірки: переписано всі 8 згадок (і з великої літери), чужі дати не зачеплено" "8 2 1" "$d_new $d_kept $d_case"
 
 # Наскрізно на копії пакета: старий узгоджений стан (2000-01-01) → resync.
 dt_copy() { # dt_copy <тека> <yes|no — додати eval-кейс>
@@ -1831,6 +1850,12 @@ check "resync переписує дати в BOOTSTRAP і README (старих �
 grep -q "змінено після дати збірки" <(python3 "$DTR/scripts/maintain.py" verify 2>&1) \
   && bad "після resync verify про дату мовчить" "мовчить" "тривога лишилась" \
   || ok "після resync verify про дату мовчить"
+# Друге рев'ю Codex: змінено лише довідковий файл (SKILL.md і evals ті самі).
+dt_copy dt_ref no; DTF="$TMPROOT/dt_ref/melania-skills-ecosystem"
+printf '\nзмінено\n' >> "$DTF/skills/ai-core-runtime/references/token-efficiency.md"
+python3 "$DTF/scripts/maintain.py" resync >/dev/null 2>&1
+check "resync ставить нову дату й після зміни лише довідкового файла" "$DT_TODAY" \
+  "$(python3 -c "import json;print(json.load(open('$DTF/MANIFEST.json'))['built'])")"
 # Фальсифікація з'єднання: verify зі старим кодом (без виклику гейта) інцидент пропускає.
 sed 's/^    problems += build_date_problems(man)$/    pass/' "$REPO/melania-skills-ecosystem/scripts/maintain.py" \
   > "$TMPROOT/dt_changed_old.py"

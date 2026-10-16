@@ -1,6 +1,6 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-10-15",
+ "built": "2026-10-16",
  "governance": "melania-skill-master-administrator v2.24.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "e1e71c481493d203"
+ "built_fingerprint": "52586e925afe6c2e"
 }

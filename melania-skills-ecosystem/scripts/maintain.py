@@ -53,10 +53,14 @@ DOC_TARGETS = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
                ROOT.parent / "README.md"]
 # Згадка дати збірки/перевірки пакета в цих документах = MANIFEST.built.
 # «зафіксовано:» і «актуальні на» додано 2026-10-15: дві такі дати в BOOTSTRAP
-# проходили повз перевірку.
+# проходили повз перевірку. Без урахування регістру — з 2026-10-16 (друге рев'ю
+# Codex): «Перевірено …» на початку речення інакше обходило гейт.
 BUILD_DATE_MENTION = re.compile(
     r"((?:збірк[аи]|зафіксовано:?|верифіковано|перевірено|актуальні на|Дата збірки:)\s*)"
-    r"(\d{4}-\d{2}-\d{2})")
+    r"(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
+# Службове, що не є вмістом пакета: кеш Python і runtime-журнал guard-а.
+# Крапкові шляхи (.snapshots тощо) відкидаються окремо — як і в package().
+FINGERPRINT_SKIP = {"__pycache__", "audit.jsonl"}
 
 
 # ---------------------------------------------------------------- дата збірки
@@ -64,19 +68,23 @@ BUILD_DATE_MENTION = re.compile(
 # лишав старою, тож BOOTSTRAP казав іншим AI «перевірено 2026-09-30» про eval-кейси,
 # доданих 2026-10-15. Двічі поспіль (135→136 і 136→142). Дата прив'язується до
 # відбитка вмісту: змінився вміст — змінюється дата; не змінився — дата стоїть.
-def content_fingerprint(man: dict) -> str:
-    """Відбиток вмісту пакета за MANIFEST: скіли, версії, хеші SKILL.md і evals.
-    MANIFEST ↔ файли звіряє verify окремо, тож відбиток MANIFEST = відбиток вмісту."""
-    rows = []
-    for name, meta in sorted(man.get("skills", {}).items()):
-        sha = meta.get("sha256_16", {})
-        rows.append(f"{name}|{meta.get('version')}|{sha.get('SKILL.md')}|{sha.get('evals/evals.json')}")
-    return hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()[:16]
+def content_fingerprint(skills_dir: Path = SKILLS) -> str:
+    """Відбиток УСЬОГО вмісту навичок на диску — кожного файла, що йде в пакет або в evals.
+    Перша версія брала лише SKILL.md і evals з MANIFEST, а довідкові файли й скрипти
+    (теж у пакеті) змінювались непомітно — друге рев'ю Codex до PR #90."""
+    h = hashlib.sha256()
+    files = [(f.relative_to(skills_dir).as_posix(), f) for f in skills_dir.rglob("*") if f.is_file()]
+    for rel, f in sorted(files):
+        parts = rel.split("/")
+        if any(p.startswith(".") or p in FINGERPRINT_SKIP for p in parts) or rel.endswith(".pyc"):
+            continue
+        h.update(rel.encode("utf-8") + b"\0" + hashlib.sha256(f.read_bytes()).digest())
+    return h.hexdigest()[:16]
 
 
-def build_date_problems(man: dict) -> list[str]:
+def build_date_problems(man: dict, skills_dir: Path = SKILLS) -> list[str]:
     """Дата збірки застаріла, якщо вміст змінився після неї (відбиток не збігається)."""
-    want = content_fingerprint(man)
+    want = content_fingerprint(skills_dir)
     if man.get("built_fingerprint") != want:
         return [f"вміст пакета змінено після дати збірки {man.get('built')} "
                 f"(відбиток {man.get('built_fingerprint')} != {want}) — "
@@ -84,9 +92,9 @@ def build_date_problems(man: dict) -> list[str]:
     return []
 
 
-def stamp_build_date(man: dict, today: str) -> bool:
+def stamp_build_date(man: dict, today: str, skills_dir: Path = SKILLS) -> bool:
     """Ставить built=today лише при зміні вмісту. True — якщо дату оновлено."""
-    want = content_fingerprint(man)
+    want = content_fingerprint(skills_dir)
     if man.get("built_fingerprint") == want:
         return False
     man["built"], man["built_fingerprint"] = today, want
