@@ -35,6 +35,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/automations/input-scan/input-scan.sh",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "permissions": {

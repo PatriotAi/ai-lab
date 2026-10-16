@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-28T18:09:13.243654+00:00",
-  "md5": "1d830aa56519750083e92a836f300009",
-  "total_lines": 132,
+  "timestamp": "2026-10-09T13:40:06.749315+00:00",
+  "md5": "6f8c6b1c7d92c5bf645c1128406db7de",
+  "total_lines": 156,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
@@ -9,6 +9,7 @@
     "## Decision Gate — чому окремий скіл",
     "## §1. INFORMATION MAXIMIZATION (acquire-front-end — ГОЛОВНЕ, нове)",
     "### Сходи здобуття (graceful fallback)",
+    "## §1½. ДЗЕРКАЛЬНИЙ РЕЖИМ — вхід, у якому нема чого імпортувати",
     "## §2–7. Пайплайн (ДЕЛЕГУЄ механіку)",
     "## Behavior",
     "## Delegation Map (динамічно через semantic-router)",
@@ -25,6 +26,7 @@
     "References",
     "Related Skills",
     "§1. INFORMATION MAXIMIZATION",
+    "§1½. ДЗЕРКАЛЬНИЙ РЕЖИМ",
     "§2–7. Пайплайн",
     "Зміни",
     "Сходи здобуття",
