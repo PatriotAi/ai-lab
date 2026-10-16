@@ -138,9 +138,17 @@ def wrap_clean(path: Path, body: str, days: int | None, limit: int) -> str:
 
 def guard(path: Path, digest_body: str, policy: dict) -> tuple[str, bool]:
     """Повертає (текст-для-контексту, чи_подано_пакет)."""
-    rel = str(path.resolve().relative_to(ROOT)) if path.is_absolute() else str(path)
+    # Межу перевіряємо на РОЗВ'ЯЗАНОМУ шляху (відносний — від поточної теки, саме
+    # його й читатиме витяг), тож `../` і симлінки назовні не проходять. Раніше
+    # абсолютний шлях поза ROOT давав необроблений ValueError, а відносний `../`
+    # за порожнього переліку дозволених обходив межу (F-19; рев'ю Codex у PR #71).
+    # Файл поза репозиторієм блокується ЗАВЖДИ — і за порожнього переліку.
+    try:
+        rel, outside = str(path.resolve().relative_to(ROOT)), False
+    except ValueError:
+        rel, outside = str(path), True
     allow = allowed_paths(policy)
-    if allow and rel not in allow:
+    if outside or (allow and rel not in allow):
         return (
             "## ⚠️ Пам'ять НЕ відновлено — файл поза переліком дозволених\n\n"
             f"**Знайдено:** `{rel}`\n"
