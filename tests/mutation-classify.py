@@ -37,9 +37,17 @@ TARGET = "security/spine/classify.py"
 MUTATIONS: list[tuple[str, str, str, str]] = [
     (
         "правило шляхів вимкнено",
-        "            if raw_path and _match_path(pattern, rel_target, raw_path):",
-        "            if False and _match_path(pattern, rel_target, raw_path):",
+        # Ціль оновлено 2026-10-16: шляхи інструмента тепер збираються по всіх
+        # правилах одразу (`tool_hits`), включно з масивом `files`.
+        "            if any(_match_path(p, rel, raw) for p in rule.get(\"match_paths\", [])):",
+        "            if False:",
         "захищені шляхи (.env, workflows, settings) перестають бути R4",
+    ),
+    (
+        "запис оболонкою в захищений шлях не перевіряється",
+        "                bash_hits += [(idx, t, \"write\") for t in _write_hits(command, pattern, root)]",
+        "                pass",
+        "`cat > .github/workflows/x.yml` знову проходить як звичайна команда",
     ),
     (
         "правило команд вимкнено",
@@ -73,7 +81,8 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "MCP: незворотне стає читанням",
-        "        if any(v in low for v in mcp.get(\"irreversible_verbs\", [])):",
+        # Ціль оновлено 2026-10-16: дієслово шукається і в назві, і в `method`.
+        "        if by_name or by_method:",
         "        if False:",
         "злиття PR, деплой, видалення проходять без питань",
     ),
@@ -95,9 +104,72 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         # (перенесення рядка — теж роздільник ланцюжка). Мутант цілить у
         # перевірку ланцюжка всередині `is_pure_read`: без неї читальний
         # префікс знову ховає дію, що йде другим рядком.
-        "    if any(op in stripped for op in CHAIN_OPS):",
-        "    if False:",
+        # Ціль оновлено вдруге 2026-10-16: перевірка ланцюжка тепер іде по
+        # кожній ланці конвеєра (W-18 б).
+        "        if not link or any(op in link for op in CHAIN_OPS):",
+        "        if not link:",
         "читальний префікс знову ховає дію в ланцюжку",
+    ),
+    # ── Хвиля 2026-10-16/17: справжня дія і справжня ціль ───────────────────
+    (
+        "ланка конвеєра не перевіряється на читальний префікс",
+        "        if not any(link == pref or link.startswith(pref + \" \") for pref in prefixes):",
+        "        if False:",
+        "будь-яка команда стає «чистим читанням» і пропускає правила-підрядки",
+    ),
+    (
+        "детектор `gh api` вимкнено",
+        "        if command and rule.get(\"match_gh_api_write\"):",
+        "        if False:",
+        "злиття PR і зміна публічності через `gh api` знову R2 (F-20)",
+    ),
+    (
+        "`method` MCP не читається",
+        "    method = str(tool_input.get(\"method\") or \"\").strip().lower()",
+        "    method = \"\"",
+        "незворотна дія в аргументі `method` знову R2 (F-20)",
+    ),
+    (
+        "дефіс у назві MCP не нормалізовано",
+        "    norm = f\"_{text.lower().replace('-', '_')}_\"",
+        "    norm = f\"_{text.lower()}_\"",
+        "`notion-delete-pages` знову R2 (F-20)",
+    ),
+    (
+        "масив `files` ігнорується",
+        "    for item in tool_input.get(\"files\") or []:",
+        "    for item in []:",
+        "воркфлоу через `push_files` знову R2",
+    ),
+    (
+        "читання оболонкою не перевіряється",
+        "                if rule.get(\"on_read\"):",
+        "                if False:",
+        "`cat .env` знову R0 (F-21)",
+    ),
+    (
+        "`on_read` ігнорується для інструментів читання",
+        "        if read_tool and not rule.get(\"on_read\"):",
+        "        if read_tool:",
+        "`Read .env` і MCP-читання секрету знову проходять",
+    ),
+    (
+        "абсолютний шлях не зводиться до відносного",
+        "        out.append((_rel(root, norm) if os.path.isabs(norm) else norm, form))",
+        "        out.append((norm, form))",
+        "запис оболонкою за абсолютним шляхом знову R2",
+    ),
+    (
+        "друк назви файла вважається читанням",
+        "        if cmd in _PRINTERS:",
+        "        if False:",
+        "`echo '….env'` дає R4 — хибна тривога на згадку",
+    ),
+    (
+        "візерунок пошуку вважається файлом",
+        "            if positional == 1 and not from_flags:",
+        "            if False:",
+        "`grep '.env' docs/` дає R4 — хибна тривога на згадку",
     ),
 ]
 
