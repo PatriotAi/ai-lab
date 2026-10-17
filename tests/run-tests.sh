@@ -1922,6 +1922,36 @@ check "AGENTS.md: зламані посилання ловляться (кана
 check "AGENTS.md лишається тонким (≤ 40 рядків)" "1" "$(( $(wc -l < AGENTS.md) <= 40 ))"
 
 echo ""
+echo "════════ 31. Радар бачить статуси PR (W-20) ════════"
+# Інцидент: SessionStart щоразу показував гілки ЗАКРИТИХ PR #71 і #77 як паралельну
+# роботу (2 з 3 попереджень — шум). Статуси PR — з файла-фікстури: без мережі.
+cd "$TMPROOT/radar" || exit 1   # репо з секції 27: origin/claude/other чіпає core.py
+pj() { printf '%s' "$1" > "$TMPROOT/pulls.json"; echo "$TMPROOT/pulls.json"; }
+CL='[{"state":"closed","head":{"ref":"claude/other"}}]'
+out=$(python3 "$CMD" --quiet --branches --pulls-json "$(pj "$CL")" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" != *"origin/claude/other"* ]] && ok "радар: гілку лише з закритим PR сховано (інцидент W-20)" \
+  || bad "радар: гілку закритого PR сховано" "код 0, без origin/claude/other" "код $rc · ${out:0:160}"
+out=$(python3 "$CMD" --branches --pulls-json "$TMPROOT/pulls.json" 2>&1)
+[[ "$out" == *"приховано гілок, у яких лише закриті PR: 1"* ]] && ok "радар: приховане назване числом (порожньо ≠ відфільтровано мовчки)" \
+  || bad "радар: число прихованих" "приховано …: 1" "${out:0:200}"
+for case in '[{"state":"closed","head":{"ref":"claude/other"}},{"state":"open","head":{"ref":"claude/other"}}]|закритий і відкритий PR' \
+            '[{"state":"open","head":{"ref":"claude/other"}}]|відкритий PR' \
+            '[]|гілка без жодного PR' 'не json|битий файл статусів'; do
+  out=$(python3 "$CMD" --quiet --branches --pulls-json "$(pj "${case%%|*}")" 2>&1)
+  [[ "$out" == *"origin/claude/other"* ]] && ok "радар: гілку видно — ${case##*|}" \
+    || bad "радар: гілку видно — ${case##*|}" "origin/claude/other у звіті" "${out:0:160}"
+done
+out=$(python3 "$CMD" --quiet --branches --pulls-json "$TMPROOT/pulls.json" 2>&1)
+[[ "$out" == *"статуси PR недоступні"* ]] && ok "радар: битий файл статусів — fail-open і це назване" \
+  || bad "радар: fail-open назване" "статуси PR недоступні" "${out:0:160}"
+out=$(python3 "$CMD" --head origin/main --quiet --inflight --pulls-json "$(pj "$CL")" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" != *"origin/claude/other"* ]] && ok "радар --inflight: карта теж без гілок закритих PR" \
+  || bad "радар --inflight без закритих" "код 0, без origin/claude/other" "код $rc · ${out:0:160}"
+cd "$REPO" || exit 1
+grep -q -- "--inflight --pr-aware" automations/session-start/session-start.sh \
+  && ok "SessionStart вмикає --pr-aware" || bad "SessionStart вмикає --pr-aware" "--pr-aware" "немає"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
