@@ -171,6 +171,11 @@ def main() -> int:
     self_mod = is_self_modification(target_path, policy)
 
     consent = active_consent(verdict.rule_id, verdict.scope)
+    # Правило вимагає цілі, а її не визначено (W-12): таку дію не відкриває
+    # жоден рядок. Інакше рядок БЕЗ цілі — саме той, від якого `require_target`
+    # захищає, — збігався б із порожньою ціллю і відкривав дію цілком.
+    if verdict.require_target and not verdict.scope:
+        consent = None
     if action == "deny" and consent:
         record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
                 "scope": verdict.scope,
@@ -190,6 +195,8 @@ def main() -> int:
         "level": verdict.level,
         "rule": verdict.rule_id,
         "decision": action,
+        "scope": verdict.scope[:300],
+        "require_target": verdict.require_target,
         "target": target_path[:300],
         "reason": verdict.reason,
         "notes": verdict.notes,

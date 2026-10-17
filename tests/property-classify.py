@@ -54,6 +54,8 @@ MCP_READ = ["mcp__github__get_file_contents", "mcp__github__list_branches",
             "mcp__x__search_code", "mcp__y__read_file"]
 MCP_BAD = ["mcp__github__merge_pull_request", "mcp__github__delete_file",
            "mcp__Vercel__deploy_to_vercel", "mcp__Slack__slack_send_message"]
+SECRETS = [".env", ".env.local", "secrets/prod.key", "deploy/id_rsa", "certs/site.pem"]
+SETTINGS_READ = [".github/workflows/ci.yml", ".claude/settings.json", "security/policy.toml"]
 
 FAILURES: list[str] = []
 
@@ -191,6 +193,33 @@ def prop_symlink_follows_target(rnd: random.Random, tmp: pathlib.Path) -> None:
         fail("симлінк названо вголос", f"{link.name}: у поясненні немає попередження про симлінк")
 
 
+# ── Інваріант 9: секрет — R4 будь-яким каналом, включно з читанням ───────────
+def prop_secret_any_channel(rnd: random.Random) -> None:
+    """Секрет дає R4 і при ЧИТАННІ — інструментом, через MCP чи оболонкою;
+    читання воркфлоу чи налаштувань — ні.
+
+    Урок F-7/F-14 у формі інваріанта, продовжений на читання (F-21): до
+    2026-10-16 `Read .env` давав R4, а `cat .env` — R0. Парна половина — W-18:
+    читання налаштувань нічого не змінює, і R4 на ньому — хибна тривога.
+    """
+    s = rnd.choice(SECRETS)
+    form = rnd.choice([s, "./" + s, str(ROOT / s)])
+    shell = rnd.choice([f"cat {form}", f"grep -n KEY {form}", f"head -3 {form}",
+                        f"wc -l < {form}", f"git show HEAD:{s}", f"cp {form} /tmp/x",
+                        f"python3 -c \"print(open('{s}').read())\""])
+    for tool, payload in [("Read", {"file_path": form}),
+                          ("Grep", {"pattern": "KEY", "path": form}),
+                          ("mcp__github__get_file_contents", {"owner": "o", "repo": "r", "path": s}),
+                          ("Bash", {"command": shell})]:
+        if lvl(tool, payload) != "R4":
+            fail("секрет будь-яким каналом", f"{tool} {payload} не R4")
+    p = rnd.choice(SETTINGS_READ)
+    for tool, payload in [("Read", {"file_path": p}), ("Bash", {"command": f"cat {p}"}),
+                          ("mcp__github__get_file_contents", {"owner": "o", "repo": "r", "path": p})]:
+        if lvl(tool, payload) == "R4":
+            fail("читання налаштувань ≠ R4", f"{tool} {payload} дав R4 (хибна тривога)")
+
+
 def prop_outside_repo_is_r4(rnd: random.Random) -> None:
     """Запис за межі проєкту — R4, окрім явно дозволених тек інструмента.
 
@@ -218,13 +247,13 @@ def main(argv: list[str]) -> int:
         props = [prop_monotonic, prop_deterministic, prop_r0_is_readonly,
                  prop_protected_path, prop_mention_is_not_action,
                  prop_shell_invoker_sees_content, prop_unknown_mcp_not_r0,
-                 prop_outside_repo_is_r4]
+                 prop_outside_repo_is_r4, prop_secret_any_channel]
         for _ in range(args.cases):
             for prop in props:
                 prop(rnd)
             prop_symlink_follows_target(rnd, tmp)
 
-    total = args.cases * 9
+    total = args.cases * (len(props) + 1)
     if FAILURES:
         print(f"  ❌ інваріанти: {len(set(FAILURES))} порушень із {total} прогонів (зерно {args.seed})")
         for f in sorted(set(FAILURES))[:12]:

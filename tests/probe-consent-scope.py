@@ -8,6 +8,12 @@ PR #45», відкривав злиття БУДЬ-ЯКОГО PR, доки не 
 `mcp-merge_pull_request@owner/repo#N`, — і для дії, ціль якої відома, рядок без
 цілі або з іншою ціллю не діє (закрито за замовчуванням).
 
+W-12 (2026-10-16). `require_target` у політиці не читав жоден рядок коду: ціль
+мали лише злиття PR через MCP, а правка налаштувань, запис воркфлоу чи `gh api`
+відкривались рядком без цілі. Тепер ціль має кожне правило з `require_target`
+(шлях, `метод шлях`, `ключ=значення`), а дію, ціль якої не визначено, не
+відкриває жоден рядок.
+
 ЯК ПЕРЕВІРЯЄ. Будує копію `security/` у тимчасовій теці (робочі файли не
 чіпаються — правило `tests/README.md`), для кожного випадку пише туди власний
 `consent.md` і запускає справжній `pretooluse.py` так, як це робить харнес:
@@ -42,11 +48,26 @@ WHY = "тестова причина, довша за двадцять симв�
 MERGE = "mcp__github__" + "merge_pull_request"
 R = "mcp-" + "merge_pull_request"
 SETTINGS = ".claude/" + "settings.json"
+WF = ".github/" + "workflows/x.yml"
+ENV = "." + "env"
+SEND = "mcp__Slack__" + "slack_send_message"
+GH = "gh " + "api -X PUT repos/patriotai/ai-lab/pulls/"
+API = "github-api-" + "write"
 
 
 def merge(owner: str, repo: str, number: int) -> tuple[str, dict]:
     return MERGE, {"owner": owner, "repo": repo, "pullNumber": number,
                    "merge_method": "merge"}
+
+
+def bash(command: str) -> tuple[str, dict]:
+    return "Bash", {"command": command}
+
+
+def push(owner: str, repo: str, path: str) -> tuple[str, dict]:
+    return "mcp__github__" + "push_files", {
+        "owner": owner, "repo": repo, "branch": "b", "message": "m",
+        "files": [{"path": path, "content": "x"}]}
 
 
 WRITE_SETTINGS = ("Write", {"file_path": SETTINGS})
@@ -68,9 +89,36 @@ CASES: list[tuple[str, list[tuple[str, str]], tuple[str, dict], str]] = [
      [(f"{R}@patriotai/other#45", T)], merge("patriotai", "ai-lab", 45), "deny"),
     ("контроль: без згоди запис у налаштування агента блокується",
      [], WRITE_SETTINGS, "deny"),
-    ("правило без цілі працює як досі", [("agent-settings", T)], WRITE_SETTINGS, "allow"),
-    ("згода з ціллю не відкриває дію без цілі",
+    # Свідома зміна W-12: до 2026-10-16 тут чекали «allow» — рядок без цілі
+    # відкривав правку налаштувань, хоча правило вимагає цілі.
+    ("рядок без цілі не відкриває правку налаштувань (W-12)",
+     [("agent-settings", T)], WRITE_SETTINGS, "deny"),
+    ("згода з чужою ціллю не відкриває правку налаштувань",
      [("agent-settings@patriotai/ai-lab#1", T)], WRITE_SETTINGS, "deny"),
+    ("ціль-шлях відкриває свій файл",
+     [(f"agent-settings@{SETTINGS}", T)], WRITE_SETTINGS, "allow"),
+    ("ціль-шлях не відкриває інший файл того ж правила",
+     [(f"agent-settings@{SETTINGS}", T)],
+     ("Write", {"file_path": ".claude/" + "settings.local.json"}), "deny"),
+    ("ціль-шлях відкриває той самий запис оболонкою",
+     [(f"agent-settings@{SETTINGS}", T)], bash(f"echo x > {SETTINGS}"), "allow"),
+    ("ціль команди перелічує кожен захищений шлях",
+     [(f"agent-settings@{SETTINGS}", T)], bash(f"echo x > {SETTINGS}; cat {ENV}"), "deny"),
+    ("`gh api`: згода на #86 відкриває #86",
+     [(f"{API}@put repos/patriotai/ai-lab/pulls/86/merge", T)], bash(GH + "86/merge"), "allow"),
+    ("`gh api`: згода на #86 не відкриває #87",
+     [(f"{API}@put repos/patriotai/ai-lab/pulls/86/merge", T)], bash(GH + "87/merge"), "deny"),
+    ("згода на MCP-злиття не відкриває те саме злиття через `gh api`",
+     [(f"{R}@patriotai/ai-lab#86", T)], bash(GH + "86/merge"), "deny"),
+    ("MCP-дію без цілі не відкриває рядок без цілі (W-12)",
+     [("mcp-slack_send_message", T)], (SEND, {"text": "x"}), "deny"),
+    ("MCP-дію відкриває ціль за ключем аргументів",
+     [("mcp-slack_send_message@channel_id=c1", T)], (SEND, {"channel_id": "C1", "text": "x"}),
+     "allow"),
+    ("файл іншого репо через MCP: ціль несе owner/repo",
+     [(f"workflows@o/r:{WF}", T)], push("o", "r", WF), "allow"),
+    ("згода на локальний файл не відкриває файл в іншому репо",
+     [(f"workflows@{WF}", T)], push("o", "r", WF), "deny"),
 ]
 
 # (назва, файл у копії, що було, що стало)
@@ -85,7 +133,23 @@ MUTANTS: list[tuple[str, str, str, str]] = [
      "if False:"),
     ("класифікатор не визначає ціль злиття",
      "security/spine/classify.py",
-     "scope=_mcp_scope(tool_input),",
+     'scope=_mcp_scope(tool_input, mcp.get("target_keys", [])),',
+     'scope="",'),
+    ("`require_target` ігнорується (поведінка до W-12)",
+     "security/spine/pretooluse.py",
+     "if verdict.require_target and not verdict.scope:",
+     "if False:"),
+    ("шлях інструмента не стає ціллю",
+     "security/spine/classify.py",
+     'scope=tool_targets if need else "",',
+     'scope="",'),
+    ("шлях команди не стає ціллю",
+     "security/spine/classify.py",
+     'scope=bash_targets if need else "",',
+     'scope="",'),
+    ("ціль `gh api` не передається",
+     "security/spine/classify.py",
+     'scope="+".join(writes) if need else "",',
      'scope="",'),
 ]
 
