@@ -1952,6 +1952,28 @@ grep -q -- "--inflight --pr-aware" automations/session-start/session-start.sh \
   && ok "SessionStart вмикає --pr-aware" || bad "SessionStart вмикає --pr-aware" "--pr-aware" "немає"
 
 echo ""
+echo "════════ 32. Доказ [E] у теці з крапкою (W-17) ════════"
+# Інцидент: вираз шляху вимагав літеру на початку, а lstrip("./") зрізав крапку з назви
+# теки — наявний файл у `.github/…` гейт оголошував «доказу немає». Беремо незахищені
+# теки з крапкою, що точно є в репо, і контроль — неіснуючий файл у тій самій теці.
+ev_out=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import claim_evidence_problems as c
+fx = lambda body: f"# t\n## Critical Facts\n- **[E] Факт.** доказ: {body}\n"
+cases = ['`.claude-plugin/marketplace.json`', '`.pre-commit-config.yaml`', '`./tests/run-tests.sh`',
+         '`.claude-plugin/nope.json`', '`nope/x.md`']
+print(' '.join(str(len(c('t', fx(x)))) for x in cases))
+PY
+)
+read -r ev_dir ev_file ev_dotslash ev_missdir ev_miss <<<"$ev_out"
+check "[E] з наявним файлом у теці з крапкою — приймається (інцидент W-17)" "0" "$ev_dir"
+check "[E] з наявним файлом, ім'я якого починається з крапки — приймається" "0" "$ev_file"
+check "[E] з префіксом ./ — приймається, як і раніше" "0" "$ev_dotslash"
+check "[E] з неіснуючим файлом у теці з крапкою — ловиться (контроль)" "1" "$ev_missdir"
+check "[E] з неіснуючим шляхом — ловиться, як і раніше" "1" "$ev_miss"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
