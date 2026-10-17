@@ -56,10 +56,19 @@ build_digest() {
   # Мережа лише на fetch, з тайм-аутом; збій не ламає старт сесії.
   if command -v python3 >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1 \
      && [ -f scripts/check-main-drift.py ]; then
-    drift="$(timeout 25 python3 scripts/check-main-drift.py --fetch --quiet --branches --inflight \
+    drift="$(timeout 25 python3 scripts/check-main-drift.py --fetch --quiet --branches --inflight --pr-aware \
              --max-files 3 --max-subjects 1 2>/dev/null || true)"
     if [ -n "${drift:-}" ]; then
       printf '%s\n\n' "$drift"
+    fi
+  fi
+
+  # Свіжість знімка моделей: можливості ринку старіють так само, як можливості харнесу
+  # (docs/reviews/2026-10-16-tools-harvest.md). Друкує лише попередження; збій мовчить.
+  if command -v python3 >/dev/null 2>&1 && [ -f melania-skills-ecosystem/scripts/maintain.py ]; then
+    snap="$(python3 melania-skills-ecosystem/scripts/maintain.py snapshot-age 2>/dev/null || true)"
+    if [ -n "${snap:-}" ]; then
+      printf '%s\n\n' "$snap"
     fi
   fi
 
