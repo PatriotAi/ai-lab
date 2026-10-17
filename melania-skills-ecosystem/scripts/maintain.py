@@ -197,6 +197,17 @@ def skill_dirs():
 
 
 # ---------------------------------------------------------------- verify
+# Вказівник на доказ у тексті факту. Шлях МОЖЕ починатись із крапки (`.github/…`,
+# `./tests/…`): W-17 — перша версія вимагала літеру на початку й різала крапку через
+# lstrip("./"), тож наявний файл у теці з крапкою давав хибне «доказу немає».
+EVIDENCE_PATH = re.compile(r"[\w.][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b")
+
+
+def evidence_exists(p: str, root: Path, skill_dir: Path | None = None) -> bool:
+    rel = re.sub(r"^(?:\./)+", "", p)   # лише префікс «./», а не крапку з назви теки
+    return (root / rel).exists() or bool(skill_dir and (skill_dir / rel).exists())
+
+
 def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
                             skill_dir: Path | None = None,
                             abstentions: list[str] | None = None) -> list[str]:
@@ -269,10 +280,8 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
                         f"чого саме немає у специфікації — {bullet[2:60].strip()}")
                     continue
                 # Guard проти над-абстенції: якщо доказ ІСНУЄ, це не «не можу знати».
-                existing = [p for p in re.findall(
-                    r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
-                    if (root / p.lstrip("./")).exists()
-                    or (skill_dir and (skill_dir / p.lstrip("./")).exists())]
+                existing = [p for p in EVIDENCE_PATH.findall(bullet)
+                            if evidence_exists(p, root, skill_dir)]
                 if existing:
                     problems.append(
                         f"{name}: [?] на твердженні, доказ якого існує "
@@ -287,13 +296,11 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
             # Кандидати-шляхи: беремо ВСІ, вимагаємо, щоб ХОЧА Б ОДИН існував.
             # (У тексті факту поруч живуть не-файлові згадки на кшталт `sw.js` —
             # вимагати існування кожної було б хибною тривогою.)
-            paths = re.findall(r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
+            paths = EVIDENCE_PATH.findall(bullet)
             has_date = re.search(r"\d{4}-\d{2}-\d{2}", bullet)
             if not paths and not has_date:
                 problems.append(f"{name}: [E] без вказівника на перевірку — {bullet[2:60].strip()}")
-            elif not any((root / p.lstrip("./")).exists()
-                         or (skill_dir and (skill_dir / p.lstrip("./")).exists())
-                         for p in paths):
+            elif not any(evidence_exists(p, root, skill_dir) for p in paths):
                 problems.append(
                     f"{name}: [E] без доказу, який існує на диску "
                     f"({'шляхи: ' + ', '.join(sorted(set(paths))) if paths else 'лише дата'}) "
