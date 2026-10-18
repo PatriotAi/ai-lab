@@ -19,7 +19,9 @@
 5. (рев'ю Codex, PR #93) монтування буває у двох розкладках — Claude Code
    (`~/.claude/skills/synced/<група>/<назва>/`) і claude.ai (`/mnt/skills/user/<назва>/`,
    так його описує канон melania) — шукаємо в обох; prerelease-копія `1.5.0-alpha.1`
-   старша за реліз `1.5.0`; файл із невалідним UTF-8 не обриває обхід решти скілів.
+   старша за реліз `1.5.0`; файл із невалідним UTF-8 не обриває обхід решти скілів;
+   (друге рев'ю) кожна копія перевіряється — рівна не ховає застарілу; порядок
+   prerelease — повний за SemVer; маніфест іншої структури — облік, а не збій.
 Монтування нема або все рівне канону — тиша: жодного токена в контекст сесії.
 
 ЧЕСНА МЕЖА. Скрипт лише показує дрейф. Оновити копії може тільки власник:
@@ -59,9 +61,13 @@ def mounted_version(text: str) -> str | None:
 
 
 def key(version: str) -> tuple:
-    """Ключ порівняння SemVer: числа, далі реліз вище за prerelease (`1.5.0-alpha.1` < `1.5.0`)."""
+    """Ключ порівняння за SemVer: числа; реліз вище за prerelease (`1.5.0-alpha.1` < `1.5.0`);
+    між prerelease — поштучно, числа як числа (`alpha.2` < `alpha.10`), числові нижче за текстові."""
     core, _, pre = version.partition("-")
-    return tuple(int(part) for part in core.split(".")), 0 if pre else 1
+    nums = tuple(int(part) for part in core.split("."))
+    if not pre:
+        return nums, 1, ()
+    return nums, 0, tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in pre.split("."))
 
 
 def main(argv: list[str]) -> int:
@@ -71,28 +77,32 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(argv[1:])
     try:
         skills = json.loads(Path(args.manifest).read_text(encoding="utf-8")).get("skills", {})
-    except (OSError, ValueError):
-        return 0                                # нема канону — нема з чим звіряти
-    canon = ({name: meta.get("version") for name, meta in skills.items()}
-             if isinstance(skills, dict) else {s.get("name"): s.get("version") for s in skills})
-    total, older, unknown = 0, [], []
+        canon = ({name: meta.get("version") for name, meta in skills.items()}
+                 if isinstance(skills, dict) else {s.get("name"): s.get("version") for s in skills})
+    except (OSError, ValueError, AttributeError, TypeError):
+        return 0                                # нема канону чи інша структура — облік, не збій
+    # Кожна змонтована копія: той самий скіл у двох розкладках — дві копії, і
+    # рівна канону не має ховати застарілу (друге рев'ю Codex, PR #93).
+    copies: dict[str, list[str | None]] = {}
     paths = sorted({p for g in args.mounts.split(":") if g for p in glob.glob(os.path.expanduser(g))})
-    seen: set[str] = set()
     for path in paths:
         name = os.path.basename(os.path.dirname(path))
-        if not canon.get(name) or name in seen:
-            continue                            # не скіл melania або вже врахований
-        seen.add(name)
-        total += 1
+        if not isinstance(canon.get(name), str) or not canon[name]:
+            continue                            # не скіл melania — не наш канон
         try:
             # Невалідний UTF-8 в одному файлі не має обривати обхід решти.
             ver = mounted_version(Path(path).read_text(encoding="utf-8", errors="replace"))
         except OSError:
             ver = None
-        if ver is None:
+        copies.setdefault(name, []).append(ver)
+    total, older, unknown = len(copies), [], []
+    for name, versions in copies.items():
+        if None in versions:
             unknown.append(name)
-        elif key(ver) < key(canon[name]):
-            older.append((name, ver, canon[name]))
+            continue
+        oldest = min(versions, key=key)
+        if key(oldest) < key(canon[name]):
+            older.append((name, oldest, canon[name]))
     if not older and not unknown:
         return 0
     parts = []
