@@ -24,6 +24,9 @@ ENV = "." + "env"
 GH = "gh " + "api"
 REPO = "repos/o/r"
 MERGE_TOOL = "merge_pull" + "_request"
+PUSHF = "git " + "push --for" + "ce origin main"    # незворотна дія для «текст як код»
+PYW = f"open('{WF}','w').write('x')"                # запис у захищене з інлайн-коду
+DEL = "--" + "delete"
 
 CASES: list[tuple[str, str, str]] = [
     # Запис у захищене — має ловитись, навіть через оболонку.
@@ -145,6 +148,69 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", f"grep -r --include={ENV} KEY .", "R4"),
     # Here-string подає РЯДОК, а не файл: не читання.
     ("Bash", f"grep KEY <<< {ENV}", "R0"),
+    # ── 2026-10-18: полювання на ФОРМИ дії (F-25…F-28) ───────────────────────
+    # Кожен випадок, що має ЛОВИТИСЬ, падав на `1be990d`, якщо не позначено
+    # інакше (виміряно окремим процесом зі старим кодом: 33 з 46 падають).
+    # Випадки з очікуваним R0/R2 — сторожі від хибних тривог НОВОГО розбору:
+    # вони проходили й раніше і мають проходити далі.
+    # F-27. Оболонка виконує текст — і з кластером прапорців (`-lc`, `-euo … -c`).
+    ("Bash", f'bash -lc "{PUSHF}"', "R4"),
+    ("Bash", f'bash -ec "{PUSHF}"', "R4"),
+    ("Bash", f'bash -euo pipefail -c "{PUSHF}"', "R4"),
+    ("Bash", f'sh -xc "{PUSHF}"', "R4"),
+    # Номер дескриптора перед перенаправленням — не операнд-скрипт.
+    ("Bash", f"bash 2>/dev/null <<'EOF'\n{PUSHF}\nEOF", "R4"),
+    # F-27. Інтерпретатор бере програму зі stdin, з /dev/stdin, з конвеєра.
+    ("Bash", f"python3 <<'PY'\n{PYW}\nPY", "R4"),
+    ("Bash", f"python3 /dev/stdin <<'PY'\n{PYW}\nPY", "R4"),
+    ("Bash", f'echo "{PYW}" | python3', "R4"),
+    ("Bash", f'python3.12 -c "{PYW}"', "R4"),
+    # `-lne`: `-l` бере лише цифри, тож далі `-n` і `-e` (не «аргумент ne»).
+    ("Bash", f"perl -lne 'system(\"{PUSHF}\")'", "R4"),
+    ("Bash", f"source /dev/stdin <<'EOF'\n{PUSHF}\nEOF", "R4"),
+    # F-27. Інші виконавці тексту.
+    ("Bash", f"awk 'BEGIN{{system(\"{PUSHF}\")}}'", "R4"),
+    ("Bash", f"env -S '{PUSHF}'", "R4"),
+    ("Bash", f'su -c "{PUSHF}" root', "R4"),
+    ("Bash", f'script -qc "{PUSHF}" /dev/null', "R4"),
+    ("Bash", f'flock /tmp/l -c "{PUSHF}"', "R4"),
+    ("Bash", f'watch -n1 "{PUSHF}"', "R4"),
+    # Ловилось і на `1be990d` — але ВИПАДКОВО, через зайвий збіг «python3 -».
+    ("Bash", f'python3 -I -c "{PYW}"', "R4"),
+    ("Bash", f'python3 -Bc "{PYW}"', "R4"),
+    ("Bash", f'python -W ignore -c "{PYW}"', "R4"),
+    # F-27 навпаки: аргумент СКРИПТА в лапках — дані (на `1be990d` було R4).
+    ("Bash", f'python3 -I tool.py "{PUSHF}"', "R2"),
+    ("Bash", f'python3 -m json.tool "{PUSHF}"', "R2"),
+    ("Bash", f'python3 -u tool.py "{PUSHF}"', "R2"),
+    # Назва виконавця як аргумент читання — дані.
+    ("Bash", "which python3", "R0"),
+    ("Bash", "ls /bin/sh", "R0"),
+    # F-28. Решта рядка відкривача heredoc — не тіло: ` | bash` і `> файл` лишаються.
+    ("Bash", f"cat <<'EOF' | bash\n{PUSHF}\nEOF", "R4"),
+    ("Bash", "cat <<'EOF' > notes.md\nтекст\nEOF", "R2"),
+    # F-25. Читальний префікс із прапорцем ЗАПИСУ — R2 (журналюється), не R0.
+    ("Bash", "git branch -D feature", "R2"),
+    ("Bash", "git branch -dr origin/feature", "R2"),
+    ("Bash", "git branch -f dev HEAD~3", "R2"),
+    ("Bash", "git branch -m old new", "R2"),
+    ("Bash", "git diff --output=docs/x.md", "R2"),
+    # Ловилось і раніше — випадково: `--delete` містить маркер `find` «-delete».
+    ("Bash", f"git branch {DEL} feature", "R2"),
+    ("Bash", "git branch -vv", "R0"),
+    ("Bash", "git diff -M HEAD~1", "R0"),
+    ("Bash", "git branch new-feature", "R0"),       # межа: створення гілки даних не губить
+    # F-26. Видалення гілки на сервері — R4 за розбором `git push`.
+    ("Bash", f"git push origin {DEL} claude/foo", "R4"),
+    ("Bash", "git push -d origin claude/foo", "R4"),
+    ("Bash", "git push origin :claude/foo", "R4"),
+    ("Bash", f"git push upstream {DEL} x", "R4"),
+    ("Bash", "git push --prune origin", "R4"),
+    ("Bash", f"git -C /tmp/r push origin {DEL} x", "R4"),
+    ("Bash", f'bash -lc "git push origin {DEL} x"', "R4"),
+    ("Bash", "git push origin :", "R2"),              # «push matching», не видалення
+    ("Bash", f"git push --dry-run origin {DEL} x", "R2"),
+    ("Bash", f'echo "git push origin {DEL} x"', "R0"),
 ]
 
 

@@ -116,21 +116,24 @@ CHAIN_OPS = WRITE_OPS + ("\n", "\r")
 
 
 # Ознаки того, що вміст лапок — це КОД, який виконають, а не текст-дані.
-SHELL_INVOKERS = (
-    "sh -c", "bash -c", "zsh -c", "eval ", "| sh", "| bash", "xargs ",
-    # heredoc, поданий У САМУ оболонку: тіло виконається, отже воно не дані.
-    # Пропуск, знайдений канаркою 2026-07-27: `bash <<'EOF' … rm -rf … EOF`
-    # давав R2, бо тіло відкидалося як «дані». Це вже не шум, а дірка.
-    "bash <<", "sh <<", "zsh <<", "bash -s", "sh -s",
-    # Оболонка — не єдиний спосіб виконати текст. До 2026-09-27 перелік
-    # закінчувався на `sh -s`, тож `python3 -c "…"`, `node -e "…"` і
-    # `python3 - <<'PY' … PY` давали R2: лапки й тіло heredoc відкидались
-    # як «дані», хоча інтерпретатор саме їх і виконує. Виміряно ділом на
-    # трьох формах — усі три проходили повз правила. Це пропуск, а не шум:
-    # напрям, протилежний до хибної тривоги, і тому небезпечніший.
-    "python -c", "python3 -c", "python -", "python3 -",
-    "node -e", "node --eval", "node -", "perl -e", "ruby -e", "php -r",
-)
+#
+# ІСТОРІЯ. Тут стояли оболонки й інтерпретатори як ПІДРЯДКИ: `"bash -c"`,
+# `"bash <<"` (дірка 2026-07-27: тіло heredoc в оболонку вважалось даними),
+# `"python3 -c"`, `"python3 -"`, `"node -e"` (2026-09-27: інтерпретатор зі stdin).
+#
+# ПІДРЯДКИ → РОЗБІР ТОКЕНІВ (F-27, 2026-10-18). Підрядок не бачить прапорців,
+# і це різало в обидва боки:
+#   • ПРОПУСК — 16 форм давали R2 замість R4: `bash -lc "<дія>"`, `bash -ec`,
+#     `bash -euo pipefail -c`, `sh -xc`, `python3 <<PY`, `python3 /dev/stdin`,
+#     `echo … | python3`, `python3.12 -c`, `source /dev/stdin`, `env -S`,
+#     `su -c`, `script -qc`, `flock -c`, `watch`, `awk 'BEGIN{system(…)}'`,
+#     а `cat <<'EOF' | bash` — навіть R0 (корінь — F-28 у `_HEREDOC` нижче);
+#   • ХИБНА ТРИВОГА — `"python3 -"` збігався з `python3 -I`/`-m`/`-u`, тож
+#     аргумент скрипта в лапках ставав «кодом» (`python3 -I tool.py "<згадка>"`
+#     → R4). Саме цей зайвий збіг випадково й прикривав `python3 -I -c`.
+# Тепер оболонки та інтерпретатори розбирає `_runs_text` (нижче). Тут лишились
+# форми, де підрядок надійніший за розбір: `builtin eval`, `\eval`, `| xargs`.
+SHELL_INVOKERS = ("eval ", "xargs ")
 
 # Ознаки того, що «читальна» команда насправді ВИКОНУЄ дію — без жодного
 # оператора оболонки, тому `WRITE_OPS` їх не бачить. Без цього переліку
@@ -139,6 +142,322 @@ SHELL_INVOKERS = (
 # Знайдено при проєктуванні самого фіксу: перевіряли не «чи ловить»,
 # а «що саме НЕ ловитиме» (Core Rule 15).
 EXEC_MARKERS = ("-exec", "-execdir", "-delete", "-ok", "--exec")
+
+
+# ── Виконавці ТЕКСТУ: розбір токенів замість підрядків (F-27, 2026-10-18) ─────
+# Питання одне: чи виконає щось у команді ТЕКСТ, що стоїть у самій команді
+# (рядок у лапках, тіло heredoc, here-string, вхід конвеєра)? Якщо так — лапки
+# там код, і правила мають бачити їхній вміст (`executable_part`).
+#
+# ЧЕСНА МЕЖА ПОКРИТТЯ (Core Rule 15 — перелік, а не число). Розбираються:
+# оболонки, python/pypy, node/bun/deno, perl, ruby, php, lua/Rscript/julia,
+# awk із `system(`/`getline`, `su`/`runuser`/`script`/`flock -c`, `watch`,
+# `env -S`, `source`/`.` зі stdin. НЕ розбираються (вікно в `docs/WINDOWS.md`):
+# `ssh хост "…"` (дія на іншій машині), `git -c …`/аліаси з `!`, `sed` з `e`,
+# `vim -c`/`ex`, `gdb -ex`, `make`, псевдоніми оболонки й функції.
+
+_RUNNERS = (
+    (re.compile(r"(ba|da|z|k|mk|a|ya|fi|c|tc)?sh"), "shell"),
+    (re.compile(r"(python|pypy)(\d+(\.\d+)*)?"), "python"),
+    (re.compile(r"node|nodejs|bun"), "node"),
+    (re.compile(r"deno"), "deno"),
+    (re.compile(r"perl(\d+(\.\d+)*)?"), "perl"),
+    (re.compile(r"ruby(\d+(\.\d+)*)?"), "ruby"),
+    (re.compile(r"php(\d+(\.\d+)*)?"), "php"),
+    (re.compile(r"lua(jit|\d+(\.\d+)?)?|Rscript|julia"), "e-flag"),
+    (re.compile(r"[gmn]?awk"), "awk"),
+    (re.compile(r"su|runuser|script|flock"), "c-flag"),
+    (re.compile(r"watch"), "watch"),
+    (re.compile(r"env"), "env"),
+    (re.compile(r"source|\."), "source"),
+)
+
+# Як читати прапорці кожного виду.
+#   code      — літери короткого кластера, що означають «далі КОД» (`-c`, `-lc`, `-Bc`);
+#   code_long — довгі прапорці коду (`--eval`, також у формі `--eval=…`);
+#   stdin     — літери «програма зі stdin» (`bash -s`);
+#   arg       — короткі літери з ОКРЕМИМ аргументом, якщо стоять останніми (`-o pipefail`);
+#   arg_long  — довгі прапорці з окремим аргументом;
+#   rest      — літери, після яких решта кластера — аргумент (`-Wignore`, `-pi.bak`);
+#   digits    — літери, що беруть лише ЦИФРИ слідом (`perl -l0 -0777`): `-lne` — це
+#               `-l` `-n` `-e`, а не `-l` з аргументом «ne» (інакше `-e` пропускався б);
+#   stop      — перший операнд (файл-скрипт) завершує прапорці виконавця; інакше
+#               прапорці шукаються далі (безпечніше, коли список опцій з аргументом
+#               неповний: хибна тривога краща за пропуск);
+#   module    — літера «запустити модуль» (`python -m`): далі аргументи модуля.
+_RUNNER_FLAGS: dict[str, dict] = {
+    "shell":  {"code": "c", "stdin": "s", "arg": "oO", "arg_long": ("--rcfile", "--init-file"),
+               "code_long": ("--command", "--init-command"), "stop": True},
+    "python": {"code": "c", "arg": "WX", "rest": "WX", "module": "m",
+               "arg_long": ("--check-hash-based-pycs",), "stop": True},
+    "node":   {"code": "ep", "code_long": ("--eval", "--print"), "arg": "rC",
+               "arg_long": ("--require", "--import", "--loader", "--experimental-loader",
+                            "--input-type", "--conditions", "--env-file", "--title")},
+    "perl":   {"code": "eE", "rest": "IMmxiCdD", "digits": "0l"},
+    "ruby":   {"code": "e", "rest": "IrCEFiKTWx"},
+    # `-f файл` не в `arg`: файл після нього — це і є операнд-скрипт.
+    "php":    {"code": "rRBE", "arg": "cdzt"},
+    "e-flag": {"code": "e"},
+    "c-flag": {"code": "c", "code_long": ("--command",)},
+}
+_STDIN_PATHS = ("-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0")
+# Команди, у сегменті яких назва виконавця — лише ДАНІ (аргумент читання):
+# `which python3`, `grep -rn bash docs`, `ls /bin/sh`. `find` — виняток, коли в
+# сегменті є маркер виконання (`find . -exec sh -c …` — це вже дія).
+_DATA_COMMANDS = frozenset({
+    "ls", "cat", "head", "tail", "wc", "grep", "rg", "pwd", "which", "echo", "printf",
+    "find", "stat", "file", "readlink", "realpath", "basename", "dirname",
+})
+_GIT_READ = frozenset({"status", "log", "diff", "show", "branch", "blame", "grep",
+                       "ls-files", "ls-tree", "rev-parse", "remote", "describe", "shortlog"})
+_AWK_EXEC = ("system(", "getline", "|&", '| "', '|"')
+_PUNCT = set("|&;()<>`")
+_ASSIGN = re.compile(r"^[A-Za-z_]\w*=")
+_SIMPLE_WORD = re.compile(r"^[\w./+:@%=,~-]*$")
+_SH_WORD = re.compile(
+    r"""\n|[|&;()<>`]+|(?:[^\s|&;()<>`'"\\]+|\\.|'[^']*'|"(?:[^"\\]|\\.)*")+""", re.S)
+_QUOTE_PART = re.compile(
+    r"""'(?P<sq>[^']*)'|"(?P<dq>(?:[^"\\]|\\.)*)"|\\(?P<esc>.)|(?P<plain>[^'"\\]+)""", re.S)
+
+
+def _sh_tokens(text: str) -> list[str]:
+    """Слова оболонки. Простий вміст лапок розкривається (`'bash'` → `bash`,
+    `"tool.py"` → `tool.py`), складний стає операндом-даними `Q`, а подвійні
+    лапки з підстановкою лишаються як є — їх розбирає `_substitutions`."""
+    out: list[str] = []
+    for m in _SH_WORD.finditer(text):
+        word = m.group(0)
+        if word == "\n" or set(word) <= _PUNCT or not any(c in word for c in "'\"\\"):
+            out.append(word)
+            continue
+        parts: list[str] = []
+        for p in _QUOTE_PART.finditer(word):
+            if p.group("plain") is not None:
+                parts.append(p.group("plain"))
+            elif p.group("esc") is not None:
+                parts.append(p.group("esc"))
+            else:
+                body = p.group("sq") if p.group("sq") is not None else p.group("dq")
+                keep = _SIMPLE_WORD.match(body) or (p.group("dq") is not None
+                                                    and ("$(" in body or "`" in body))
+                parts.append(body if keep else "Q")
+        out.append("".join(parts) or "Q")
+    return out
+
+
+def _is_redirect(tok: str) -> bool:
+    return bool(tok) and set(tok) <= _PUNCT and ("<" in tok or ">" in tok) \
+        and not tok.startswith(("<(", ">("))
+
+
+def _sh_segments(tokens: list[str]) -> list[tuple[list[str], str]]:
+    """Сегменти між роздільниками: (слова, роздільник ПЕРЕД сегментом)."""
+    segs: list[tuple[list[str], str]] = []
+    seg: list[str] = []
+    prev = ""
+    for tok in tokens:
+        if tok == "\n" or (set(tok) <= _PUNCT and not _is_redirect(tok)
+                           and not tok.startswith(("<(", ">("))):
+            segs.append((seg, prev))
+            seg, prev = [], tok
+        else:
+            seg.append(tok)
+    segs.append((seg, prev))
+    return segs
+
+
+def _cmd_name(tok: str) -> str:
+    return os.path.basename(tok.lstrip("\\")) if tok not in (".", "..") else tok
+
+
+def _runner_kind(tok: str) -> str:
+    name = _cmd_name(tok)
+    return next((kind for rx, kind in _RUNNERS if rx.fullmatch(name)), "")
+
+
+def _git_subcommand(seg: list[str], i: int) -> tuple[str, int]:
+    """Підкоманда git після глобальних опцій (`git -C dir -c k=v push`)."""
+    j = i + 1
+    while j < len(seg) and seg[j].startswith("-"):
+        j += 2 if seg[j] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace") else 1
+    return (seg[j], j) if j < len(seg) else ("", j)
+
+
+def _data_segment(seg: list[str]) -> bool:
+    """Сегмент, де назви виконавців — лише аргументи читання."""
+    words = [t for t in seg if not _ASSIGN.match(t)]
+    if not words:
+        return True
+    name = _cmd_name(words[0])
+    if name == "find":
+        return not any(t in EXEC_MARKERS for t in words)
+    if name == "git":
+        return _git_subcommand(words, 0)[0] in _GIT_READ
+    return name in _DATA_COMMANDS
+
+
+def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
+    """Прапорці виконавця → (код у прапорці, є операнд-файл, програма зі stdin)."""
+    code, operand, stdin = False, False, False
+    k = 0
+    while k < len(args):
+        tok = args[k]
+        k += 1
+        if tok.isdigit() and k < len(args) and _is_redirect(args[k]):
+            continue                                  # `2>`: номер дескриптора, не операнд
+        if tok in ("<<", "<<-", "<<<"):
+            stdin, k = True, k + 1                    # тіло heredoc / here-string — текст
+            continue
+        if _is_redirect(tok):
+            k += tok in ("<", ">", ">>", ">|", "&>", "&>>", "<>", ">&", "<&")
+            continue
+        if tok.startswith("<("):
+            return True, operand, stdin               # програма з потоку процесу
+        if tok == "--":
+            if k < len(args) and not operand:
+                operand = True
+                if args[k] in _STDIN_PATHS:
+                    return True, operand, stdin
+            break
+        if tok.startswith("--"):
+            flag = tok.split("=", 1)[0]
+            if flag in spec.get("code_long", ()):
+                return True, operand, stdin
+            if "=" not in tok and flag in spec.get("arg_long", ()):
+                k += 1
+            continue
+        # Прапорці шукаються й після операнда, якщо вид не `stop` (там цикл
+        # уже завершився б на операнді): `node script.js -e …` — теж код.
+        if len(tok) > 1 and tok[0] in "-+":
+            letters, n = tok[1:], 0
+            while n < len(letters):
+                ch = letters[n]
+                if ch in spec.get("code", ""):
+                    return True, operand, stdin
+                if ch in spec.get("stdin", ""):
+                    stdin = True
+                if ch in spec.get("module", ""):
+                    return False, True, False         # `python -m mod …`: далі — модуль
+                if ch in spec.get("rest", "") and n < len(letters) - 1:
+                    break                             # решта кластера — аргумент
+                if ch in spec.get("arg", "") and n == len(letters) - 1:
+                    k += 1                            # окремий аргумент (`-o pipefail`)
+                n += 1
+                if ch in spec.get("digits", ""):
+                    while n < len(letters) and letters[n].isdigit():
+                        n += 1
+            continue
+        if tok in _STDIN_PATHS:
+            return True, operand, stdin
+        if not operand:
+            operand = True
+            if spec.get("stop"):
+                break
+        elif spec.get("stop"):
+            break
+    return code, operand, stdin
+
+
+def _kind_runs_text(kind: str, args: list[str], raw: str) -> bool:
+    if kind == "awk":
+        return any(marker in raw for marker in _AWK_EXEC)
+    if kind == "watch":
+        return any(not a.startswith("-") for a in args)
+    if kind == "env":
+        return any(a.split("=", 1)[0] == "--split-string"
+                   or (a.startswith("-") and not a.startswith("--") and "S" in a[1:])
+                   for a in args)
+    if kind == "source":
+        return bool(args) and (args[0] in _STDIN_PATHS or args[0].startswith("<(")
+                               or (args[0] in ("<<", "<<<")))
+    if kind == "deno":
+        return "eval" in args or any(a in _STDIN_PATHS for a in args)
+    if kind == "c-flag":                              # `su -` — вхідна оболонка, не stdin-програма
+        args = [a for a in args if a not in _STDIN_PATHS]
+    code, operand, stdin = _scan_runner(_RUNNER_FLAGS[kind], args)
+    if code or stdin:
+        return True
+    # `su`/`script`/`flock` без `-c` не виконують тексту з команди.
+    return kind != "c-flag" and not operand
+
+
+def _runs_text(body: str, raw: str) -> bool:
+    """Чи якийсь виконавець у команді виконає ТЕКСТ із самої команди.
+
+    `body` — команда з відкинутими тілами heredoc (відкривач і решта рядка
+    лишаються), `raw` — повна команда (для `awk`: чи є `system(` у програмі).
+    """
+    for text in [body, *_substitutions(body)]:
+        for seg, _prev in _sh_segments(_sh_tokens(text)):
+            if _data_segment(seg):
+                continue
+            for i, tok in enumerate(seg):
+                kind = _runner_kind(tok)
+                if kind and _kind_runs_text(kind, seg[i + 1:], raw):
+                    return True
+    return False
+
+
+def _invokes(command: str) -> bool:
+    """Чи команда віддає ТЕКСТ на виконання: підрядком (`eval`, `xargs`) або розбором."""
+    body = _HEREDOC.sub(r"\1", command)
+    if any(inv in _drop_data_quotes(body).lower() for inv in SHELL_INVOKERS):
+        return True
+    return _runs_text(body, command)
+
+
+def _write_flag_hit(link: str, write_flags: dict) -> bool:
+    """Чи ланка з читальним префіксом несе прапорець ЗАПИСУ (F-25: `git branch -D`)."""
+    for pref, flags in write_flags.items():
+        if not (link == pref or link.startswith(pref + " ")):
+            continue
+        longs = {f for f in flags if f.startswith("--")}
+        shorts = {f[1] for f in flags if len(f) == 2 and f[0] == "-" and f[1] != "-"}
+        for tok in link[len(pref):].split():
+            if tok == "--":
+                break
+            if tok.startswith("--"):
+                if tok.split("=", 1)[0] in longs:
+                    return True
+            elif len(tok) > 1 and tok[0] == "-" and any(ch in shorts for ch in tok[1:]):
+                return True
+    return False
+
+
+def _push_args_delete(args: list[str]) -> bool:
+    """Аргументи `git push`, що видаляють гілку на сервері (F-26)."""
+    shorts = [a[1:] for a in args if len(a) > 1 and a[0] == "-" and a[1] != "-"]
+    if "--dry-run" in args or any("n" in s for s in shorts):
+        return False                                   # сухий прогін нічого не видаляє
+    for arg in args:
+        if arg in ("--delete", "--prune", "--mirror"):
+            return True
+        if len(arg) > 1 and arg[0] == "-" and arg[1] != "-" and "d" in arg[1:]:
+            return True
+        if arg.startswith((":", "+:")) and len(arg.lstrip("+")) > 1:
+            return True                                # `:гілка` — порожнє джерело = видалити
+    return False
+
+
+def _git_push_deletes(command: str) -> bool:
+    """Чи `git push` у команді видаляє гілку на сервері (F-26, 2026-10-18).
+
+    Текст у лапках, який виконають (`bash -lc "…"`), розкривається й теж
+    розбирається; згадка (`echo "…"`, повідомлення коміту) — ні.
+    """
+    body = _HEREDOC.sub(r"\1", command)
+    texts = [re.sub(r"['\"\\]", " ", command)] if _invokes(command) \
+        else [body, *_substitutions(body)]
+    for text in texts:
+        for seg, _prev in _sh_segments(_sh_tokens(text)):
+            if _data_segment(seg):
+                continue
+            for i, tok in enumerate(seg):
+                if _cmd_name(tok) == "git":
+                    sub, j = _git_subcommand(seg, i)
+                    if sub == "push" and _push_args_delete(seg[j + 1:]):
+                        return True
+    return False
 
 # Ознаки ЗАПИСУ всередині інлайн-коду інтерпретатора. Потрібні, щоб правила на
 # шляхи ловили `python3 - <<PY  open('security/policy.toml','w')  PY`, але НЕ
@@ -164,7 +483,12 @@ _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 # Відкидається ТІЛО heredoc, а відкривач (`<<'EOF'`) лишається: інакше
 # `bash <<'EOF' … EOF` після відкидання виглядав би як просто `bash`, і ознака
 # «оболонка виконає вміст» зникала б разом із тілом.
-_HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2).*?^\3$", re.DOTALL | re.MULTILINE)
+# РЕШТА РЯДКА ВІДКРИВАЧА — НЕ ТІЛО (F-28, 2026-10-18). Тіло починається з
+# НАСТУПНОГО рядка. Перша версія відкидала й те, що стоїть після відкривача на
+# тому ж рядку, — тож у `cat <<'EOF' | bash` разом із тілом зникав ` | bash`,
+# лишалось `cat <<'EOF'`, і незворотна дія в тілі ставала «чистим читанням» R0.
+# `_HEREDOC_BODY` нижче вже рахував тіло з наступного рядка; тепер обидва однакові.
+_HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*\n).*?^\3$", re.DOTALL | re.MULTILINE)
 
 
 def executable_part(command: str) -> str:
@@ -195,7 +519,7 @@ def executable_part(command: str) -> str:
     читанням (R0). Одинарні лапки — літерал, їх відкидаємо, як і раніше.
     """
     stripped = _drop_data_quotes(_HEREDOC.sub(r"\1", command))
-    if any(inv in stripped.lower() for inv in SHELL_INVOKERS):
+    if _invokes(command):
         return command
     return stripped
 
@@ -217,8 +541,7 @@ def executes_inline_code(command: str) -> bool:
     """
     if not command:
         return False
-    stripped = _drop_data_quotes(_HEREDOC.sub(r"\1", command))
-    return any(inv in stripped.lower() for inv in SHELL_INVOKERS)
+    return _invokes(command)
 
 
 def is_pure_read(command: str, policy: dict) -> bool:
@@ -257,16 +580,20 @@ def is_pure_read(command: str, policy: dict) -> bool:
     # #91). `2>&1` і `&>` сюди теж потрапляють — і це правильно: в них є `>`.
     if "&" in stripped:
         return False
-    if any(inv in low for inv in SHELL_INVOKERS):
+    if _invokes(command):
         return False
     if any(marker in low for marker in EXEC_MARKERS):
         return False
     prefixes = policy.get("levels", {}).get("R0", {}).get("bash_prefixes", [])
+    write_flags = policy.get("levels", {}).get("R0", {}).get("write_flags", {})
     for link in stripped.split("|"):
         link = link.strip()
         if not link or any(op in link for op in CHAIN_OPS):
             return False
         if not any(link == pref or link.startswith(pref + " ") for pref in prefixes):
+            return False
+        # Читальний префікс із прапорцем запису — уже не читання (F-25).
+        if _write_flag_hit(link, write_flags):
             return False
     return True
 
@@ -942,6 +1269,11 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             if writes:
                 return verdict(f"`gh api` змінює стан на GitHub (правило «{rule['id']}»)",
                                command, command, "" if "" in writes else "+".join(writes))
+        # Видалення гілки на сервері — за РОЗБОРОМ `git push`, а не підрядком (F-26):
+        # назва remote будь-яка, а refspec `:гілка` пишеться без пробілів.
+        if command and rule.get("match_git_push_delete") and _git_push_deletes(command):
+            return verdict(f"`git push` видаляє гілку на сервері (правило «{rule['id']}»)",
+                           command, command, " ".join(command.split()))
         # Читальна команда пропускає правила-підрядки: показати текст — не те
         # саме, що виконати дію. Правила на ШЛЯХИ (вище) лишаються чинними завжди,
         # бо вони дивляться на ціль запису.

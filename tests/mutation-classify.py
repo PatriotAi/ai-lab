@@ -82,10 +82,18 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "жодна команда не збігається з правилами — усе стає R2",
     ),
     (
-        "ознака виконання ігнорується",
-        "    if any(inv in stripped.lower() for inv in SHELL_INVOKERS):",
+        "ознака виконання ігнорується (підрядкова частина)",
+        # Ціль оновлено 2026-10-18 (F-27): ознаку виконання зведено в `_invokes`;
+        # підрядками лишились `eval`/`xargs`, оболонки й інтерпретатори — розбором.
+        "    if any(inv in _drop_data_quotes(body).lower() for inv in SHELL_INVOKERS):",
         "    if False:",
-        "bash -c \"rm -rf\" стає невидимим — справжній пропуск",
+        "`eval \"rm -rf …\"` стає невидимим — справжній пропуск",
+    ),
+    (
+        "розбір виконавців тексту вимкнено",
+        "    return _runs_text(body, command)",
+        "    return False",
+        "`bash -c`, `bash -lc`, `python3 <<PY`, `echo … | python3` знову проходять як дані",
     ),
     (
         "MCP: незворотне стає читанням",
@@ -269,6 +277,86 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "        if tok == \"<<<\":                        # here-string: далі РЯДОК, а не файл",
         "        if False:",
         "`grep KEY <<< .env` дає R4 — хибна тривога",
+    ),
+    # ── 2026-10-18: полювання на форми дії (F-25…F-28) ───────────────────────
+    (
+        "кластер прапорців виконавця не розбирається",
+        "                if ch in spec.get(\"code\", \"\"):",
+        "                if ch in spec.get(\"code\", \"\") and len(letters) == 1:",
+        "`bash -lc`, `sh -xc`, `python3 -Bc` знову проходять (лише голий `-c`)",
+    ),
+    (
+        "аргумент прапорця вважається операндом",
+        "                    k += 1                            # окремий аргумент (`-o pipefail`)",
+        "                    pass",
+        "`bash -euo pipefail -c …`: «pipefail» стає скриптом, `-c` не видно",
+    ),
+    (
+        "номер дескриптора вважається операндом",
+        "        if tok.isdigit() and k < len(args) and _is_redirect(args[k]):",
+        "        if False:",
+        "`bash 2>/dev/null <<EOF … EOF`: «2» стає скриптом, тіло — даними",
+    ),
+    (
+        "виконавець без скрипта не читає stdin",
+        "    return kind != \"c-flag\" and not operand",
+        "    return False",
+        "`cat <<EOF | bash`, `echo … | python3`, `python3 <<PY` знову проходять",
+    ),
+    (
+        "сегмент читання не відсіюється",
+        "            if _data_segment(seg):\n                continue\n"
+        "            for i, tok in enumerate(seg):\n                kind = _runner_kind(tok)",
+        "            for i, tok in enumerate(seg):\n                kind = _runner_kind(tok)",
+        "`which python3`, `ls /bin/sh` стають R2 — назва як аргумент читання вважається виконанням",
+    ),
+    (
+        "повернувся зайвий збіг «python3 -»",
+        "SHELL_INVOKERS = (\"eval \", \"xargs \")",
+        "SHELL_INVOKERS = (\"eval \", \"xargs \", \"python3 -\")",
+        "`python3 -I tool.py \"<згадка>\"` знову R4 — аргумент скрипта стає «кодом»",
+    ),
+    (
+        "heredoc ковтає решту рядка відкривача (поведінка до F-28)",
+        r'''_HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*\n).*?^\3$", re.DOTALL | re.MULTILINE)''',
+        r'''_HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2).*?^\3$", re.DOTALL | re.MULTILINE)''',
+        "`cat <<'EOF' | bash` знову R0 — ` | bash` зникає разом із тілом",
+    ),
+    (
+        "прапорці запису читального префікса ігноруються",
+        "        if _write_flag_hit(link, write_flags):",
+        "        if False:",
+        "`git branch -D`, `git diff --output=` знову R0 «читання»",
+    ),
+    (
+        "короткий кластер прапорців запису не розбирається",
+        "            elif len(tok) > 1 and tok[0] == \"-\" and any(ch in shorts for ch in tok[1:]):",
+        "            elif tok in {\"-\" + s for s in shorts}:",
+        "`git branch -dr origin/x` знову R0 (ловиться лише голий `-d`)",
+    ),
+    (
+        "видалення гілки на сервері не розбирається",
+        "        if command and rule.get(\"match_git_push_delete\") and _git_push_deletes(command):",
+        "        if False:",
+        "`git push origin --delete x` знову R2 — видалення без згоди",
+    ),
+    (
+        "refspec `:гілка` не вважається видаленням",
+        "        if arg.startswith((\":\", \"+:\")) and len(arg.lstrip(\"+\")) > 1:",
+        "        if False:",
+        "`git push origin :x` знову R2",
+    ),
+    (
+        "код у лапках не розкривається для `git push`",
+        r'''    texts = [re.sub(r"['\"\\]", " ", command)] if _invokes(command)''',
+        "    texts = [command] if _invokes(command)",
+        "`bash -lc \"git push origin --delete x\"` знову R2",
+    ),
+    (
+        "сухий прогін не виключено (хибна тривога)",
+        "    if \"--dry-run\" in args or any(\"n\" in s for s in shorts):",
+        "    if False:",
+        "`git push --dry-run origin --delete x` дає R4, хоча нічого не видаляє",
     ),
 ]
 
