@@ -47,6 +47,9 @@ class Verdict:
     # Правило вимагає цілі (`require_target` у політиці): дію без визначеної цілі
     # не відкриває жоден рядок згоди — W-12. Ставить класифікатор, читає pretooluse.
     require_target: bool = False
+    # Правила R4, які зачепила ОДНА складена команда (якщо їх кілька): таку
+    # команду не відкриває жоден рядок згоди — рев'ю #91.
+    combined: list[str] = field(default_factory=list)
 
     @property
     def rank(self) -> int:
@@ -185,11 +188,24 @@ def executable_part(command: str) -> str:
     `| sh` у звичайній прозі вимикала весь захист від хибних тривог, тобто
     лікування скасовувало саме себе (спіймано 2026-07-27 на записі в журнал
     напрацювань, який просто ПЕРЕЛІЧУВАВ ці ознаки).
+
+    ПІДСТАНОВКА В ПОДВІЙНИХ ЛАПКАХ — КОД (рев'ю #91, 2026-10-18). `"$(…)"` і
+    зворотні лапки оболонка виконує й у подвійних лапках, тож такий рядок не
+    відкидається: інакше `ls "$(git push --force origin main)"` був чистим
+    читанням (R0). Одинарні лапки — літерал, їх відкидаємо, як і раніше.
     """
-    stripped = _QUOTED.sub(" ", _HEREDOC.sub(r"\1", command))
+    stripped = _drop_data_quotes(_HEREDOC.sub(r"\1", command))
     if any(inv in stripped.lower() for inv in SHELL_INVOKERS):
         return command
     return stripped
+
+
+def _drop_data_quotes(text: str) -> str:
+    """Прибирає рядки в лапках, що є ДАНИМИ; лишає подвійні лапки з підстановкою."""
+    def keep_code(m: re.Match) -> str:
+        s = m.group(0)
+        return s if s.startswith('"') and ("$(" in s or "`" in s) else " "
+    return _QUOTED.sub(keep_code, text)
 
 
 def executes_inline_code(command: str) -> bool:
@@ -201,7 +217,7 @@ def executes_inline_code(command: str) -> bool:
     """
     if not command:
         return False
-    stripped = _QUOTED.sub(" ", _HEREDOC.sub(r"\1", command))
+    stripped = _drop_data_quotes(_HEREDOC.sub(r"\1", command))
     return any(inv in stripped.lower() for inv in SHELL_INVOKERS)
 
 
@@ -236,6 +252,11 @@ def is_pure_read(command: str, policy: dict) -> bool:
     low = stripped.lower()
     if "||" in stripped:
         return False
+    # Фоновий `&` — теж роздільник: `cat README.md & git push --force …` виконає
+    # обидві команди. `CHAIN_OPS` бачив лише `&&`, тож такий рядок був R0 (рев'ю
+    # #91). `2>&1` і `&>` сюди теж потрапляють — і це правильно: в них є `>`.
+    if "&" in stripped:
+        return False
     if any(inv in low for inv in SHELL_INVOKERS):
         return False
     if any(marker in low for marker in EXEC_MARKERS):
@@ -261,12 +282,13 @@ def _write_targets(command: str) -> list[str]:
     береться саме ЦІЛЬ запису, а не наявність слова.
     """
     targets: list[str] = []
-    # Перенаправлення: `> файл`, `>> файл` (але не `2>&1` і не `>&`).
-    targets += re.findall(r">>?\s*(?!&)([^\s;|&<>]+)", command)
+    # Перенаправлення: `> файл`, `>> файл` (але не `2>&1` і не `>&`). Дужка
+    # закриває підстановку: `"$(echo x > .env)"` — ціль `.env`, а не `.env)`.
+    targets += re.findall(r">>?\s*(?!&)([^\s;|&<>)]+)", command)
     # Команди, чий аргумент — ціль запису.
-    targets += re.findall(r"\b(?:tee|truncate|install)\s+(?:-\S+\s+)*([^\s;|&<>]+)", command)
+    targets += re.findall(r"\b(?:tee|truncate|install)\s+(?:-\S+\s+)*([^\s;|&<>)]+)", command)
     # Друга ціль копіювання/переміщення.
-    targets += re.findall(r"\b(?:cp|mv)\s+(?:-\S+\s+)*\S+\s+([^\s;|&<>]+)", command)
+    targets += re.findall(r"\b(?:cp|mv)\s+(?:-\S+\s+)*\S+\s+([^\s;|&<>)]+)", command)
     return [t.strip("'\"") for t in targets if t.strip("'\"")]
 
 
@@ -286,8 +308,8 @@ def _tool_managed(resolved: str, policy: dict) -> bool:
     return False
 
 
-def _write_hits(command: str, pattern: str, root: Path) -> list[str]:
-    """Захищені шляхи, у які команда ПИШЕ, — відносно репо (для вердикту й цілі згоди).
+def _write_tokens(command: str) -> list[str]:
+    """Слова команди, які можуть бути ЦІЛЛЮ запису (для вердикту й цілі згоди).
 
     ДРУГИЙ ШЛЯХ, знайдений 2026-09-27 під час хвилі 4: інлайн-код в
     інтерпретаторі пише куди завгодно БЕЗ операторів оболонки —
@@ -305,19 +327,27 @@ def _write_hits(command: str, pattern: str, root: Path) -> list[str]:
     хоча той самий запис інструментом Write — R4. Тепер ціль зводиться до шляху
     відносно репо (`_path_candidates`), як для читання.
     """
-    hits: list[str] = []
-    for target in _write_targets(command):
-        hits += [rel for rel, raw in _path_candidates(target, root)
-                 if _match_path(pattern, rel, raw)][:1]
+    tokens = _write_targets(command)
     low = command.lower()
     if executes_inline_code(command) and any(h in low for h in INLINE_WRITE_HINTS):
         # Токен МУСИТЬ допускати провідну точку: `.github/workflows/*` і
         # `.claude/settings.json` — саме такі. Перша версія регулярки починалась
         # із `[\w]`, тож зрізала точку й обидва найважливіші правила проходили
-        # повз (спіймано пробою одразу після фіксу, до коміту).
-        for token in re.findall(r"[.\w][\w./-]*", command):
-            hits += [rel for rel, raw in _path_candidates(token, root)
-                     if _match_path(pattern, rel, raw)][:1]
+        # повз (спіймано пробою одразу після фіксу, до коміту). Так само `/` і
+        # `~`: без них абсолютний шлях у коді зрізався до `home/…` і до шляху
+        # відносно репо не зводився (рев'ю #91).
+        tokens += re.findall(r"[./~\w][\w./~-]*", command)
+    return tokens
+
+
+def _hits(tokens: list[str], pattern: str, root: Path, bases: list[str]) -> list[str]:
+    """Шляхи відносно репо, у які веде хоч одна форма токена й що збігаються з правилом."""
+    hits: list[str] = []
+    for token in tokens:
+        for rel, raw in _path_candidates(token, root, bases):
+            if _match_path(pattern, rel, raw):
+                hits.append(rel)
+                break
     return hits
 
 
@@ -336,21 +366,128 @@ _PRINTERS = {"echo", "printf", ":"}
 # Команди, перший позиційний аргумент яких — візерунок чи програма, а не файл.
 _PATTERN_FIRST = {"grep", "egrep", "fgrep", "rg", "ag", "ack", "sed", "awk", "gawk"}
 # Їхні прапорці зі значенням окремим аргументом (значення — не файл).
-_PATTERN_VALUE_FLAGS = {"-m", "--max-count", "-A", "-B", "-C", "--context",
-                        "-g", "--glob", "-t", "--type"}
+_PATTERN_VALUE_FLAGS = {"-m", "--max-count", "-A", "-B", "-C", "--context", "-t", "--type"}
+# Фільтри файлів: значення — шлях чи ім'я, тож кандидат у читання. `rg -g .env`
+# і `grep --include=.env` прямо називають секрет (рев'ю #91: ці значення
+# пропускались як «не файл»).
+_FILE_FILTER_FLAGS = {"-g", "--glob", "--iglob", "--include"}
 # Прапорці `find`, значення яких — візерунок імені, а не файл.
 _FIND_PATTERN_FLAGS = {"-name", "-iname", "-path", "-ipath", "-wholename",
                        "-iwholename", "-regex", "-iregex", "-lname", "-ilname"}
 
 
+def _strip_comments(text: str) -> str:
+    """Вирізає коментарі оболонки: `#` на ПОЧАТКУ слова поза лапками — до кінця рядка.
+
+    `shlex` вважає коментарем `#` будь-де, тож `cat x# .env` обривався на `x`, і
+    читання `.env` зникало (рев'ю #91). У bash `x#` — звичайне слово.
+    """
+    out: list[str] = []
+    quote = ""
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and quote != "'" and i + 1 < n:
+            out.append(text[i:i + 2])
+            i += 2
+            continue
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#" and (i == 0 or text[i - 1] in " \t\n;&|()"):
+            end = text.find("\n", i)
+            if end < 0:
+                break
+            i = end
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _tokens(text: str) -> list[str]:
     """Розбиває рядок оболонки на слова з урахуванням лапок; оператори — окремо."""
     try:
-        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_strip_comments(text), posix=True, punctuation_chars=True)
         lex.whitespace_split = True
+        lex.commenters = ""                     # коментарі вже вирізано за правилами bash
         return list(lex)
     except ValueError:                          # незакрита лапка — грубий поділ
         return text.split()
+
+
+def _substitutions(text: str, depth: int = 0) -> list[str]:
+    """Вміст підстановок команди — `$(…)` і зворотних лапок — поза одинарними лапками.
+
+    Оболонка виконує їх і всередині подвійних лапок, тож це окремі команди, які
+    розбираються так само, як основна (рев'ю #91: `echo "$(cat .env)"` був R0).
+    """
+    out: list[str] = []
+    quote = ""
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and quote != "'":
+            i += 2
+            continue
+        if quote == "'":
+            quote = "" if ch == "'" else quote
+            i += 1
+            continue
+        if ch == "'" and quote != '"':
+            quote = "'"
+        elif ch == '"':
+            quote = "" if quote == '"' else '"'
+        elif text.startswith("$(", i) or ch == "`":
+            if ch == "`":
+                end = text.find("`", i + 1)
+                end = n if end < 0 else end
+                inner, i = text[i + 1:end], end + 1
+            else:
+                level, j = 1, i + 2
+                while j < n and level:
+                    level += {"(": 1, ")": -1}.get(text[j], 0)
+                    j += 1
+                inner, i = text[i + 2:j - 1 if level == 0 else j], j
+            out.append(inner)
+            if depth < 3:
+                out += _substitutions(inner, depth + 1)
+            continue
+        i += 1
+    return out
+
+
+# Тіло heredoc (без відкривача й роздільника).
+_HEREDOC_BODY = re.compile(r"<<-?\s*(['\"]?)(\w+)\1[^\n]*\n(.*?)^\2$", re.DOTALL | re.MULTILINE)
+
+
+def _heredoc_bodies(command: str) -> list[str]:
+    return [m.group(3) for m in _HEREDOC_BODY.finditer(command)]
+
+
+_CD = re.compile(r"(?:^|[;&|(\n\"'])\s*(?:cd|pushd)\s+(['\"]?)([^\s;&|()'\"]+)\1")
+
+
+def _cd_bases(command: str, root: Path, cwd: str | None) -> list[str]:
+    """Теки, відносно яких команда адресує шляхи: корінь, `cwd` хука, цілі `cd`.
+
+    Рев'ю #91: `cd .claude && echo '{}' > settings.json` писав у налаштування як
+    R2 — шлях порівнювався так, ніби оболонка завжди стоїть у корені репо.
+    Перелік — НАДмножина: шлях перевіряється відносно кожної теки (закрито за
+    замовчуванням). Тека з `~`, `$` чи `-` невідома — пропускається.
+    """
+    base = os.path.normpath(cwd) if cwd else str(root)
+    bases = list(dict.fromkeys([str(root), base]))
+    cur = base
+    for m in _CD.finditer(executable_part(command)):
+        d = m.group(2)
+        if d.startswith(("~", "$", "-")):
+            continue
+        cur = d if os.path.isabs(d) else os.path.normpath(os.path.join(cur, d))
+        bases += [cur, d if os.path.isabs(d) else os.path.normpath(os.path.join(base, d))]
+    return list(dict.fromkeys(bases))
 
 
 def _read_args(command: str) -> list[str]:
@@ -358,7 +495,8 @@ def _read_args(command: str) -> list[str]:
 
     Пропускаються: назва команди, аргументи `echo`/`printf`, перший позиційний
     аргумент `grep`/`sed`/`awk` і значення `find -name …` (візерунки), ціль після
-    `>`/`>>` (її бачить `_write_targets`). Значення після `<` — читання.
+    `>`/`>>` (її бачить `_write_targets`), рядок після `<<<`. Значення після `<`
+    — читання. Підстановки команди розбираються як окремі команди.
     У вбудованому коді інтерпретатора (`python3 -c`, `bash -c`) меж аргументів не
     видно, тож кандидатом стає кожне «слово» коду: `open('.env')` — це читання,
     хоч шлях і в лапках.
@@ -366,6 +504,13 @@ def _read_args(command: str) -> list[str]:
     if executes_inline_code(command):
         return [t for t in re.split(r"[\s'\"`;|&<>(),=\[\]{}]+", command) if t]
     body = _HEREDOC.sub(r"\1", command)
+    out: list[str] = []
+    for segment in [body] + _substitutions(body):
+        out += _segment_read_args(segment)
+    return out
+
+
+def _segment_read_args(body: str) -> list[str]:
     find_exec = any(m in body for m in EXEC_MARKERS)
     out: list[str] = []
     cmd = ""
@@ -376,7 +521,10 @@ def _read_args(command: str) -> list[str]:
             cmd, positional = "", 0
             from_flags = take_input = take_write = take_value = take_read_value = False
             continue
-        if tok in ("<", "<<<", "<>"):
+        if tok == "<<<":                        # here-string: далі РЯДОК, а не файл
+            take_value = True
+            continue
+        if tok in ("<", "<>"):
             take_input = True
             continue
         if tok in (">", ">>", ">|", "&>", "&>>", ">&"):
@@ -406,6 +554,23 @@ def _read_args(command: str) -> list[str]:
             if tok in ("-f", "--file"):
                 from_flags = take_read_value = True
                 continue
+            if tok in _FILE_FILTER_FLAGS:
+                take_read_value = True
+                continue
+            # Прикріплені форми (рев'ю #91): `--regexp=KEY`, `-eKEY` — візерунок
+            # уже взято, тож перший позиційний аргумент — файл; `--file=F`, `-fF`,
+            # `--glob=G`, `-gG`, `--include=G` — значення є кандидатом у читання.
+            short = tok[:2] if len(tok) > 2 and not tok.startswith("--") else ""
+            if tok.startswith("--regexp=") or short == "-e":
+                from_flags = True
+                continue
+            if tok.startswith("--file=") or short == "-f":
+                from_flags = True
+                out.append(tok.split("=", 1)[1] if tok.startswith("--") else tok[2:])
+                continue
+            if tok.startswith(("--glob=", "--iglob=", "--include=")) or short == "-g":
+                out.append(tok.split("=", 1)[1] if tok.startswith("--") else tok[2:])
+                continue
             if tok in _PATTERN_VALUE_FLAGS:
                 take_value = True
                 continue
@@ -418,10 +583,13 @@ def _read_args(command: str) -> list[str]:
     return out
 
 
-def _path_candidates(token: str, root: Path) -> list[tuple[str, str]]:
+def _path_candidates(token: str, root: Path, bases: list[str] | tuple = ()) -> list[tuple[str, str]]:
     """Форми токена як шляху: [(відносно репо, як написано)].
 
-    `--env-file=.env` → `.env`; `HEAD:.env` → `.env`; `./.env` → `.env`.
+    `--env-file=.env` → `.env`; `HEAD:.env` → `.env`; `./.env` → `.env`;
+    `q=@.env` і `@.env` → `.env` (так `gh api -F`, `curl -d` читають файл).
+    Відносна форма зводиться до шляху відносно репо від кожної теки з `bases`
+    (корінь, `cwd`, цілі `cd`), тож `..` і `cd` не ховають ціль (рев'ю #91).
     Токен із пробілом — текст (повідомлення коміту), а не шлях: інакше
     `*id_rsa*` спрацьовував би на будь-яку фразу з цим словом.
     """
@@ -430,6 +598,10 @@ def _path_candidates(token: str, root: Path) -> list[tuple[str, str]]:
     forms = {token}
     if token.startswith("-") and "=" in token:
         forms.add(token.split("=", 1)[1])
+    if "=@" in token:
+        forms.add(token.split("=@", 1)[1])
+    if token.startswith("@"):
+        forms.add(token[1:])
     if ":" in token and "://" not in token:
         forms.add(token.split(":", 1)[1])
     out: list[tuple[str, str]] = []
@@ -437,19 +609,14 @@ def _path_candidates(token: str, root: Path) -> list[tuple[str, str]]:
         if not form or form.startswith("-"):
             continue
         norm = os.path.normpath(form)
-        out.append((_rel(root, norm) if os.path.isabs(norm) else norm, form))
+        if os.path.isabs(norm):
+            out.append((_rel(root, norm), form))
+            continue
+        out.append((norm, form))
+        if "*" in norm:                         # глоб `**/.env` називає файл `.env`
+            out.append((os.path.basename(norm), form))
+        out += [(_rel(root, os.path.join(base, norm)), form) for base in bases]
     return out
-
-
-def _read_hits(command: str, pattern: str, root: Path) -> list[str]:
-    """Захищені шляхи, які команда ЧИТАЄ (лише для правил із `on_read`)."""
-    hits: list[str] = []
-    for token in _read_args(command):
-        for rel, raw in _path_candidates(token, root):
-            if _match_path(pattern, rel, raw):
-                hits.append(rel)
-                break
-    return hits
 
 
 # ── `gh api` на запис (F-20, 2026-10-16) ────────────────────────────────────
@@ -459,77 +626,141 @@ def _read_hits(command: str, pattern: str, root: Path) -> list[str]:
 # R2: вердикт залежить від МЕТОДУ, а не від назви інструмента.
 _GH_FIELD_FLAGS = {"-f", "-F", "--field", "--raw-field", "--input"}
 _GH_VALUE_FLAGS = {"-H", "--header", "-q", "--jq", "-t", "--template", "-p",
-                   "--preview", "--hostname", "--cache"}
-# Перед `gh` може стояти лапка: `bash -c "gh api …"` — це теж виклик.
-_GH_API = re.compile(r"(?:^|[\s;&|('\"`])gh\s+api\b")
+                   "--preview", "--cache"}
+# Короткі прапорці зі значенням: у кластері (`-iX PUT`, `-iXPUT`) значення бере
+# перший із них — решта кластера чи наступне слово (рев'ю #91: `-iX PUT` був GET).
+_GH_SHORT_VALUE = set("XfFHqtp")
+# `query=…` у сирому тексті: одинарні лапки — літерал, решта може підставитись.
+_QUERY_ARG = re.compile(r"""(['"]?)query=(?:'[^']*'|"([^"]*)"|(\S*))""")
+
+
+def _query_hidden(text: str) -> bool:
+    """Чи текст GraphQL-запиту підставить оболонка (змінна, підстановка) — тоді його не видно."""
+    for m in _QUERY_ARG.finditer(text):
+        literal = m.group(1) == "'" or m.group(0)[len(m.group(1)) + 6:].startswith("'")
+        value = m.group(2) if m.group(2) is not None else (m.group(3) or "")
+        if not literal and ("$" in value or "`" in value):
+            return True
+    return False
 
 
 def _gh_api_calls(command: str, read_methods: list[str]) -> list[tuple[str, bool]]:
     """Виклики `gh api` у команді: [(ціль «метод шлях», чи це запис)].
 
     Метод: `-X`/`--method`; без нього поля `-f`/`-F`/`--input` gh сам надсилає
-    як POST. GraphQL — запис, якщо в запиті є `mutation` або запит узято з файла
-    (його не видно — закрито за замовчуванням).
+    як POST. GraphQL — запис, якщо в запиті є `mutation`, якщо запит узято з
+    файла або якщо його текст підставить оболонка: такого запиту не видно, тож
+    закрито за замовчуванням.
+
+    Виклик шукається за СЛОВАМИ, а не за текстом (рев'ю #91): `'gh' api`, `\\gh
+    api` і `/повний/шлях/gh api` — той самий клієнт, а `echo gh api …` і
+    `echo 'gh api …'` — друк тексту. Підстановки й тіло heredoc, подане в
+    оболонку, розбираються як окремі команди.
     """
-    # Згадка в лапках чи в тілі heredoc — не виклик.
-    if not _GH_API.search(executable_part(command)):
-        return []
-    texts = [_HEREDOC.sub(r"\1", command)]
+    body = _HEREDOC.sub(r"\1", command)
+    texts = [body] + _substitutions(body)
     if executes_inline_code(command):
         texts += [a or b for a, b in re.findall(r"'([^']*)'|\"([^\"]*)\"", command)]
+        texts += [line for chunk in _heredoc_bodies(command) for line in chunk.splitlines()]
     reads = {m.upper() for m in read_methods}
     calls: list[tuple[str, bool]] = []
     for text in texts:
+        if "gh" not in text or "api" not in text:
+            continue
         toks = _tokens(text)
-        for i in range(len(toks) - 1):
-            if os.path.basename(toks[i]) != "gh" or toks[i + 1] != "api":
+        cmd = ""
+        for i, tok in enumerate(toks):
+            if tok in _SEGMENT_SEPS:
+                cmd = ""
                 continue
-            method, fields, endpoint, query, from_file = "", False, "", "", False
-            j = i + 2
-            while j < len(toks) and toks[j] not in _SEGMENT_SEPS:
-                tok = toks[j]
-                value = toks[j + 1] if j + 1 < len(toks) else ""
-                if tok in ("-X", "--method"):
-                    method, j = value, j + 2
+            if not cmd:
+                if re.match(r"^[A-Za-z_]\w*=", tok):
                     continue
-                if tok.startswith("--method="):
-                    method = tok.split("=", 1)[1]
-                elif tok.startswith("-X") and len(tok) > 2:
-                    method = tok[2:]
-                elif tok in _GH_FIELD_FLAGS:
-                    fields = True
-                    if tok == "--input" or value.startswith("query=@"):
-                        from_file = True
-                    elif value.startswith("query="):
-                        query = value[len("query="):]
-                    j += 2
-                    continue
-                elif tok in _GH_VALUE_FLAGS:
-                    j += 2
-                    continue
-                elif not tok.startswith("-") and not endpoint:
-                    endpoint = tok
-                j += 1
-            path = endpoint.split("?", 1)[0]
-            path = re.sub(r"^https?://[^/]+/", "", path).lstrip("/")
-            if path == "graphql":
-                write = from_file or not query.strip() or bool(re.search(r"\bmutation\b", query))
-                name = re.search(r"\bmutation\b[^{]*\{\s*(\w+)", query)
-                calls.append(("post graphql" + (f":{name.group(1)}" if name else ""), write))
+                cmd = os.path.basename(tok)
+            if cmd in _PRINTERS or os.path.basename(tok) != "gh" or \
+                    i + 1 >= len(toks) or toks[i + 1] != "api":
                 continue
-            verb = (method or ("POST" if fields else "GET")).upper()
-            calls.append((f"{verb} {path}".lower(), verb not in reads))
+            calls.append(_gh_api_call(toks, i + 2, text, reads))
     return calls
 
 
-def _verb_hit(text: str, verbs: list[str]) -> bool:
+def _gh_api_call(toks: list[str], j: int, text: str, reads: set[str]) -> tuple[str, bool]:
+    """Розбір одного виклику `gh api` від слова після `api`: (ціль, чи це запис)."""
+    method, host, endpoint, query = "", "", "", ""
+    fields = from_file = False
+
+    def field(value: str) -> None:
+        nonlocal fields, from_file, query
+        fields = True
+        if value.startswith("query=@"):
+            from_file = True
+        elif value.startswith("query="):
+            query = value[len("query="):]
+
+    while j < len(toks) and toks[j] not in _SEGMENT_SEPS:
+        tok = toks[j]
+        value = toks[j + 1] if j + 1 < len(toks) else ""
+        if tok in ("-X", "--method"):
+            method, j = value, j + 2
+            continue
+        if tok == "--hostname":
+            host, j = value, j + 2
+            continue
+        if tok in _GH_FIELD_FLAGS:
+            from_file |= tok == "--input"
+            field(value)
+            j += 2
+            continue
+        if tok in _GH_VALUE_FLAGS:
+            j += 2
+            continue
+        if tok.startswith("--method="):
+            method = tok.split("=", 1)[1]
+        elif tok.startswith("--hostname="):
+            host = tok.split("=", 1)[1]
+        elif re.match(r"^-[A-Za-z]{2,}", tok):          # кластер: `-iX PUT`, `-XPUT`
+            for k, ch in enumerate(tok[1:], 1):
+                if ch in _GH_SHORT_VALUE:
+                    val = tok[k + 1:] or value
+                    if ch == "X":
+                        method = val
+                    elif ch in "fF":
+                        field(val)
+                    j += 1 if tok[k + 1:] else 2
+                    break
+            else:
+                j += 1
+            continue
+        elif not tok.startswith("-") and not endpoint:
+            endpoint = tok
+        j += 1
+    path = re.sub(r"^https?://[^/]+/", "", endpoint.split("?", 1)[0]).lstrip("/")
+    # Інший хост — інша ціль: згода на github.com не відкриває GitHub Enterprise.
+    where = f"{host.lower()}/" if host else ""
+    if path == "graphql":
+        write = (from_file or not query.strip() or bool(re.search(r"\bmutation\b", query))
+                 or _query_hidden(text))
+        name = re.search(r"\bmutation\b[^{]*\{\s*(\w+)", query)
+        return ("post " + where + "graphql" + (f":{name.group(1)}" if name else ""), write)
+    verb = (method or ("POST" if fields else "GET")).upper()
+    # Плейсхолдер `{owner}/{repo}` gh підставляє з поточної теки — репо в цілі не
+    # названо, тож такої цілі нема: згода її не відкриє.
+    scope = "" if "{" in path else f"{verb} {where}{path}".lower()
+    return (scope, verb not in reads)
+
+
+def _verb_hit(text: str, verbs: list[str], bare: bool = False) -> bool:
     """Чи містить назва (або аргумент `method`) одне з дієслів.
 
     Дефіс прирівнюється до підкреслення: `notion-delete-pages` — те саме
     видалення, що `delete_file` (F-20: назви через дефіс проходили як R2).
-    Обгортка `_…_` дає збіг і для голого дієслова (`method = "delete"`).
+    Обгортка `_…_` (`bare`) — лише для голого значення `method` (`delete`). На
+    назві вона робила збігом дієслово в КІНЦІ: `get_latest_release` ставав R4
+    (рев'ю #91).
     """
-    norm = f"_{text.lower().replace('-', '_')}_"
+    norm = text.lower().replace("-", "_")
+    if bare:
+        norm = f"_{norm}_"
     return any(v in norm for v in verbs)
 
 
@@ -560,8 +791,10 @@ def _mcp_scope(tool_input: dict, target_keys: list[str] | tuple[str, ...] = ()) 
     «лише на PR #45» відкривав злиття БУДЬ-ЯКОГО PR — слова «лише на #45»
     читала людина, а не код.
 
-    Форми: `owner/repo#N` для PR (як і раніше), інакше `[owner/repo:]ключ=значення`
-    за першим ключем із `[mcp].target_keys` (W-12: проєкт, канал, сторінка, запуск).
+    Форми: `owner/repo#N` для PR (як і раніше), інакше
+    `[owner/repo:]ключ=значення[,ключ=значення…]` — за ВСІМА наявними ключами з
+    `[mcp].target_keys` у їхньому порядку (W-12). Перший ключ не розрізняв гілок:
+    згода на видалення файла в `feature` відкривала те саме в `main` (рев'ю #91).
     Порожній рядок = ціль невідома. Значення з `|` чи переносом рядка ціллю не
     стає: рядок таблиці згоди його не вмістить, тож таку дію відкрити неможливо.
     """
@@ -571,6 +804,7 @@ def _mcp_scope(tool_input: dict, target_keys: list[str] | tuple[str, ...] = ()) 
     if owner and repo and number not in (None, ""):
         return f"{owner}/{repo}#{number}".lower()
     prefix = f"{owner}/{repo}:" if owner and repo else ""
+    parts: list[str] = []
     for key in target_keys:
         value = tool_input.get(key)
         if value in (None, "", [], {}):
@@ -580,12 +814,13 @@ def _mcp_scope(tool_input: dict, target_keys: list[str] | tuple[str, ...] = ()) 
         text = str(value)
         if "|" in text or "\n" in text:
             return ""
-        return f"{prefix}{key}={text}".lower()
-    return ""
+        parts.append(f"{key}={text}")
+    return f"{prefix}{','.join(parts)}".lower() if parts else ""
 
 
 def classify(tool_name: str, tool_input: dict, root: Path | None = None,
-             policy: dict | None = None) -> Verdict:
+             policy: dict | None = None, cwd: str | None = None) -> Verdict:
+    """`cwd` — тека, з якої харнес виконує команду (поле входу хука); без неї — корінь."""
     root = root or repo_root()
     pol = policy or load_policy(root)
     levels = pol.get("levels", {})
@@ -620,19 +855,21 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         tool_name.startswith("mcp__")
         and _verb_hit(tool_name.rsplit("__", 1)[-1], mcp.get("read_verbs", []))
         and not _verb_hit(tool_name.rsplit("__", 1)[-1], irreversible)
-        and not (method and _verb_hit(method, irreversible))
+        and not (method and _verb_hit(method, irreversible, bare=True))
     )
 
     # Захищені шляхи, яких торкається КОМАНДА, — по всіх правилах одразу. Ціль
-    # згоди перелічує кожен: інакше рядок на один файл відкрив би команду, що
-    # заразом читає секрет. Вердикт — за першим правилом у порядку політики.
+    # згоди перелічує кожен шлях правила. Кожна форма шляху зводиться до шляху
+    # відносно репо від кореня, `cwd` хука й цілей `cd` (рев'ю #91).
     bash_hits: list[tuple[int, str, str]] = []
     if command:
+        bases = _cd_bases(command, root, cwd)
+        write_tokens, read_tokens = _write_tokens(command), _read_args(command)
         for idx, rule in enumerate(rules):
             for pattern in rule.get("match_paths", []):
-                bash_hits += [(idx, t, "write") for t in _write_hits(command, pattern, root)]
+                bash_hits += [(idx, t, "write") for t in _hits(write_tokens, pattern, root, bases)]
                 if rule.get("on_read"):
-                    bash_hits += [(idx, t, "read") for t in _read_hits(command, pattern, root)]
+                    bash_hits += [(idx, t, "read") for t in _hits(read_tokens, pattern, root, bases)]
     bash_targets = "+".join(sorted({t for _, t, _ in bash_hits}))
 
     # Шляхи з аргументів ІНСТРУМЕНТА — так само по всіх правилах. MCP-інструмент
@@ -643,6 +880,11 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     for item in tool_input.get("files") or []:
         if isinstance(item, dict) and item.get("path"):
             paths.append((os.path.normpath(str(item["path"]).lstrip("/")), str(item["path"])))
+    # Фільтр файлів інструмента пошуку (`glob` у Grep), що прямо називає файл, —
+    # теж шлях: `Grep glob=.env` читав секрет як R0 (рев'ю #91).
+    for piece in re.split(r"[{},\s]+", str(tool_input.get("glob") or "")):
+        if piece:
+            paths.append((os.path.basename(piece) or piece, piece))
     tool_hits: list[tuple[int, str]] = []
     for idx, rule in enumerate(rules):
         if read_tool and not rule.get("on_read"):
@@ -669,64 +911,74 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     # саму команду. Рядок згоди мусить назвати її точно (`правило@ціль`); рядок
     # без цілі таку дію не відкриває. До цього `require_target` у політиці не
     # читав жоден рядок коду — політика обіцяла те, чого гейт не робив.
-    for idx, rule in enumerate(rules):
+    #
+    # Частини ланцюжка (`;`, `&&`, `||`, `&`, новий рядок) — для винятків: виняток
+    # діє лише в ТІЙ команді, де стоїть.
+    segments = re.split(r"&&|\|\||[;&\n]", exec_part.lower()) if command else []
+
+    def rule_verdict(idx: int, rule: dict) -> Verdict | None:
         need = bool(rule.get("require_target"))
+
+        def verdict(reason: str, target: str, real: str, scope: str) -> Verdict:
+            return Verdict(level=rule.get("level", "R4"), reason=reason, rule_id=rule["id"],
+                           why=rule.get("why", ""), alternatives=rule.get("alternatives", ""),
+                           target=target, resolved_target=real, notes=notes,
+                           scope=scope if need else "", require_target=need)
+
         hit = next((h for h in bash_hits if h[0] == idx), None)
         if hit:
-            return Verdict(
-                level=rule.get("level", "R4"),
-                reason=(f"команда {'читає' if hit[2] == 'read' else 'пише у'} захищений "
-                        f"шлях «{hit[1]}» (правило «{rule['id']}»)"),
-                rule_id=rule["id"], why=rule.get("why", ""),
-                alternatives=rule.get("alternatives", ""),
-                target=command, resolved_target=command, notes=notes,
-                scope=bash_targets if need else "", require_target=need,
-            )
+            return verdict(f"команда {'читає' if hit[2] == 'read' else 'пише у'} захищений "
+                           f"шлях «{hit[1]}» (правило «{rule['id']}»)",
+                           command, command, bash_targets)
         tool_hit = next((h for h in tool_hits if h[0] == idx), None)
         if tool_hit:
-            return Verdict(
-                level=rule.get("level", "R4"),
-                reason=f"шлях «{tool_hit[1]}» збігається з правилом «{rule['id']}»",
-                rule_id=rule["id"], why=rule.get("why", ""),
-                alternatives=rule.get("alternatives", ""),
-                target=raw_path or tool_hit[1], resolved_target=resolved or tool_hit[1],
-                notes=notes, scope=tool_targets if need else "", require_target=need,
-            )
-        # `gh api` на запис: вердикт за МЕТОДОМ, а не за назвою (F-20).
+            return verdict(f"шлях «{tool_hit[1]}» збігається з правилом «{rule['id']}»",
+                           raw_path or tool_hit[1], resolved or tool_hit[1], tool_targets)
+        # `gh api` на запис: вердикт за МЕТОДОМ, а не за назвою (F-20). Виклик
+        # без цілі (плейсхолдер репо) робить без цілі всю команду.
         if command and rule.get("match_gh_api_write"):
             writes = sorted({s for s, w in _gh_api_calls(
                 command, rule.get("read_methods", ["GET", "HEAD"])) if w})
             if writes:
-                return Verdict(
-                    level=rule.get("level", "R4"),
-                    reason=f"`gh api` змінює стан на GitHub (правило «{rule['id']}»)",
-                    rule_id=rule["id"], why=rule.get("why", ""),
-                    alternatives=rule.get("alternatives", ""),
-                    target=command, resolved_target=command, notes=notes,
-                    scope="+".join(writes) if need else "", require_target=need,
-                )
-        # Виняток перевіряється ПЕРЕД збігом: безпечна форма дії не має
-        # блокуватись лише тому, що містить у собі підрядок небезпечної.
-        exceptions = [e.lower() for e in rule.get("except_commands", [])]
-        if command and any(exc in exec_part.lower() for exc in exceptions):
-            continue
+                return verdict(f"`gh api` змінює стан на GitHub (правило «{rule['id']}»)",
+                               command, command, "" if "" in writes else "+".join(writes))
         # Читальна команда пропускає правила-підрядки: показати текст — не те
-        # саме, що виконати дію. Правила на ШЛЯХИ (вище в цьому ж циклі)
-        # лишаються чинними завжди, бо вони дивляться на ціль запису.
-        if command and pure_read:
-            continue
+        # саме, що виконати дію. Правила на ШЛЯХИ (вище) лишаються чинними завжди,
+        # бо вони дивляться на ціль запису.
+        if not command or pure_read:
+            return None
+        # Виняток перевіряється ПЕРЕД збігом: безпечна форма дії не має
+        # блокуватись лише тому, що містить у собі підрядок небезпечної. Але лише
+        # у своїй частині ланцюжка: `--force-with-lease` в одній команді не
+        # прикриває `--force` у сусідній (рев'ю #91).
+        exceptions = [e.lower() for e in rule.get("except_commands", [])]
         for needle in rule.get("match_commands", []):
             # Збіг шукається лише у ВИКОНУВАНІЙ частині: назва дії в лапках
             # чи в тілі heredoc — це дані, а не команда.
-            if command and needle.lower() in exec_part.lower():
-                return Verdict(
-                    level=rule.get("level", "R4"),
-                    reason=f"команда містить «{needle}» (правило «{rule['id']}»)",
-                    rule_id=rule["id"], why=rule.get("why", ""),
-                    alternatives=rule.get("alternatives", ""),
-                    target=command, resolved_target=command, notes=notes,
-                    scope=" ".join(command.split()) if need else "", require_target=need,
-                )
+            if any(needle.lower() in seg and not any(exc in seg for exc in exceptions)
+                   for seg in segments):
+                return verdict(f"команда містить «{needle}» (правило «{rule['id']}»)",
+                               command, command, " ".join(command.split()))
+        return None
+
+    verdicts: list[Verdict] = []
+    for idx, rule in enumerate(rules):
+        found = rule_verdict(idx, rule)
+        if found is None:
+            continue
+        if not command:
+            return found                # дія інструмента: одна ціль — перше правило
+        verdicts.append(found)
+    if verdicts:
+        # Складена команда з КІЛЬКОМА незворотними діями (рев'ю #91): вердикт —
+        # за першим правилом, а згода на нього відкривала б і решту (`echo x >
+        # .claude/settings.json && git push --force …`). Тепер `combined` перелічує
+        # усі правила, і жоден рядок таку команду не відкриває — її розбивають.
+        first = verdicts[0]
+        rule_ids = list(dict.fromkeys(v.rule_id for v in verdicts))
+        if len(rule_ids) > 1:
+            first.combined = rule_ids
+        return first
 
     # ── Крок 1½. MCP-інструменти ────────────────────────────────────────────
     # Окремим кроком і ПІСЛЯ правил шляхів: інструмент може і мати захищений
@@ -745,7 +997,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         # тоді живе в аргументі (F-20: `actions_run_trigger` з
         # `delete_workflow_run_logs` проходив як R2).
         by_name = _verb_hit(suffix, irreversible)
-        by_method = bool(method) and _verb_hit(method, irreversible)
+        by_method = bool(method) and _verb_hit(method, irreversible, bare=True)
         if by_name or by_method:
             return Verdict(
                 "R4", f"MCP-інструмент незворотної дії ({tool_name}"

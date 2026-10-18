@@ -70,10 +70,15 @@ def push(owner: str, repo: str, path: str) -> tuple[str, dict]:
         "files": [{"path": path, "content": "x"}]}
 
 
+def delete(owner: str, repo: str, path: str, branch: str) -> tuple[str, dict]:
+    return "mcp__github__" + "delete_file", {
+        "owner": owner, "repo": repo, "path": path, "branch": branch, "message": "m"}
+
+
 WRITE_SETTINGS = ("Write", {"file_path": SETTINGS})
 
 # (назва, рядки згоди [(правило, до)], дія, очікуване рішення)
-CASES: list[tuple[str, list[tuple[str, str]], tuple[str, dict], str]] = [
+CASES: list[tuple[str, list[tuple[str, str]], tuple, str]] = [
     ("без згоди merge блокується", [], merge("patriotai", "ai-lab", 46), "deny"),
     ("згода на #45 відкриває #45",
      [(f"{R}@patriotai/ai-lab#45", T)], merge("patriotai", "ai-lab", 45), "allow"),
@@ -119,6 +124,38 @@ CASES: list[tuple[str, list[tuple[str, str]], tuple[str, dict], str]] = [
      [(f"workflows@o/r:{WF}", T)], push("o", "r", WF), "allow"),
     ("згода на локальний файл не відкриває файл в іншому репо",
      [(f"workflows@{WF}", T)], push("o", "r", WF), "deny"),
+    # ── Рев'ю #91 (2026-10-18) ──────────────────────────────────────────────
+    # 3. Згода на одну дію не відкриває складену команду з ІНШОЮ незворотною
+    # дією: вердикт за першим правилом ховав решту.
+    ("згода на файл не відкриває складену команду з примусовим пушем",
+     [(f"agent-settings@{SETTINGS}", T)],
+     bash(f"echo x > {SETTINGS} && git push --force origin main"), "deny"),
+    ("згода на `gh api` не відкриває складену команду з видаленням",
+     [(f"{API}@put repos/patriotai/ai-lab/pulls/86/merge", T)],
+     bash(GH + "86/merge && rm -rf build"), "deny"),
+    ("контроль: згода на файл відкриває команду з безпечним хвостом",
+     [(f"agent-settings@{SETTINGS}", T)], bash(f"echo x > {SETTINGS} && git status"), "allow"),
+    # 15. Ціль MCP — усі ключі: згода на гілку `feature` не відкриває `main`.
+    ("ціль MCP розрізняє гілки",
+     [("mcp-delete_file@o/r:path=docs/a.md,branch=feature", T)],
+     delete("o", "r", "docs/a.md", "main"), "deny"),
+    ("ціль MCP з усіма ключами відкриває саме цю дію",
+     [("mcp-delete_file@o/r:path=docs/a.md,branch=main", T)],
+     delete("o", "r", "docs/a.md", "main"), "allow"),
+    # Плейсхолдер `{owner}/{repo}` не прив'язує репо — такої цілі нема.
+    ("`gh api` із плейсхолдером репо не відкривається",
+     [(API + "@put repos/{owner}/{repo}/pulls/86/merge", T)],
+     bash("gh " + "api -X PUT repos/{owner}/{repo}/pulls/86/merge"), "deny"),
+    # Інший хост — інша ціль.
+    ("згода на github.com не відкриває той самий шлях на іншому хості",
+     [(f"{API}@put repos/patriotai/ai-lab/pulls/86/merge", T)],
+     bash("gh " + "api --hostname ghe.example.com -X PUT repos/patriotai/ai-lab/pulls/86/merge"),
+     "deny"),
+    # 8. Тека, з якої виконується команда (`cwd` у вході хука), — частина цілі.
+    ("відносний запис із теки `.claude` ловиться за `cwd` хука",
+     [], ("Bash", {"command": "echo x > settings.json"}, ".claude"), "deny"),
+    ("контроль: той самий запис із кореня — звичайний файл",
+     [], ("Bash", {"command": "echo x > settings.json"}, "."), "allow"),
 ]
 
 # (назва, файл у копії, що було, що стало)
@@ -139,18 +176,45 @@ MUTANTS: list[tuple[str, str, str, str]] = [
      "security/spine/pretooluse.py",
      "if verdict.require_target and not verdict.scope:",
      "if False:"),
+    # Цілі трьох мутантів нижче оновлено 2026-10-18: вердикт будує спільний
+    # помічник `verdict(…)`, ціль передається йому останнім аргументом.
     ("шлях інструмента не стає ціллю",
      "security/spine/classify.py",
-     'scope=tool_targets if need else "",',
-     'scope="",'),
+     "raw_path or tool_hit[1], resolved or tool_hit[1], tool_targets)",
+     'raw_path or tool_hit[1], resolved or tool_hit[1], "")'),
     ("шлях команди не стає ціллю",
      "security/spine/classify.py",
-     'scope=bash_targets if need else "",',
-     'scope="",'),
+     "command, command, bash_targets)",
+     'command, command, "")'),
     ("ціль `gh api` не передається",
      "security/spine/classify.py",
-     'scope="+".join(writes) if need else "",',
-     'scope="",'),
+     'command, command, "" if "" in writes else "+".join(writes))',
+     'command, command, "")'),
+    # ── Рев'ю #91 (2026-10-18) ──────────────────────────────────────────────
+    ("складену команду відкриває згода на одну її дію (поведінка до рев'ю)",
+     "security/spine/pretooluse.py",
+     "if verdict.combined:",
+     "if False:"),
+    ("класифікатор не позначає складену команду",
+     "security/spine/classify.py",
+     "if len(rule_ids) > 1:",
+     "if False:"),
+    ("ціль MCP — лише перший ключ (поведінка до рев'ю)",
+     "security/spine/classify.py",
+     'parts.append(f"{key}={text}")',
+     'return f"{prefix}{key}={text}".lower()'),
+    ("`cwd` хука не передається в класифікатор",
+     "security/spine/pretooluse.py",
+     'classify(tool_name, tool_input, ROOT, policy, cwd=payload.get("cwd"))',
+     "classify(tool_name, tool_input, ROOT, policy)"),
+    ("плейсхолдер `{owner}/{repo}` стає ціллю",
+     "security/spine/classify.py",
+     'scope = "" if "{" in path else f"{verb} {where}{path}".lower()',
+     'scope = f"{verb} {where}{path}".lower()'),
+    ("хост не входить у ціль `gh api`",
+     "security/spine/classify.py",
+     'where = f"{host.lower()}/" if host else ""',
+     'where = ""'),
 ]
 
 
@@ -168,8 +232,12 @@ def write_consent(sandbox: Path, rows: list[tuple[str, str]]) -> None:
                                                      encoding="utf-8")
 
 
-def decide(sandbox: Path, tool: str, tool_input: dict) -> str:
-    payload = json.dumps({"tool_name": tool, "tool_input": tool_input})
+def decide(sandbox: Path, tool: str, tool_input: dict, cwd: str | None = None) -> str:
+    message = {"tool_name": tool, "tool_input": tool_input}
+    if cwd is not None:                 # тека, з якої харнес виконує команду
+        (sandbox / cwd).mkdir(parents=True, exist_ok=True)
+        message["cwd"] = str((sandbox / cwd).resolve())
+    payload = json.dumps(message)
     res = subprocess.run([sys.executable, str(sandbox / "security" / "spine" / "pretooluse.py")],
                          input=payload, capture_output=True, text=True, cwd=sandbox,
                          timeout=60)
@@ -184,9 +252,9 @@ def decide(sandbox: Path, tool: str, tool_input: dict) -> str:
 
 def run_cases(sandbox: Path, verbose: bool) -> int:
     bad = 0
-    for name, rows, (tool, tool_input), want in CASES:
+    for name, rows, action, want in CASES:
         write_consent(sandbox, rows)
-        got = decide(sandbox, tool, tool_input)
+        got = decide(sandbox, *action)
         if got != want:
             bad += 1
             if verbose:

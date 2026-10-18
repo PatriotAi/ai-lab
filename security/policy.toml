@@ -132,8 +132,10 @@ alternatives = "Зміна можлива — але лише як окрема 
 id = "secrets"
 # `.claude/settings.local.json` — тут, бо в локальних налаштуваннях буває `env`
 # із ключами; запис у нього, як і раніше, першим ловить «agent-settings».
+# `.ssh/*` — ключі SSH будь-якого типу (`id_ed25519`, `id_ecdsa`), не лише
+# `*id_rsa*`: оболонка читала їх як R0 (рев'ю #91, 2026-10-18).
 match_paths = [".env", ".env.*", "*.key", "*.pem", "secrets/*", "*id_rsa*", "*.p12",
-               ".claude/settings.local.json"]
+               ".claude/settings.local.json", ".ssh/*", "*/.ssh/*"]
 # Прочитаний ключ уже в транскрипті сесії — витік не відкотиш. До 2026-10-16
 # `Read .env` давав R4, а `cat .env` — R0: той самий вміст, інший канал (F-21).
 on_read = true

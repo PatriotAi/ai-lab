@@ -77,7 +77,8 @@ def prop_monotonic(rnd: random.Random) -> None:
     """
     base = rnd.choice(SAFE_PREFIX + NEUTRAL)
     danger = rnd.choice(DANGEROUS)
-    joiner = rnd.choice([" && ", " ; ", " || ", "\n"])
+    # `" & "` — фоновий запуск: теж ланцюжок (рев'ю #91 — без нього R0).
+    joiner = rnd.choice([" && ", " ; ", " || ", "\n", " & "])
     before = lvl("Bash", {"command": base})
     after = lvl("Bash", {"command": base + joiner + danger})
     if RANK[after] < RANK[before]:
@@ -135,7 +136,9 @@ def prop_mention_is_not_action(rnd: random.Random) -> None:
     цього — не дірка, а зношування (п'ять хибних тривог за одну сесію).
     """
     inner = rnd.choice(DANGEROUS)
-    cmd = rnd.choice([f'echo "{inner}"', f"echo '{inner}'", f'grep -r "{inner}" docs/'])
+    # `'$(…)'` в одинарних лапках — літерал: оболонка нічого не підставить.
+    cmd = rnd.choice([f'echo "{inner}"', f"echo '{inner}'", f'grep -r "{inner}" docs/',
+                      f"echo '$({inner})'"])
     got = lvl("Bash", {"command": cmd})
     if got == "R4":
         fail("згадка ≠ дія", f"{cmd!r} → R4 (хибна тривога)")
@@ -149,7 +152,9 @@ def prop_shell_invoker_sees_content(rnd: random.Random) -> None:
     — це дірка, а не шум.
     """
     inner = rnd.choice(DANGEROUS)
-    cmd = rnd.choice([f'bash -c "{inner}"', f"sh -c '{inner}'", f'eval "{inner}"'])
+    # Підстановку `"$(…)"` оболонка виконує й у подвійних лапках (рев'ю #91).
+    cmd = rnd.choice([f'bash -c "{inner}"', f"sh -c '{inner}'", f'eval "{inner}"',
+                      f'ls "$({inner})"'])
     if lvl("Bash", {"command": cmd}) != "R4":
         fail("виконуваний вміст", f"{cmd!r} не дав R4")
 

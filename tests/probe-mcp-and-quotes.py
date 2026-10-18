@@ -67,6 +67,16 @@ CASES: list[tuple[str, dict, str, str]] = [
      {"owner": "o", "repo": "r", "branch": "b", "message": "m",
       "files": [{"path": "docs/a.md", "content": "x"}]},
      "R2", "звичайні файли в масиві files — не R4"),
+    # Рев'ю #91: дієслово в КІНЦІ назви — не дія (регресія обгортки `_…_`).
+    (M + "github__get_latest_release", {}, "R0", "читання з `release` наприкінці"),
+    (M + "Vercel__get_rolling_release", {}, "R0", "читання з `release` наприкінці"),
+    (M + "Notion__notion-create-view", {}, "R2", "`view` наприкінці — не читання"),
+    (M + "Vercel__rerequest_check", {}, "R2", "`check` наприкінці — не читання"),
+    (M + "github__sub_issue_write", {"method": "remove"}, "R4", "голе дієслово в method"),
+    # Рев'ю #91: фільтр файлів у Grep, що прямо називає секрет.
+    ("Grep", {"pattern": "KEY", "glob": "." + "env", "output_mode": "content"},
+     "R4", "glob називає секрет"),
+    ("Grep", {"pattern": "KEY", "glob": "*.py"}, "R0", "звичайний glob"),
 
     # ── P2: згадка в лапках — це дані, не дія ───────────────────────────────
     # R0, а не просто «не R4»: прибравши дані з лапок, лишається чисте
