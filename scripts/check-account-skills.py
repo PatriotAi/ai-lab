@@ -25,6 +25,10 @@
    (третє рев'ю) версія канону не за SemVer — скіл пропускається, а не обриває скрипт.
    Три рев'ю поспіль знаходили новий вхід, що ламав «код виходу 0», тому клас закрито
    й загалом: непередбачена помилка дає рядок «перевірку не виконано» і код 0.
+6. (власне рев'ю, коли Codex вичерпав ліміт) версія з H1 — лише з першого заголовка поза
+   блоками коду, а не з коментаря `# … v9.0.0`; у frontmatter — верхній `version:` чи
+   `metadata.version`, а не перший-ліпший вкладений (версія залежності); копія без версії
+   не ховає застарілу сусідню; `1.5` = `1.5.0`; файл із BOM не губить frontmatter.
 Монтування нема або все рівне канону — тиша: жодного токена в контекст сесії.
 
 ЧЕСНА МЕЖА. Скрипт лише показує дрейф. Оновити копії може тільки власник:
@@ -48,18 +52,28 @@ ROOT = Path(__file__).resolve().parents[1]
 # Дві розкладки монтування: Claude Code і claude.ai.
 DEFAULT_GLOBS = "~/.claude/skills/synced/*/*/SKILL.md:/mnt/skills/user/*/SKILL.md"
 SEMVER = r"(\d+(?:\.\d+)+(?:-[0-9A-Za-z.-]+)?)"
-VERSION = re.compile(r"^\s*version:\s*['\"]?" + SEMVER, re.M)
-H1 = re.compile(r"^#\s.*?\bv" + SEMVER, re.M)
+VERSION_TOP = re.compile(r"^version:\s*['\"]?" + SEMVER, re.M)
+VERSION_META = re.compile(r"^metadata:[^\n]*\n(?:[ \t]+[^\n]*\n)*?[ \t]+version:\s*['\"]?" + SEMVER, re.M)
+FENCE = re.compile(r"^```.*?^```", re.M | re.S)
+H1 = re.compile(r"^#\s[^\n]*", re.M)
+H1_VERSION = re.compile(r"\bv" + SEMVER)
 
 
 def mounted_version(text: str) -> str | None:
-    """Версія змонтованого скіла: frontmatter на будь-якому відступі, інакше H1."""
+    """Версія змонтованого скіла: верхній `version:` чи `metadata.version` у frontmatter,
+    інакше перший заголовок поза блоками коду."""
+    body = text
     if text.startswith("---"):
         end = text.find("\n---", 3)
-        m = VERSION.search(text[3:end] if end > 0 else "")
-        if m:
-            return m.group(1)
-    m = H1.search(text)
+        fm = text[3:end] + "\n" if end > 0 else ""
+        for rx in (VERSION_TOP, VERSION_META):
+            m = rx.search(fm)
+            if m:
+                return m.group(1)
+        body = text[end + 4:] if end > 0 else text
+    body = FENCE.sub("", body)                  # `# … v9.0.0` у блоці коду — не заголовок
+    h1 = H1.search(body)
+    m = H1_VERSION.search(h1.group(0)) if h1 else None
     return m.group(1) if m else None
 
 
@@ -68,6 +82,8 @@ def key(version: str) -> tuple:
     між prerelease — поштучно, числа як числа (`alpha.2` < `alpha.10`), числові нижче за текстові."""
     core, _, pre = version.partition("-")
     nums = tuple(int(part) for part in core.split("."))
+    while len(nums) > 1 and nums[-1] == 0:      # `1.5` = `1.5.0`
+        nums = nums[:-1]
     if not pre:
         return nums, 1, ()
     return nums, 0, tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in pre.split("."))
@@ -94,17 +110,17 @@ def main(argv: list[str]) -> int:
             continue                            # не скіл melania чи версія канону не SemVer
         try:
             # Невалідний UTF-8 в одному файлі не має обривати обхід решти.
-            ver = mounted_version(Path(path).read_text(encoding="utf-8", errors="replace"))
+            ver = mounted_version(Path(path).read_text(encoding="utf-8-sig", errors="replace"))
         except OSError:
             ver = None
         copies.setdefault(name, []).append(ver)
     total, older, unknown = len(copies), [], []
     for name, versions in copies.items():
-        if None in versions:
-            unknown.append(name)
-            continue
-        oldest = min(versions, key=key)
-        if key(oldest) < key(canon[name]):
+        known = [v for v in versions if v is not None]
+        if len(known) < len(versions):
+            unknown.append(name)                # копія без версії не ховає застарілу сусідню
+        oldest = min(known, key=key, default=None)
+        if oldest and key(oldest) < key(canon[name]):
             older.append((name, oldest, canon[name]))
     if not older and not unknown:
         return 0

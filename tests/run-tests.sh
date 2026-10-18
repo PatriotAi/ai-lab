@@ -2006,6 +2006,15 @@ acct_mk pre2    delta $'---\nname: delta\nversion: 1.5.0-alpha.2\n---\n# Delta'
 # Третє рев'ю: версія канону не за SemVer.
 acct_mk badver  alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
 acct_mk badver  beta  $'---\nname: beta\nversion: 1.9.0\n---\n# Beta'
+# Власне рев'ю (Codex вичерпав ліміт): коментар у блоці коду й пізніший заголовок — не версія ·
+# версія залежності — не версія скіла · копія без версії не ховає застарілу · 1.5 = 1.5.0 · BOM.
+acct_mk fence   beta  $'---\nname: beta\n---\n```bash\n# needs node v9.0.0\n```\n# Beta'
+acct_mk h1first beta  $'---\nname: beta\n---\n# Beta\n\n# Примітки v9.0.0'
+acct_mk depver  alpha $'---\nname: alpha\ndependencies:\n  foo:\n    version: 0.1.0\nmetadata:\n  version: 1.5.0\n---\n# Alpha'
+acct_mk mixed   alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+mkdir -p "$AS/mixed/v/alpha" && printf -- '---\nname: alpha\n---\n# Alpha\n' > "$AS/mixed/v/alpha/SKILL.md"
+acct_mk short   alpha $'---\nname: alpha\nversion: "1.5"\n---\n# Alpha'
+mkdir -p "$AS/bom/u/alpha" && printf '\xef\xbb\xbf---\nname: alpha\nmetadata:\n  version: 1.1.0\n---\n# Alpha\n' > "$AS/bom/u/alpha/SKILL.md"
 a_older=$(acct_run older); a_nested=$(acct_run nested); a_h1=$(acct_run h1only); a_nover=$(acct_run nover)
 [[ "$a_older" == *"1 із 1 старші за канон (alpha 1.1.0 → 1.5.0)"* ]] \
   && ok "старша копія — рядок із числом і прикладом" \
@@ -2050,6 +2059,18 @@ a_badv=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 scripts/check-acc
 [[ "$a_badv_rc" == 0 && "$a_badv" == *"1 із 1 старші за канон (beta 1.9.0 → 2.0.0)"* ]] \
   && ok "версія канону не за SemVer — скіл пропущено, решта перевірена, exit 0" \
   || bad "версія канону не за SemVer — пропуск, exit 0" "0: 1 із 1 … beta 1.9.0 → 2.0.0" "$a_badv_rc: $a_badv"
+a_fence=$(acct_run fence); a_h1f=$(acct_run h1first); a_mixed=$(acct_run mixed); a_bom=$(acct_run bom)
+[[ "$a_fence" == *"версію не знайдено: beta"* ]] \
+  && ok "коментар «# … v9.0.0» у блоці коду — не версія" || bad "блок коду — не версія" "версію не знайдено: beta" "$a_fence"
+[[ "$a_h1f" == *"версію не знайдено: beta"* ]] \
+  && ok "версія — лише з першого заголовка, не з пізнішого" || bad "лише перший заголовок" "версію не знайдено: beta" "$a_h1f"
+check "версія залежності у frontmatter — не версія скіла (тиша)" "" "$(acct_run depver)"
+[[ "$a_mixed" == *"alpha 1.1.0 → 1.5.0"* && "$a_mixed" == *"версію не знайдено: alpha"* ]] \
+  && ok "копія без версії не ховає застарілу сусідню" \
+  || bad "копія без версії не ховає застарілу" "alpha 1.1.0 → 1.5.0 + версію не знайдено: alpha" "$a_mixed"
+check "1.5 дорівнює 1.5.0 (тиша)" "" "$(acct_run short)"
+[[ "$a_bom" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "SKILL.md із BOM не губить frontmatter" || bad "BOM не губить frontmatter" "alpha 1.1.0 → 1.5.0" "$a_bom"
 # Запобіжник класу «код 0»: без точкового захисту непередбачена помилка названа, а код — 0.
 sed 's/ or not re.fullmatch(SEMVER, canon\[name\])//' scripts/check-account-skills.py > "$AS/noguard.py"
 a_grd=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 "$AS/noguard.py" --manifest "$AS/badver-manifest.json" 2>&1); a_grd_rc=$?
@@ -2064,16 +2085,23 @@ acct_mut=$(python3 - "$AS" <<'PY'
 import os, pathlib, subprocess, sys
 d = pathlib.Path(sys.argv[1])
 src = pathlib.Path('scripts/check-account-skills.py').read_text(encoding='utf-8')
-mutants = [(r"^\s*version:", r"^version:"), ("m = H1.search(text)", "m = None"),
-           ("unknown.append(name)", "pass"), ("key(oldest) < key(canon[name])", "False"),
-           ('errors="replace"', 'errors="strict"'), ("oldest = min(versions, key=key)", "oldest = versions[0]"),
+mutants = [("for rx in (VERSION_TOP, VERSION_META):", "for rx in (VERSION_TOP,):"), ("h1 = H1.search(body)", "h1 = None"),
+           ('VERSION_TOP = re.compile(r"^version:', 'VERSION_TOP = re.compile(r"^\\s*version:'),
+           ('body = FENCE.sub("", body)', "pass"), ("H1_VERSION.search(h1.group(0))", "H1_VERSION.search(body)"),
+           ("unknown.append(name)", "pass"), ("unknown.append(name)", "unknown.append(name); continue"),
+           ("key(oldest) < key(canon[name])", "False"), ("while len(nums) > 1 and nums[-1] == 0:", "while False:"),
+           ('encoding="utf-8-sig"', 'encoding="utf-8"'),
+           ('errors="replace"', 'errors="strict"'), ("oldest = min(known, key=key, default=None)", "oldest = (known or [None])[0]"),
            ('tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in pre.split("."))', "()"),
            ("return nums, 1, ()", "return nums, 0, ()"),
            ("except (OSError, ValueError, AttributeError, TypeError):", "except (OSError, ValueError):"),
            (" or not re.fullmatch(SEMVER, canon[name])", "")]
 want = {"older": "1.1.0 → 1.5.0", "nested": "1.1.0 → 1.5.0", "h1only": "1.9.0 → 2.0.0",
         "nover": "версію не знайдено", "pre": "1.5.0-alpha.1 → 1.5.0", "badutf": "1.9.0 → 2.0.0",
-        "dup": "1.1.0 → 1.5.0", "pre2": "1.5.0-alpha.2 → 1.5.0-alpha.10"}
+        "dup": "1.1.0 → 1.5.0", "pre2": "1.5.0-alpha.2 → 1.5.0-alpha.10",
+        "fence": "версію не знайдено: beta", "h1first": "версію не знайдено: beta",
+        "mixed": "1.1.0 → 1.5.0", "bom": "1.1.0 → 1.5.0"}
+quiet = ["equal", "depver", "short"]
 survived = 0
 for old, new in mutants:
     assert old in src, old
@@ -2092,6 +2120,11 @@ for old, new in mutants:
         [sys.executable, str(d / "mut.py"), "--manifest", str(d / "badver-manifest.json")],
         capture_output=True, text=True,
         env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "badver" / "*" / "*" / "SKILL.md"))).stdout
+    ok = ok and all(subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "MANIFEST.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / case / "*" / "*" / "SKILL.md"))).stdout == ""
+        for case in quiet)
     survived += ok
 print(f"{len(mutants)} {survived}")
 PY
