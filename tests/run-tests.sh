@@ -1976,6 +1976,64 @@ check "[E] з неіснуючим файлом у теці з крапкою �
 check "[E] з неіснуючим шляхом — ловиться, як і раніше" "1" "$ev_miss"
 
 echo ""
+echo "════════ 33. Скіли акаунта не старші за канон (2026-10-18) ════════"
+# Інцидент: 28 із 28 змонтованих скілів melania були старші за MANIFEST — і цього не
+# бачила жодна перевірка. Перелік інцидентів, а не число: старша копія мовчала · версія
+# лише у вкладеному metadata.version давала хибний нуль · версія лише в H1 пропускалась ·
+# скіл без версії рахувався свіжим.
+AS="$TMPROOT/acctskills"; mkdir -p "$AS"
+printf '{"skills": {"alpha": {"version": "1.5.0"}, "beta": {"version": "2.0.0"}}}\n' > "$AS/MANIFEST.json"
+acct_mk() { mkdir -p "$AS/$1/u/$2"; printf '%s\n' "$3" > "$AS/$1/u/$2/SKILL.md"; }
+acct_run() { ACCOUNT_SKILLS_GLOB="$AS/$1/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/MANIFEST.json" 2>&1; }
+acct_mk older   alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+acct_mk equal   alpha $'---\nname: alpha\nversion: 1.5.0\n---\n# Alpha'
+acct_mk nested  alpha $'---\nname: alpha\nmetadata:\n  version: 1.1.0\n---\n# Alpha'
+acct_mk h1only  beta  $'---\nname: beta\n---\n# Beta — v1.9.0 — опис'
+acct_mk nover   alpha $'---\nname: alpha\n---\n# Alpha без версії'
+acct_mk outside gamma $'---\nname: gamma\nversion: 0.1.0\n---\n# Gamma'
+a_older=$(acct_run older); a_nested=$(acct_run nested); a_h1=$(acct_run h1only); a_nover=$(acct_run nover)
+[[ "$a_older" == *"1 із 1 старші за канон (alpha 1.1.0 → 1.5.0)"* ]] \
+  && ok "старша копія — рядок із числом і прикладом" \
+  || bad "старша копія — рядок із числом і прикладом" "1 із 1 … alpha 1.1.0 → 1.5.0" "$a_older"
+check "рівна канону — тиша" "" "$(acct_run equal)"
+check "монтування нема — тиша" "" "$(acct_run absent)"
+[[ "$a_nested" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "версія лише у вкладеному metadata.version — спіймано (інцидент хибного нуля)" \
+  || bad "версія лише у вкладеному metadata.version — спіймано" "alpha 1.1.0 → 1.5.0" "$a_nested"
+[[ "$a_h1" == *"beta 1.9.0 → 2.0.0"* ]] \
+  && ok "версія лише в H1 — спіймано" || bad "версія лише в H1 — спіймано" "beta 1.9.0 → 2.0.0" "$a_h1"
+[[ "$a_nover" == *"версію не знайдено: alpha"* ]] \
+  && ok "версії нема — названо, а не сховано" || bad "версії нема — названо" "версію не знайдено: alpha" "$a_nover"
+check "скіл поза MANIFEST — ігнор" "" "$(acct_run outside)"
+grep -q "scripts/check-account-skills.py" automations/session-start/session-start.sh \
+  && ok "SessionStart справді викликає детектор" \
+  || bad "SessionStart справді викликає детектор" "виклик у session-start.sh" "немає"
+# Самоперевірка канарок (Core Rule 15): кожна поломка детектора мусить бути спіймана.
+acct_mut=$(python3 - "$AS" <<'PY'
+import os, pathlib, subprocess, sys
+d = pathlib.Path(sys.argv[1])
+src = pathlib.Path('scripts/check-account-skills.py').read_text(encoding='utf-8')
+mutants = [(r"^\s*version:", r"^version:"), ("m = H1.search(text)", "m = None"),
+           ("unknown.append(name)", "pass"), ("key(ver) < key(canon[name])", "False")]
+want = {"older": "1.1.0 → 1.5.0", "nested": "1.1.0 → 1.5.0", "h1only": "1.9.0 → 2.0.0",
+        "nover": "версію не знайдено"}
+survived = 0
+for old, new in mutants:
+    assert old in src, old
+    (d / "mut.py").write_text(src.replace(old, new, 1), encoding="utf-8")
+    ok = all(w in subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "MANIFEST.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / case / "*" / "*" / "SKILL.md"))).stdout
+        for case, w in want.items())
+    survived += ok
+print(f"{len(mutants)} {survived}")
+PY
+)
+read -r am_total am_survived <<<"$acct_mut"
+check "канарки ловлять кожну з ${am_total:-?} поломок детектора (вижило)" "0" "${am_survived:-?}"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
