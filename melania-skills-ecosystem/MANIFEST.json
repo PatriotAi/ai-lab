@@ -428,8 +428,8 @@
    "version": "1.2.0",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "1d8069e292a6b9a7",
-    "evals/evals.json": "69c8d2aebdc421e7"
+    "SKILL.md": "b3ced4efb997d6c8",
+    "evals/evals.json": "7e7e2de578b4ebb4"
    },
    "files": [
     "SKILL.md",
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "db098deddfdd8b08"
+ "built_fingerprint": "dd1fc7be434d6f54"
 }

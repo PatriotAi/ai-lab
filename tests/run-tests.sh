@@ -1984,6 +1984,7 @@ echo "════════ 33. Скіли акаунта не старші �
 AS="$TMPROOT/acctskills"; mkdir -p "$AS"
 printf '{"skills": {"alpha": {"version": "1.5.0"}, "beta": {"version": "2.0.0"}, "delta": {"version": "1.5.0-alpha.10"}}}\n' > "$AS/MANIFEST.json"
 printf '{"skills": ["alpha"]}\n' > "$AS/bad-manifest.json"
+printf '{"skills": {"alpha": {"version": "not-a-version"}, "beta": {"version": "2.0.0"}}}\n' > "$AS/badver-manifest.json"
 acct_mk() { mkdir -p "$AS/$1/u/$2"; printf '%s\n' "$3" > "$AS/$1/u/$2/SKILL.md"; }
 acct_run() { ACCOUNT_SKILLS_GLOB="$AS/$1/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/MANIFEST.json" 2>&1; }
 acct_mk older   alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
@@ -2002,6 +2003,9 @@ mkdir -p "$AS/badutf/u/alpha" && printf -- '---\nname: alpha\n\xff\xfe\n---\n' >
 acct_mk dup     alpha $'---\nname: alpha\nversion: 1.5.0\n---\n# Alpha'
 mkdir -p "$AS/dup/v/alpha" && printf -- '---\nname: alpha\nversion: 1.1.0\n---\n' > "$AS/dup/v/alpha/SKILL.md"
 acct_mk pre2    delta $'---\nname: delta\nversion: 1.5.0-alpha.2\n---\n# Delta'
+# Третє рев'ю: версія канону не за SemVer.
+acct_mk badver  alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+acct_mk badver  beta  $'---\nname: beta\nversion: 1.9.0\n---\n# Beta'
 a_older=$(acct_run older); a_nested=$(acct_run nested); a_h1=$(acct_run h1only); a_nover=$(acct_run nover)
 [[ "$a_older" == *"1 із 1 старші за канон (alpha 1.1.0 → 1.5.0)"* ]] \
   && ok "старша копія — рядок із числом і прикладом" \
@@ -2042,6 +2046,16 @@ a_pre2=$(acct_run pre2)
   || bad "повний порядок prerelease" "delta 1.5.0-alpha.2 → 1.5.0-alpha.10" "$a_pre2"
 a_badm=$(ACCOUNT_SKILLS_GLOB="$AS/older/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/bad-manifest.json" 2>&1); a_badm_rc=$?
 check "маніфест іншої структури — тиша й exit 0, а не збій" "0:" "$a_badm_rc:$a_badm"
+a_badv=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/badver-manifest.json" 2>&1); a_badv_rc=$?
+[[ "$a_badv_rc" == 0 && "$a_badv" == *"1 із 1 старші за канон (beta 1.9.0 → 2.0.0)"* ]] \
+  && ok "версія канону не за SemVer — скіл пропущено, решта перевірена, exit 0" \
+  || bad "версія канону не за SemVer — пропуск, exit 0" "0: 1 із 1 … beta 1.9.0 → 2.0.0" "$a_badv_rc: $a_badv"
+# Запобіжник класу «код 0»: без точкового захисту непередбачена помилка названа, а код — 0.
+sed 's/ or not re.fullmatch(SEMVER, canon\[name\])//' scripts/check-account-skills.py > "$AS/noguard.py"
+a_grd=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 "$AS/noguard.py" --manifest "$AS/badver-manifest.json" 2>&1); a_grd_rc=$?
+[[ "$a_grd_rc" == 0 && "$a_grd" == *"перевірку не виконано (ValueError"* ]] \
+  && ok "непередбачена помилка — рядок «перевірку не виконано» і exit 0" \
+  || bad "непередбачена помилка — названо, exit 0" "0: перевірку не виконано (ValueError…" "$a_grd_rc: $a_grd"
 grep -q "scripts/check-account-skills.py" automations/session-start/session-start.sh \
   && ok "SessionStart справді викликає детектор" \
   || bad "SessionStart справді викликає детектор" "виклик у session-start.sh" "немає"
@@ -2055,7 +2069,8 @@ mutants = [(r"^\s*version:", r"^version:"), ("m = H1.search(text)", "m = None"),
            ('errors="replace"', 'errors="strict"'), ("oldest = min(versions, key=key)", "oldest = versions[0]"),
            ('tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in pre.split("."))', "()"),
            ("return nums, 1, ()", "return nums, 0, ()"),
-           ("except (OSError, ValueError, AttributeError, TypeError):", "except (OSError, ValueError):")]
+           ("except (OSError, ValueError, AttributeError, TypeError):", "except (OSError, ValueError):"),
+           (" or not re.fullmatch(SEMVER, canon[name])", "")]
 want = {"older": "1.1.0 → 1.5.0", "nested": "1.1.0 → 1.5.0", "h1only": "1.9.0 → 2.0.0",
         "nover": "версію не знайдено", "pre": "1.5.0-alpha.1 → 1.5.0", "badutf": "1.9.0 → 2.0.0",
         "dup": "1.1.0 → 1.5.0", "pre2": "1.5.0-alpha.2 → 1.5.0-alpha.10"}
@@ -2068,10 +2083,15 @@ for old, new in mutants:
         capture_output=True, text=True,
         env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / case / "*" / "*" / "SKILL.md"))).stdout
         for case, w in want.items())
-    ok = ok and subprocess.run(
+    r = subprocess.run(
         [sys.executable, str(d / "mut.py"), "--manifest", str(d / "bad-manifest.json")],
         capture_output=True, text=True,
-        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "older" / "*" / "*" / "SKILL.md"))).returncode == 0
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "older" / "*" / "*" / "SKILL.md")))
+    ok = ok and r.returncode == 0 and r.stdout == ""
+    ok = ok and "beta 1.9.0 → 2.0.0" in subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "badver-manifest.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "badver" / "*" / "*" / "SKILL.md"))).stdout
     survived += ok
 print(f"{len(mutants)} {survived}")
 PY

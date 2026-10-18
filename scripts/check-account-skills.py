@@ -21,7 +21,10 @@
    так його описує канон melania) — шукаємо в обох; prerelease-копія `1.5.0-alpha.1`
    старша за реліз `1.5.0`; файл із невалідним UTF-8 не обриває обхід решти скілів;
    (друге рев'ю) кожна копія перевіряється — рівна не ховає застарілу; порядок
-   prerelease — повний за SemVer; маніфест іншої структури — облік, а не збій.
+   prerelease — повний за SemVer; маніфест іншої структури — облік, а не збій;
+   (третє рев'ю) версія канону не за SemVer — скіл пропускається, а не обриває скрипт.
+   Три рев'ю поспіль знаходили новий вхід, що ламав «код виходу 0», тому клас закрито
+   й загалом: непередбачена помилка дає рядок «перевірку не виконано» і код 0.
 Монтування нема або все рівне канону — тиша: жодного токена в контекст сесії.
 
 ЧЕСНА МЕЖА. Скрипт лише показує дрейф. Оновити копії може тільки власник:
@@ -87,8 +90,8 @@ def main(argv: list[str]) -> int:
     paths = sorted({p for g in args.mounts.split(":") if g for p in glob.glob(os.path.expanduser(g))})
     for path in paths:
         name = os.path.basename(os.path.dirname(path))
-        if not isinstance(canon.get(name), str) or not canon[name]:
-            continue                            # не скіл melania — не наш канон
+        if not isinstance(canon.get(name), str) or not re.fullmatch(SEMVER, canon[name]):
+            continue                            # не скіл melania чи версія канону не SemVer
         try:
             # Невалідний UTF-8 в одному файлі не має обривати обхід решти.
             ver = mounted_version(Path(path).read_text(encoding="utf-8", errors="replace"))
@@ -118,4 +121,9 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    try:
+        raise SystemExit(main(sys.argv))
+    except Exception as exc:                    # контракт «код 0» тримається й на непередбаченому вході
+        print(f"⚠️ Скіли акаунта: перевірку не виконано ({type(exc).__name__}: {exc}). "
+              "Детектор — scripts/check-account-skills.py; канон — на диску.")
+        raise SystemExit(0)
