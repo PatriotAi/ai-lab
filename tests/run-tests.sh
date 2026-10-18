@@ -1386,6 +1386,20 @@ check "самооголошених хуків-сиріт немає" "0" "$orph
 pw=$(cd "$REPO" && python3 tests/probe-wiring.py >/dev/null 2>&1; echo $?)
 check "хуки середовища: 18/18 випадків стенду (tests/probe-wiring.py)" "0" "$pw"
 
+# Твердження README про підключеність (W-16): проза не має казати «підключено»
+# там, де реєстрації немає (інциденти g5-consolidate і g5-retrieve). Стенд
+# доведено 9 мутантами (0 вижило) — 2026-10-18.
+rw=$(cd "$REPO" && python3 tests/probe-readme-wiring.py >/dev/null 2>&1; echo $?)
+check "твердження README: стенд (tests/probe-readme-wiring.py)" "0" "$rw"
+claims=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(sum(1 for r in m.check_readme_claims(pathlib.Path('.')) if r[0] == m.DRIFT))
+PY
+)
+check "README автоматизацій не кажуть неправди про підключеність (W-16)" "0" "$claims"
+
 echo ""
 echo "════════ 19. Цілісність тексту: маркери конфлікту злиття ════════"
 # Інцидент 2026-09-28: коміт «розв'язано конфлікт» (6e04740) лишив маркери в

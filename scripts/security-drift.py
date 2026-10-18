@@ -257,6 +257,99 @@ def check_unwired_hooks(root: Path) -> list[tuple[str, str, str]]:
     return rows
 
 
+# ── W-16: твердження README про підключеність (2026-10-18) ──────────────────
+_HOOK_EVENTS = ("SessionStart", "SessionEnd", "SubagentStop", "Stop", "PreToolUse",
+                "PostToolUse", "UserPromptSubmit", "Notification", "PreCompact")
+_EVENT_RE = re.compile(r"(?<![A-Za-z])(" + "|".join(_HOOK_EVENTS) + r")(?![a-z])")
+# Рядок про СЕБЕ: «Тригер: …» / «Подія: …» (з маркером списку й жирним).
+_OWN_CLAIM = re.compile(r"^\s*(?:[-*]\s*)?\**\s*(Тригер|Подія)\b")
+# Ознаки, що рядок описує минуле, заперечення чи інструкцію, а не чинний стан.
+_NOT_A_CLAIM = ("історично", "знято", "знята", "прибрано", "не зареєстр", "не підключ",
+                "до 2026", "раніше", "колись", "зняти", "[?]", "~~")
+
+
+def _wired(name: str, event: str, settings: dict, env_wired: list[dict], root: Path) -> bool:
+    """Чи автоматизація `name` справді виконується на події `event`."""
+    for group in (settings.get("hooks", {}) or {}).get(event, []) or []:
+        for hook in (group.get("hooks", []) if isinstance(group, dict) else []):
+            if f"automations/{name}/" in str((hook or {}).get("command", "")):
+                return True
+    # Реєстрація середовища (stop-git-check): правдивість самої реєстрації
+    # перевіряє `check_env_wired`; тут — чи описана подія та сама.
+    return any(e.get("event") == event and (root / "automations" / name / e["script"]).is_file()
+               for e in env_wired)
+
+
+def check_readme_claims(root: Path) -> list[tuple[str, str, str]]:
+    """Чи README автоматизацій кажуть про підключеність ПРАВДУ (W-16).
+
+    Інцидент: README `g5-consolidate` два місяці описував Stop-хук, знятий
+    2026-07-31 (F-12); знайдено лише 2026-10-09 через `git log -S`. Перевірка
+    шапки скрипта (`check_unwired_hooks`) цього не бачить: вона йде від скрипта,
+    а неправду казала ПРОЗА — і не лише про себе: парний README `g5-retrieve`
+    досі називав «повним авто-циклом» пару з уже знятою Stop-консолідацією.
+
+    Твердження — рядок README, де назва події стоїть поруч із назвою автоматизації
+    (`` `назва` `` чи `` `automations/назва` ``, у парі з найближчою подією після
+    неї), або рядок «Тригер:/Подія:» — тоді про саму цю автоматизацію. Рядки з
+    ознаками минулого чи заперечення (`_NOT_A_CLAIM`) — не твердження.
+
+    ЧЕСНА МЕЖА: це розбір прози. Твердження без назви події («працює на
+    старті») або з назвою, написаною інакше, перевірка не побачить.
+    """
+    try:
+        pol = tomllib.loads((root / "security" / "policy.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return [(DRIFT, "твердження README", f"політика не читається ({exc})")]
+    env_wired = [e for e in pol.get("wiring", {}).get("environment_wired", [])
+                 if isinstance(e, dict) and e.get("script")]
+    try:
+        settings = json.loads((root / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        settings = {}
+    base = root / "automations"
+    names = sorted(p.name for p in base.iterdir() if p.is_dir()) if base.is_dir() else []
+    if not names:
+        return [(UNKNOWN, "твердження README", "теки automations/ нема — перевірити нічого")]
+    auto_re = re.compile(r"`(?:automations/)?(" + "|".join(map(re.escape, names)) + r")(?:/[^`]*)?`")
+
+    rows: list[tuple[str, str, str]] = []
+    checked = 0
+    for own in names:
+        readme = base / own / "README.md"
+        if not readme.is_file():
+            continue
+        for n, line in enumerate(readme.read_text(encoding="utf-8").splitlines(), 1):
+            if any(m in line.lower() for m in _NOT_A_CLAIM):
+                continue
+            mentions = sorted([(m.start(), "auto", m.group(1)) for m in auto_re.finditer(line)]
+                              + [(m.start(), "event", m.group(1)) for m in _EVENT_RE.finditer(line)])
+            claims: list[tuple[str, str]] = []
+            for k, (_pos, kind, value) in enumerate(mentions):
+                if kind != "auto":
+                    continue
+                # Назва бере КОЖНУ подію до наступної назви: «`a` на SessionStart
+                # і Stop» стверджує обидві (перша версія звіряла лише першу —
+                # мутант «пара з усіма подіями» вижив, бо ніщо не доводило обмеження).
+                for _p2, kind2, value2 in mentions[k + 1:]:
+                    if kind2 == "auto":
+                        break
+                    claims.append((value, value2))
+            if _OWN_CLAIM.match(line) and not any(c[0] != own for c in claims):
+                claims += [(own, m.group(1)) for m in _EVENT_RE.finditer(line)]
+            for name, event in dict.fromkeys(claims):
+                checked += 1
+                if not _wired(name, event, settings, env_wired, root):
+                    rows.append((DRIFT, f"README каже неправду: automations/{own}/README.md:{n}",
+                                 f"«{name}» на події {event} — але такої реєстрації немає "
+                                 "(ні в `.claude/settings.json`, ні в середовищі). Виправ "
+                                 "текст або підключи"))
+    if not rows:
+        rows.append((OK, "твердження README про підключеність",
+                     f"перевірено {checked}, усі правдиві"))
+    return rows
+
+
 def _env_commands(settings_file: Path) -> list[tuple[str, str]] | None:
     """(подія, команда) з файлу налаштувань хуків; None — читабельність не доведено.
 
@@ -380,6 +473,7 @@ def main(argv: list[str]) -> int:
     rows.append(check_pretooluse(root))
     rows.append(check_action_pinning(root))
     rows += check_unwired_hooks(root)
+    rows += check_readme_claims(root)
     rows.append(check_last_verified(root, stale_limit(root)))
     rows.append(check_self_modification(root))
     rows += check_remote_only()
