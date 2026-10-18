@@ -1991,6 +1991,12 @@ acct_mk nested  alpha $'---\nname: alpha\nmetadata:\n  version: 1.1.0\n---\n# Al
 acct_mk h1only  beta  $'---\nname: beta\n---\n# Beta — v1.9.0 — опис'
 acct_mk nover   alpha $'---\nname: alpha\n---\n# Alpha без версії'
 acct_mk outside gamma $'---\nname: gamma\nversion: 0.1.0\n---\n# Gamma'
+# Рев'ю Codex (PR #93): розкладка claude.ai (/mnt/skills/user/<назва>/), prerelease,
+# невалідний UTF-8 в одному файлі.
+mkdir -p "$AS/flat/alpha" && printf -- '---\nname: alpha\nversion: 1.1.0\n---\n' > "$AS/flat/alpha/SKILL.md"
+acct_mk pre     alpha $'---\nname: alpha\nversion: 1.5.0-alpha.1\n---\n# Alpha'
+acct_mk badutf  beta  $'---\nname: beta\nversion: 1.9.0\n---\n# Beta'
+mkdir -p "$AS/badutf/u/alpha" && printf -- '---\nname: alpha\n\xff\xfe\n---\n' > "$AS/badutf/u/alpha/SKILL.md"
 a_older=$(acct_run older); a_nested=$(acct_run nested); a_h1=$(acct_run h1only); a_nover=$(acct_run nover)
 [[ "$a_older" == *"1 із 1 старші за канон (alpha 1.1.0 → 1.5.0)"* ]] \
   && ok "старша копія — рядок із числом і прикладом" \
@@ -2005,6 +2011,22 @@ check "монтування нема — тиша" "" "$(acct_run absent)"
 [[ "$a_nover" == *"версію не знайдено: alpha"* ]] \
   && ok "версії нема — названо, а не сховано" || bad "версії нема — названо" "версію не знайдено: alpha" "$a_nover"
 check "скіл поза MANIFEST — ігнор" "" "$(acct_run outside)"
+a_flat=$(ACCOUNT_SKILLS_GLOB="$AS/nowhere/*/*/SKILL.md:$AS/flat/*/SKILL.md" \
+  python3 scripts/check-account-skills.py --manifest "$AS/MANIFEST.json" 2>&1)
+[[ "$a_flat" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "розкладка claude.ai (/mnt/skills/user/<назва>/) у переліку глобів — спіймано" \
+  || bad "розкладка claude.ai — спіймано" "alpha 1.1.0 → 1.5.0" "$a_flat"
+grep -q "/mnt/skills/user/\*/SKILL.md" scripts/check-account-skills.py \
+  && ok "типові глоби покривають обидві розкладки монтування" \
+  || bad "типові глоби покривають обидві розкладки" "/mnt/skills/user/*/SKILL.md" "немає"
+a_pre=$(acct_run pre)
+[[ "$a_pre" == *"alpha 1.5.0-alpha.1 → 1.5.0"* ]] \
+  && ok "prerelease-копія старша за реліз — спіймано" \
+  || bad "prerelease-копія старша за реліз" "alpha 1.5.0-alpha.1 → 1.5.0" "$a_pre"
+a_bad=$(acct_run badutf); a_bad_rc=$?
+[[ $a_bad_rc -eq 0 && "$a_bad" == *"beta 1.9.0 → 2.0.0"* ]] \
+  && ok "невалідний UTF-8 в одному файлі не обриває обхід (exit 0, решту знайдено)" \
+  || bad "невалідний UTF-8 не обриває обхід" "exit 0 і beta 1.9.0 → 2.0.0" "exit $a_bad_rc: $a_bad"
 grep -q "scripts/check-account-skills.py" automations/session-start/session-start.sh \
   && ok "SessionStart справді викликає детектор" \
   || bad "SessionStart справді викликає детектор" "виклик у session-start.sh" "немає"
@@ -2014,9 +2036,10 @@ import os, pathlib, subprocess, sys
 d = pathlib.Path(sys.argv[1])
 src = pathlib.Path('scripts/check-account-skills.py').read_text(encoding='utf-8')
 mutants = [(r"^\s*version:", r"^version:"), ("m = H1.search(text)", "m = None"),
-           ("unknown.append(name)", "pass"), ("key(ver) < key(canon[name])", "False")]
+           ("unknown.append(name)", "pass"), ("key(ver) < key(canon[name])", "False"),
+           ("0 if pre else 1", "1"), ('errors="replace"', 'errors="strict"')]
 want = {"older": "1.1.0 → 1.5.0", "nested": "1.1.0 → 1.5.0", "h1only": "1.9.0 → 2.0.0",
-        "nover": "версію не знайдено"}
+        "nover": "версію не знайдено", "pre": "1.5.0-alpha.1 → 1.5.0", "badutf": "1.9.0 → 2.0.0"}
 survived = 0
 for old, new in mutants:
     assert old in src, old

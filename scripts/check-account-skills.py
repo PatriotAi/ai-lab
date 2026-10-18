@@ -16,13 +16,17 @@
 3. фільтр пропускав скіли, у яких версія лише в H1 (`# Назва — vX.Y.Z`) — тепер
    H1 теж джерело;
 4. скіл без версії рахувався «свіжим» — тепер його названо, а не сховано.
+5. (рев'ю Codex, PR #93) монтування буває у двох розкладках — Claude Code
+   (`~/.claude/skills/synced/<група>/<назва>/`) і claude.ai (`/mnt/skills/user/<назва>/`,
+   так його описує канон melania) — шукаємо в обох; prerelease-копія `1.5.0-alpha.1`
+   старша за реліз `1.5.0`; файл із невалідним UTF-8 не обриває обхід решти скілів.
 Монтування нема або все рівне канону — тиша: жодного токена в контекст сесії.
 
 ЧЕСНА МЕЖА. Скрипт лише показує дрейф. Оновити копії може тільки власник:
 `maintain.py package` готує пакети, завантаження в claude.ai — його дія.
 
 Запуск: python3 scripts/check-account-skills.py [--mounts ГЛОБ] [--manifest ШЛЯХ]
-Змінна ACCOUNT_SKILLS_GLOB перевизначає глоб монтування (для тестів).
+Змінна ACCOUNT_SKILLS_GLOB перевизначає глоби монтування (через `:`, для тестів).
 Код виходу — завжди 0 (облік, не блок); рядок у stdout — лише коли є що сказати.
 """
 from __future__ import annotations
@@ -36,9 +40,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_GLOB = "~/.claude/skills/synced/*/*/SKILL.md"
-VERSION = re.compile(r"^\s*version:\s*['\"]?(\d+(?:\.\d+)+)", re.M)
-H1 = re.compile(r"^#\s.*?\bv(\d+(?:\.\d+)+)", re.M)
+# Дві розкладки монтування: Claude Code і claude.ai.
+DEFAULT_GLOBS = "~/.claude/skills/synced/*/*/SKILL.md:/mnt/skills/user/*/SKILL.md"
+SEMVER = r"(\d+(?:\.\d+)+(?:-[0-9A-Za-z.-]+)?)"
+VERSION = re.compile(r"^\s*version:\s*['\"]?" + SEMVER, re.M)
+H1 = re.compile(r"^#\s.*?\bv" + SEMVER, re.M)
 
 
 def mounted_version(text: str) -> str | None:
@@ -52,13 +58,15 @@ def mounted_version(text: str) -> str | None:
     return m.group(1) if m else None
 
 
-def key(version: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in version.split("."))
+def key(version: str) -> tuple:
+    """Ключ порівняння SemVer: числа, далі реліз вище за prerelease (`1.5.0-alpha.1` < `1.5.0`)."""
+    core, _, pre = version.partition("-")
+    return tuple(int(part) for part in core.split(".")), 0 if pre else 1
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mounts", default=os.environ.get("ACCOUNT_SKILLS_GLOB", DEFAULT_GLOB))
+    ap.add_argument("--mounts", default=os.environ.get("ACCOUNT_SKILLS_GLOB", DEFAULT_GLOBS))
     ap.add_argument("--manifest", default=str(ROOT / "melania-skills-ecosystem" / "MANIFEST.json"))
     args = ap.parse_args(argv[1:])
     try:
@@ -68,13 +76,17 @@ def main(argv: list[str]) -> int:
     canon = ({name: meta.get("version") for name, meta in skills.items()}
              if isinstance(skills, dict) else {s.get("name"): s.get("version") for s in skills})
     total, older, unknown = 0, [], []
-    for path in sorted(glob.glob(os.path.expanduser(args.mounts))):
+    paths = sorted({p for g in args.mounts.split(":") if g for p in glob.glob(os.path.expanduser(g))})
+    seen: set[str] = set()
+    for path in paths:
         name = os.path.basename(os.path.dirname(path))
-        if not canon.get(name):
-            continue                            # не скіл melania — не наш канон
+        if not canon.get(name) or name in seen:
+            continue                            # не скіл melania або вже врахований
+        seen.add(name)
         total += 1
         try:
-            ver = mounted_version(Path(path).read_text(encoding="utf-8"))
+            # Невалідний UTF-8 в одному файлі не має обривати обхід решти.
+            ver = mounted_version(Path(path).read_text(encoding="utf-8", errors="replace"))
         except OSError:
             ver = None
         if ver is None:
