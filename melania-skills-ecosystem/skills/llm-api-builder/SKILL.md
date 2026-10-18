@@ -3,14 +3,14 @@ name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
 license: MIT
 metadata:
-  version: 1.5.1
+  version: 1.5.2
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-09-28
+  last_updated: 2026-10-16
 ---
 
-# Building LLM-Powered Applications with Claude — v1.5.1
+# Building LLM-Powered Applications with Claude — v1.5.2
 > Пояснення — українською за замовчуванням (українською-перша); код, ідентифікатори та поля API лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -138,7 +138,7 @@ metadata:
 ## Поточні моделі (агностично)
 
 > **Конкретні model ID/ціни/ctx НЕ живуть тут.** Датований знімок — у спільному замінному файлі
-> `multi-provider-ai-orchestration/references/model-snapshot-YYYY-MM.md` (DRY, поточний: 2026-07).
+> `multi-provider-ai-orchestration/references/model-snapshot-YYYY-MM.md` (DRY, поточний — найновіший файл у тій теці).
 > Авторитет — `product-self-knowledge` / https://docs.claude.com. **За замовчуванням — найновіша
 > доступна модель**; пінь конкретну старішу лише коли користувач явно її називає.
 
@@ -208,6 +208,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.5.2** (2026-10-16) — Вказівник на знімок моделей став не-старіючим (без зашитого «2026-07»): знімок оновлено до 2026-10 у `multi-provider-ai-orchestration`. Логіка скіла не змінена.
 - **v1.5.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.5.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.4.1** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): ліцензійний покажчик виправлено на корінь екосистеми (локального LICENSE.txt не існувало) [#25/#44]; H1-банер з версією [#21/#45-клас]. Лише метадані.

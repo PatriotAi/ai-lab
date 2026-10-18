@@ -1756,6 +1756,226 @@ mg_out=$(bash "$REPO/tests/mutation-git-substrate.sh" 2>&1); mg_rc=$?
   || bad "мутаційна перевірка секції 27" "усі мутанти спіймані" "$(grep -E 'ВИЖИВ|❌' <<<"$mg_out" | head -3 | tr '\n' ' ')"
 
 echo ""
+echo "════════ 28. Дата збірки Melania — похідна від вмісту (W-21) ════════"
+# Інцидент (рев'ю Codex до PR #90): resync перерахував 136→142 eval-кейсів, а BOOTSTRAP
+# далі казав іншим AI «повністю перевірено 2026-09-30, не перевіряй повторно» — про
+# кейси, доданих 2026-10-15. Двічі поспіль. Перевірки стоять на ЗЛАМАНИХ станах.
+dt_unit=$(python3 - "$TMPROOT" <<'PY'
+import sys, json, pathlib, shutil, tempfile
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import build_date_problems, stamp_build_date, restamp_doc_dates
+man = json.loads(pathlib.Path('melania-skills-ecosystem/MANIFEST.json').read_text(encoding='utf-8'))
+def fresh():  # копія навичок: мутації лише тут, робочі файли не чіпаються
+    d = pathlib.Path(tempfile.mkdtemp(dir=sys.argv[1])) / 'skills'
+    shutil.copytree('melania-skills-ecosystem/skills', d); return d
+def bump(path, tail='\nзмінено\n'):
+    path.write_text(path.read_text(encoding='utf-8') + tail, encoding='utf-8')
+out = [len(build_date_problems(man))]                       # чистий стан мовчить
+d = fresh(); bump(d / 'ai-core-runtime/references/token-efficiency.md')
+out.append(len(build_date_problems(man, d)))                # довідковий файл (друге рев'ю Codex)
+e = fresh(); bump(e / 'pre-delivery-gate/evals/evals.json', ' ')
+out.append(len(build_date_problems(man, e)))                # evals
+v = fresh(); sk = v / 'pre-delivery-gate/SKILL.md'
+sk.write_text(sk.read_text(encoding='utf-8').replace('version: 1.6.0', 'version: 9.9.9', 1), encoding='utf-8')
+out.append(len(build_date_problems(man, v)))                # версія у frontmatter
+s = fresh()                                                 # службове — не вміст
+(s / 'pre-delivery-gate/.snapshots/x.json').write_text('{}', encoding='utf-8')
+(s / 'pre-delivery-gate/scripts/__pycache__').mkdir(parents=True, exist_ok=True)
+(s / 'pre-delivery-gate/scripts/__pycache__/g.cpython-311.pyc').write_bytes(b'\0')
+(s / 'pre-delivery-gate/audit.jsonl').write_text('{}\n', encoding='utf-8')
+out.append(len(build_date_problems(man, s)))
+m1 = dict(man)
+out.append(stamp_build_date(m1, '2099-01-02', d))           # штамп ставиться…
+out.append(m1['built']); out.append(len(build_date_problems(m1, d)))
+out.append(stamp_build_date(m1, '2099-12-31', d))           # …і не повзе без зміни вмісту
+out.append(m1['built'])
+fx = ('<!-- Стан зафіксовано: 2026-09-30 -->\nперевірено 2026-09-30: ok\n'
+      '(версії актуальні на 2026-09-30)\nзбірка 2026-09-30 · MANIFEST верифіковано 2026-09-30\n'
+      'Дата збірки: 2026-09-30\nПеревірено 2026-09-30.\nЗбірка 2026-09-30\n'
+      '## 2026-01-01 — Запис журналу\nвиміряно 2026-10-09\n')
+r = restamp_doc_dates(fx, '2099-01-02')
+out.append(r.count('2099-01-02')); out.append(r.count('2026-01-01') + r.count('2026-10-09'))
+out.append(int('Перевірено 2099-01-02' in r))               # регістр першої літери збережено
+print(' '.join(map(str, out)))
+PY
+)
+read -r d_clean d_ref d_evals d_ver d_svc d_st1 d_b1 d_after d_st2 d_b2 d_new d_kept d_case <<<"$dt_unit"
+check "дата збірки: реальний пакет — без тривоги" "0" "$d_clean"
+check "дата збірки: змінений довідковий файл без нової дати — спіймано" "1" "$d_ref"
+check "дата збірки: змінені evals без нової дати — спіймано" "1" "$d_evals"
+check "дата збірки: змінена версія без нової дати — спіймано" "1" "$d_ver"
+check "дата збірки: службові файли (.snapshots, __pycache__, audit.jsonl) — без тривоги" "0" "$d_svc"
+check "дата збірки: зміна вмісту ставить нову дату" "True 2099-01-02 0" "$d_st1 $d_b1 $d_after"
+check "дата збірки: без зміни вмісту дата не повзе" "False 2099-01-02" "$d_st2 $d_b2"
+check "дата збірки: переписано всі 8 згадок (і з великої літери), чужі дати не зачеплено" "8 2 1" "$d_new $d_kept $d_case"
+
+# Наскрізно на копії пакета: старий узгоджений стан (2000-01-01) → resync.
+dt_copy() { # dt_copy <тека> <yes|no — додати eval-кейс>
+  local root="$TMPROOT/$1/melania-skills-ecosystem"; mkdir -p "$TMPROOT/$1"
+  cp -r "$REPO/melania-skills-ecosystem" "$root"
+  python3 - "$root" "$2" <<'PY'
+import sys, json, pathlib
+sys.path.insert(0, sys.argv[1] + '/scripts')
+from maintain import restamp_doc_dates
+root = pathlib.Path(sys.argv[1]); mp = root / 'MANIFEST.json'
+man = json.loads(mp.read_text(encoding='utf-8')); man['built'] = '2000-01-01'
+mp.write_text(json.dumps(man, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+for doc in ('MELANIA-BOOTSTRAP.md', 'README-FOR-HUMANS.md'):
+    p = root / doc; p.write_text(restamp_doc_dates(p.read_text(encoding='utf-8'), '2000-01-01'), encoding='utf-8')
+if sys.argv[2] == 'yes':
+    ep = root / 'skills/pre-delivery-gate/evals/evals.json'
+    ev = json.loads(ep.read_text(encoding='utf-8')); ev['evals'].append(dict(ev['evals'][0], id=999, name='canary'))
+    ep.write_text(json.dumps(ev, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    # Як робив старий resync (сам інцидент): хеш і лічильники оновлено, дату — ні.
+    from maintain import sha16, eval_count
+    meta = man['skills']['pre-delivery-gate']; n = eval_count(ep)
+    man['total_eval_cases'] += n - meta['eval_cases']
+    meta['eval_cases'], meta['sha256_16']['evals/evals.json'] = n, sha16(ep)
+    mp.write_text(json.dumps(man, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+PY
+}
+dt_copy dt_same no
+python3 "$TMPROOT/dt_same/melania-skills-ecosystem/scripts/maintain.py" resync >/dev/null 2>&1
+check "resync без зміни вмісту не чіпає дату (контроль)" "2000-01-01" \
+  "$(python3 -c "import json;print(json.load(open('$TMPROOT/dt_same/melania-skills-ecosystem/MANIFEST.json'))['built'])")"
+dt_copy dt_changed yes
+DTR="$TMPROOT/dt_changed/melania-skills-ecosystem"
+grep -q "змінено після дати збірки" <(python3 "$DTR/scripts/maintain.py" verify 2>&1) \
+  && ok "verify ловить інцидент: хеші й лічильники оновлено, дату — ні" \
+  || bad "verify ловить інцидент: хеші й лічильники оновлено, дату — ні" "«змінено після дати збірки»" "мовчить"
+python3 "$DTR/scripts/maintain.py" resync >/dev/null 2>&1
+DT_TODAY=$(python3 -c "from datetime import datetime,timezone;print(datetime.now(timezone.utc).date())")
+check "resync після зміни вмісту ставить сьогоднішню дату в MANIFEST" "$DT_TODAY" \
+  "$(python3 -c "import json;print(json.load(open('$DTR/MANIFEST.json'))['built'])")"
+check "resync переписує дати в BOOTSTRAP і README (старих не лишилось)" "0" \
+  "$(cat "$DTR/MELANIA-BOOTSTRAP.md" "$DTR/README-FOR-HUMANS.md" | grep -c '2000-01-01')"
+grep -q "змінено після дати збірки" <(python3 "$DTR/scripts/maintain.py" verify 2>&1) \
+  && bad "після resync verify про дату мовчить" "мовчить" "тривога лишилась" \
+  || ok "після resync verify про дату мовчить"
+# Друге рев'ю Codex: змінено лише довідковий файл (SKILL.md і evals ті самі).
+dt_copy dt_ref no; DTF="$TMPROOT/dt_ref/melania-skills-ecosystem"
+printf '\nзмінено\n' >> "$DTF/skills/ai-core-runtime/references/token-efficiency.md"
+python3 "$DTF/scripts/maintain.py" resync >/dev/null 2>&1
+check "resync ставить нову дату й після зміни лише довідкового файла" "$DT_TODAY" \
+  "$(python3 -c "import json;print(json.load(open('$DTF/MANIFEST.json'))['built'])")"
+# Фальсифікація з'єднання: verify зі старим кодом (без виклику гейта) інцидент пропускає.
+sed 's/^    problems += build_date_problems(man)$/    pass/' "$REPO/melania-skills-ecosystem/scripts/maintain.py" \
+  > "$TMPROOT/dt_changed_old.py"
+dt_copy dt_mut yes; cp "$TMPROOT/dt_changed_old.py" "$TMPROOT/dt_mut/melania-skills-ecosystem/scripts/maintain.py"
+grep -q "змінено після дати збірки" <(python3 "$TMPROOT/dt_mut/melania-skills-ecosystem/scripts/maintain.py" verify 2>&1) \
+  && bad "мутант «гейт не викликано» справді сліпий (контроль тесту)" "мовчить" "ловить" \
+  || ok "мутант «гейт не викликано» справді сліпий (контроль тесту)"
+
+echo ""
+echo "════════ 29. Свіжість знімка моделей (дослідження 2026-10-16) ════════"
+# Інцидент: знімок «клас → модель» 97 днів мовчки старів (без класу Sonnet і поколінь
+# 5.5 / GPT-6) — docs/reviews/2026-10-16-tools-harvest.md. Дата «сьогодні» передається
+# явно: тест не залежить від календаря (урок F-16).
+SA="$TMPROOT/snapages"; mkdir -p "$SA/old" "$SA/both" "$SA/nodate" "$SA/empty"
+printf '# Model Snapshot\n(знімок 2026-07-11)\n' > "$SA/old/model-snapshot-2026-07.md"
+cp "$SA/old/model-snapshot-2026-07.md" "$SA/both/"
+printf '# Model Snapshot\n**Знімок 2026-10-16.**\n' > "$SA/both/model-snapshot-2026-10.md"
+printf '# Model Snapshot без дати\n' > "$SA/nodate/model-snapshot-2026-01.md"
+sa_out=$(python3 - "$SA" <<'PY'
+import sys, pathlib
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import snapshot_age_warnings as w
+r = pathlib.Path(sys.argv[1])
+print(len(w('2026-10-16', r / 'old')), len(w('2026-07-20', r / 'old')),
+      len(w('2026-10-16', r / 'both')), len(w('2026-10-16', r / 'nodate')),
+      len(w('2026-10-16', r / 'empty')), len(w('2026-10-20')))
+PY
+)
+read -r sa_stale sa_fresh sa_newest sa_nodate sa_empty sa_real <<<"$sa_out"
+check "знімок старший за поріг — попередження (інцидент 97 днів)" "1" "$sa_stale"
+check "свіжий знімок — тиша" "0" "$sa_fresh"
+check "поточний — найновіший файл: старий поруч не дає тривоги" "0" "$sa_newest"
+check "без дати в тексті — береться місяць з імені файла" "1" "$sa_nodate"
+check "знімка немає — попередження, а не тиша" "1" "$sa_empty"
+check "реальний знімок репозиторію свіжий" "0" "$sa_real"
+python3 melania-skills-ecosystem/scripts/maintain.py snapshot-age >/dev/null 2>&1
+check "maintain.py snapshot-age не ламає старт сесії (exit 0)" "0" "$?"
+grep -q "snapshot_age_warnings(datetime" melania-skills-ecosystem/scripts/maintain.py \
+  && grep -q "maintain.py snapshot-age" automations/session-start/session-start.sh \
+  && ok "попередження підключене у verify і в SessionStart" \
+  || bad "попередження підключене у verify і в SessionStart" "обидва виклики" "бракує"
+
+echo ""
+echo "════════ 30. AGENTS.md — тонкий вказівник для інших агентів ════════"
+# Codex рецензує PR лабораторії (10 PR у docs/learnings.md), але CLAUDE.md не читає.
+# AGENTS.md дає йому інваріанти — і не має права розійтись із каноном: кожне посилання
+# «CLAUDE.md §N» веде на наявний пункт стандарту, кожен шлях у `…` існує.
+agents_check() { # agents_check <файл> → кількість битих посилань
+  python3 - "$1" <<'PY'
+import sys, re, pathlib
+t = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')
+canon = pathlib.Path('CLAUDE.md').read_text(encoding='utf-8')
+bad = [n for n in re.findall(r'`CLAUDE\.md` §(\d+)', t) if not re.search(rf'^{n}\. \*\*', canon, re.M)]
+paths = [p.split()[0] for p in re.findall(r'`([^`]+)`', t) if '/' in p]
+bad += [p for p in paths if not pathlib.Path(p).exists()]
+print(len(bad))
+PY
+}
+[[ -f AGENTS.md ]] && grep -q "Канон правил цього репозиторію — \`CLAUDE.md\`" AGENTS.md \
+  && ok "AGENTS.md є і називає канон — CLAUDE.md" || bad "AGENTS.md є і називає канон" "так" "ні"
+check "AGENTS.md: усі посилання на CLAUDE.md і шляхи ведуть на наявне" "0" "$(agents_check AGENTS.md)"
+sed -e 's/`CLAUDE.md` §10/`CLAUDE.md` §99/' -e 's#scripts/check-action-pinning.sh#scripts/nope.sh#' AGENTS.md > "$TMPROOT/AGENTS.broken.md"
+check "AGENTS.md: зламані посилання ловляться (канарка)" "2" "$(agents_check "$TMPROOT/AGENTS.broken.md")"
+check "AGENTS.md лишається тонким (≤ 40 рядків)" "1" "$(( $(wc -l < AGENTS.md) <= 40 ))"
+
+echo ""
+echo "════════ 31. Радар бачить статуси PR (W-20) ════════"
+# Інцидент: SessionStart щоразу показував гілки ЗАКРИТИХ PR #71 і #77 як паралельну
+# роботу (2 з 3 попереджень — шум). Статуси PR — з файла-фікстури: без мережі.
+cd "$TMPROOT/radar" || exit 1   # репо з секції 27: origin/claude/other чіпає core.py
+pj() { printf '%s' "$1" > "$TMPROOT/pulls.json"; echo "$TMPROOT/pulls.json"; }
+CL='[{"state":"closed","head":{"ref":"claude/other"}}]'
+out=$(python3 "$CMD" --quiet --branches --pulls-json "$(pj "$CL")" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" != *"origin/claude/other"* ]] && ok "радар: гілку лише з закритим PR сховано (інцидент W-20)" \
+  || bad "радар: гілку закритого PR сховано" "код 0, без origin/claude/other" "код $rc · ${out:0:160}"
+out=$(python3 "$CMD" --branches --pulls-json "$TMPROOT/pulls.json" 2>&1)
+[[ "$out" == *"приховано гілок, у яких лише закриті PR: 1"* ]] && ok "радар: приховане назване числом (порожньо ≠ відфільтровано мовчки)" \
+  || bad "радар: число прихованих" "приховано …: 1" "${out:0:200}"
+for case in '[{"state":"closed","head":{"ref":"claude/other"}},{"state":"open","head":{"ref":"claude/other"}}]|закритий і відкритий PR' \
+            '[{"state":"open","head":{"ref":"claude/other"}}]|відкритий PR' \
+            '[]|гілка без жодного PR' 'не json|битий файл статусів'; do
+  out=$(python3 "$CMD" --quiet --branches --pulls-json "$(pj "${case%%|*}")" 2>&1)
+  [[ "$out" == *"origin/claude/other"* ]] && ok "радар: гілку видно — ${case##*|}" \
+    || bad "радар: гілку видно — ${case##*|}" "origin/claude/other у звіті" "${out:0:160}"
+done
+out=$(python3 "$CMD" --quiet --branches --pulls-json "$TMPROOT/pulls.json" 2>&1)
+[[ "$out" == *"статуси PR недоступні"* ]] && ok "радар: битий файл статусів — fail-open і це назване" \
+  || bad "радар: fail-open назване" "статуси PR недоступні" "${out:0:160}"
+out=$(python3 "$CMD" --head origin/main --quiet --inflight --pulls-json "$(pj "$CL")" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" != *"origin/claude/other"* ]] && ok "радар --inflight: карта теж без гілок закритих PR" \
+  || bad "радар --inflight без закритих" "код 0, без origin/claude/other" "код $rc · ${out:0:160}"
+cd "$REPO" || exit 1
+grep -q -- "--inflight --pr-aware" automations/session-start/session-start.sh \
+  && ok "SessionStart вмикає --pr-aware" || bad "SessionStart вмикає --pr-aware" "--pr-aware" "немає"
+
+echo ""
+echo "════════ 32. Доказ [E] у теці з крапкою (W-17) ════════"
+# Інцидент: вираз шляху вимагав літеру на початку, а lstrip("./") зрізав крапку з назви
+# теки — наявний файл у `.github/…` гейт оголошував «доказу немає». Беремо незахищені
+# теки з крапкою, що точно є в репо, і контроль — неіснуючий файл у тій самій теці.
+ev_out=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, 'melania-skills-ecosystem/scripts')
+from maintain import claim_evidence_problems as c
+fx = lambda body: f"# t\n## Critical Facts\n- **[E] Факт.** доказ: {body}\n"
+cases = ['`.claude-plugin/marketplace.json`', '`.pre-commit-config.yaml`', '`./tests/run-tests.sh`',
+         '`.claude-plugin/nope.json`', '`nope/x.md`']
+print(' '.join(str(len(c('t', fx(x)))) for x in cases))
+PY
+)
+read -r ev_dir ev_file ev_dotslash ev_missdir ev_miss <<<"$ev_out"
+check "[E] з наявним файлом у теці з крапкою — приймається (інцидент W-17)" "0" "$ev_dir"
+check "[E] з наявним файлом, ім'я якого починається з крапки — приймається" "0" "$ev_file"
+check "[E] з префіксом ./ — приймається, як і раніше" "0" "$ev_dotslash"
+check "[E] з неіснуючим файлом у теці з крапкою — ловиться (контроль)" "1" "$ev_missdir"
+check "[E] з неіснуючим шляхом — ловиться, як і раніше" "1" "$ev_miss"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
