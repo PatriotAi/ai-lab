@@ -137,7 +137,9 @@ def main() -> int:
 
     try:
         policy = load_policy(ROOT)
-        verdict = classify(tool_name, tool_input, ROOT, policy)
+        # `cwd` — тека, з якої харнес виконує команду: відносний шлях у ній
+        # веде до іншого файла, ніж від кореня (рев'ю #91).
+        verdict = classify(tool_name, tool_input, ROOT, policy, cwd=payload.get("cwd"))
     except Exception as exc:           # noqa: BLE001 — поломка гейта ≠ дозвіл
         fallback = str(load_safe_behaviour())
         record({"tool": tool_name, "level": "?", "decision": fallback,
@@ -171,6 +173,15 @@ def main() -> int:
     self_mod = is_self_modification(target_path, policy)
 
     consent = active_consent(verdict.rule_id, verdict.scope)
+    # Правило вимагає цілі, а її не визначено (W-12): таку дію не відкриває
+    # жоден рядок. Інакше рядок БЕЗ цілі — саме той, від якого `require_target`
+    # захищає, — збігався б із порожньою ціллю і відкривав дію цілком.
+    if verdict.require_target and not verdict.scope:
+        consent = None
+    # Складена команда з кількома незворотними діями (рев'ю #91): рядок на
+    # одну з них відкривав би й решту, тож таку команду не відкриває жоден.
+    if verdict.combined:
+        consent = None
     if action == "deny" and consent:
         record({"tool": tool_name, "level": verdict.level, "rule": verdict.rule_id,
                 "scope": verdict.scope,
@@ -190,6 +201,9 @@ def main() -> int:
         "level": verdict.level,
         "rule": verdict.rule_id,
         "decision": action,
+        "scope": verdict.scope[:300],
+        "require_target": verdict.require_target,
+        "combined": verdict.combined,
         "target": target_path[:300],
         "reason": verdict.reason,
         "notes": verdict.notes,

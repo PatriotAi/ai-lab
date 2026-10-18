@@ -37,21 +37,37 @@ TARGET = "security/spine/classify.py"
 MUTATIONS: list[tuple[str, str, str, str]] = [
     (
         "правило шляхів вимкнено",
-        "            if raw_path and _match_path(pattern, rel_target, raw_path):",
-        "            if False and _match_path(pattern, rel_target, raw_path):",
+        # Ціль оновлено 2026-10-16: шляхи інструмента тепер збираються по всіх
+        # правилах одразу (`tool_hits`), включно з масивом `files`.
+        "            if any(_match_path(p, rel, raw) for p in rule.get(\"match_paths\", [])):",
+        "            if False:",
         "захищені шляхи (.env, workflows, settings) перестають бути R4",
     ),
     (
+        "запис оболонкою в захищений шлях не перевіряється",
+        "                bash_hits += [(idx, t, \"write\") for t in _hits(write_tokens, pattern, root, bases)]",
+        "                pass",
+        "`cat > .github/workflows/x.yml` знову проходить як звичайна команда",
+    ),
+    (
         "правило команд вимкнено",
-        "            if command and needle.lower() in exec_part.lower():",
-        "            if False and needle.lower() in exec_part.lower():",
+        "            if any(needle.lower() in seg and not any(exc in seg for exc in exceptions)",
+        "            if False and any(needle.lower() in seg and not any(exc in seg for exc in exceptions)",
         "push --force, rm -rf, --no-verify перестають бути R4",
     ),
     (
         "виняток поглинає все",
-        "        if command and any(exc in exec_part.lower() for exc in exceptions):",
-        "        if command:",
-        "будь-яка команда обходить усі правила через гілку винятків",
+        # Ціль оновлено 2026-10-18: виняток тепер перевіряється в кожній частині
+        # ланцюжка окремо (рев'ю #91).
+        "and not any(exc in seg for exc in exceptions)",
+        "and not True",
+        "кожна частина ланцюжка вважається винятком — правила-підрядки мовчать",
+    ),
+    (
+        "виняток діє на весь ланцюжок (поведінка до рев'ю #91)",
+        "                   for seg in segments):",
+        "                   for seg in [exec_part.lower()]):",
+        "`--force-with-lease` в одній команді прикриває `--force` у сусідній",
     ),
     (
         "симлінк не розрізається",
@@ -61,7 +77,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "виконувана частина = порожньо",
-        "    stripped = _QUOTED.sub(\" \", _HEREDOC.sub(r\"\\1\", command))",
+        "    stripped = _drop_data_quotes(_HEREDOC.sub(r\"\\1\", command))",
         "    stripped = \"\"",
         "жодна команда не збігається з правилами — усе стає R2",
     ),
@@ -73,7 +89,8 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "MCP: незворотне стає читанням",
-        "        if any(v in low for v in mcp.get(\"irreversible_verbs\", [])):",
+        # Ціль оновлено 2026-10-16: дієслово шукається і в назві, і в `method`.
+        "        if by_name or by_method:",
         "        if False:",
         "злиття PR, деплой, видалення проходять без питань",
     ),
@@ -95,18 +112,175 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         # (перенесення рядка — теж роздільник ланцюжка). Мутант цілить у
         # перевірку ланцюжка всередині `is_pure_read`: без неї читальний
         # префікс знову ховає дію, що йде другим рядком.
-        "    if any(op in stripped for op in CHAIN_OPS):",
-        "    if False:",
+        # Ціль оновлено вдруге 2026-10-16: перевірка ланцюжка тепер іде по
+        # кожній ланці конвеєра (W-18 б).
+        "        if not link or any(op in link for op in CHAIN_OPS):",
+        "        if not link:",
         "читальний префікс знову ховає дію в ланцюжку",
+    ),
+    # ── Хвиля 2026-10-16/17: справжня дія і справжня ціль ───────────────────
+    (
+        "ланка конвеєра не перевіряється на читальний префікс",
+        "        if not any(link == pref or link.startswith(pref + \" \") for pref in prefixes):",
+        "        if False:",
+        "будь-яка команда стає «чистим читанням» і пропускає правила-підрядки",
+    ),
+    (
+        "детектор `gh api` вимкнено",
+        "        if command and rule.get(\"match_gh_api_write\"):",
+        "        if False:",
+        "злиття PR і зміна публічності через `gh api` знову R2 (F-20)",
+    ),
+    (
+        "`method` MCP не читається",
+        "    method = str(tool_input.get(\"method\") or \"\").strip().lower()",
+        "    method = \"\"",
+        "незворотна дія в аргументі `method` знову R2 (F-20)",
+    ),
+    (
+        "дефіс у назві MCP не нормалізовано",
+        "    norm = text.lower().replace(\"-\", \"_\")",
+        "    norm = text.lower()",
+        "`notion-delete-pages` знову R2 (F-20)",
+    ),
+    (
+        "масив `files` ігнорується",
+        "    for item in tool_input.get(\"files\") or []:",
+        "    for item in []:",
+        "воркфлоу через `push_files` знову R2",
+    ),
+    (
+        "читання оболонкою не перевіряється",
+        "                if rule.get(\"on_read\"):",
+        "                if False:",
+        "`cat .env` знову R0 (F-21)",
+    ),
+    (
+        "`on_read` ігнорується для інструментів читання",
+        "        if read_tool and not rule.get(\"on_read\"):",
+        "        if read_tool:",
+        "`Read .env` і MCP-читання секрету знову проходять",
+    ),
+    (
+        "абсолютний шлях не зводиться до відносного",
+        "            out.append((_rel(root, norm), form))",
+        "            out.append((norm, form))",
+        "запис оболонкою за абсолютним шляхом знову R2",
+    ),
+    (
+        "друк назви файла вважається читанням",
+        "        if cmd in _PRINTERS:",
+        "        if False:",
+        "`echo '….env'` дає R4 — хибна тривога на згадку",
+    ),
+    (
+        "візерунок пошуку вважається файлом",
+        "            if positional == 1 and not from_flags:",
+        "            if False:",
+        "`grep '.env' docs/` дає R4 — хибна тривога на згадку",
+    ),
+    # ── Рев'ю #91 (2026-10-18): кожне виправлення має свого мисливця ────────
+    (
+        "фоновий `&` не рахується",
+        "    if \"&\" in stripped:",
+        "    if False:",
+        "`cat README.md & git push --force …` знову R0",
+    ),
+    (
+        "підстановка в подвійних лапках вважається даними",
+        "        return s if s.startswith('\"') and (\"$(\" in s or \"`\" in s) else \" \"",
+        "        return \" \"",
+        "`ls \"$(git push --force …)\"` знову R0",
+    ),
+    (
+        "підстановки не розбираються як команди",
+        "    for segment in [body] + _substitutions(body):",
+        "    for segment in [body]:",
+        "`echo \"$(cat .env)\"` знову не читання",
+    ),
+    (
+        "`gh` упізнається лише як голе слово",
+        "            if cmd in _PRINTERS or os.path.basename(tok) != \"gh\" or \\",
+        "            if cmd in _PRINTERS or tok != \"gh\" or \\",
+        "`/повний/шлях/gh api -X PUT …` знову R2",
+    ),
+    (
+        "кластер коротких прапорців `gh api` не розбирається",
+        "        elif re.match(r\"^-[A-Za-z]{2,}\", tok):          # кластер: `-iX PUT`, `-XPUT`",
+        "        elif False:",
+        "`gh api -iX PUT …` знову читання",
+    ),
+    (
+        "тіло heredoc в оболонку не розбирається для `gh api`",
+        "        texts += [line for chunk in _heredoc_bodies(command) for line in chunk.splitlines()]",
+        "        pass",
+        "`bash <<EOF … gh api -X PUT … EOF` знову R2",
+    ),
+    (
+        "прихований GraphQL-запит вважається читанням",
+        "                 or _query_hidden(text))",
+        "                 or False)",
+        "`gh api graphql -f query=\"$Q\"` знову R2",
+    ),
+    (
+        "`cd` не враховується",
+        "        bases += [cur, d if os.path.isabs(d) else os.path.normpath(os.path.join(base, d))]",
+        "        pass",
+        "`cd .claude && echo x > settings.json` знову R2",
+    ),
+    (
+        "`#` посеред слова знову коментар",
+        "        lex.commenters = \"\"                     # коментарі вже вирізано за правилами bash",
+        "        pass",
+        "`cat x# .env` знову R0",
+    ),
+    (
+        "обгортка `_…_` на назвах інструментів",
+        "    if bare:",
+        "    if True:",
+        "`get_latest_release` знову R4 і заблоковано назавжди",
+    ),
+    (
+        "`glob` інструмента пошуку не перевіряється",
+        "    for piece in re.split(r\"[{},\\s]+\", str(tool_input.get(\"glob\") or \"\")):",
+        "    for piece in []:",
+        "`Grep glob=.env` знову R0",
+    ),
+    (
+        "`поле=@файл` не розбирається",
+        "    if \"=@\" in token:",
+        "    if False:",
+        "`gh api -F q=@.env` знову не читання секрету",
+    ),
+    (
+        "фільтр файлів (`-g`, `--include`) не перевіряється",
+        "            if tok in _FILE_FILTER_FLAGS:",
+        "            if False:",
+        "`rg -g .env KEY` знову R0",
+    ),
+    (
+        "прикріплений візерунок не враховується",
+        "            if tok.startswith(\"--regexp=\") or short == \"-e\":",
+        "            if False:",
+        "`grep -eKEY .env` знову R0",
+    ),
+    (
+        "here-string вважається файлом",
+        "        if tok == \"<<<\":                        # here-string: далі РЯДОК, а не файл",
+        "        if False:",
+        "`grep KEY <<< .env` дає R4 — хибна тривога",
     ),
 ]
 
 # Перевірки, якими полюємо на мутантів. Кожна має відпрацювати в пісочниці
 # без жодного файлу лабораторії, крім скопійованих.
+# Порядок — від найшвидшого: `hunt()` зупиняється на першому, хто спіймав, тож
+# дешеві приклади йдуть першими, а дорогий property-тест — для тих, хто вижив
+# (37 мутантів зі старим порядком — понад 2 хвилини, 2026-10-18).
 HUNTERS = [
-    ("property-classify.py", ["--cases", "60"]),
     ("probe-classify.py", []),
     ("probe-mcp-and-quotes.py", []),
+    ("property-classify.py", ["--cases", "60"]),
 ]
 
 

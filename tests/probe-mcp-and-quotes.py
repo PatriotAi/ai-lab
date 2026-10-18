@@ -39,6 +39,44 @@ CASES: list[tuple[str, dict, str, str]] = [
     # Правило шляхів має бути СУВОРІШЕ за клас MCP.
     (M + "github__create_or_update_file",
      {"path": ".github/" + "workflows/x.yml"}, "R4", "шлях воркфлоу переважає"),
+    # F-20: дія схована в аргументі `method` або в назві через дефіс.
+    (M + "github__actions_run_trigger",
+     {"owner": "o", "repo": "r", "method": "delete_workflow_run_logs", "run_id": 1},
+     "R4", "незворотне дієслово в аргументі method"),
+    (M + "github__actions_run_trigger",
+     {"owner": "o", "repo": "r", "method": "run_workflow", "workflow_id": "ci.yml"},
+     "R2", "невідоме дієслово в method — не R4"),
+    (M + "github__pull_request_read",
+     {"owner": "o", "repo": "r", "method": "get_diff", "pullNumber": 1},
+     "R0", "читання з method лишається читанням"),
+    (M + "Notion__notion-delete-pages", {"page_ids": ["x"]}, "R4", "назва через дефіс"),
+    # W-18: читання через MCP не підпадає під захист від ЗАПИСУ…
+    (M + "github__get_file_contents",
+     {"owner": "o", "repo": "r", "path": ".github/" + "workflows/x.yml"},
+     "R0", "читання воркфлоу через MCP"),
+    # …але секрет захищений і від читання (F-21).
+    (M + "github__get_file_contents", {"owner": "o", "repo": "r", "path": "." + "env"},
+     "R4", "читання секрету через MCP"),
+    # Шляхи в масиві `files` (`push_files`) — теж цілі запису (2026-10-17).
+    (M + "github__push_files",
+     {"owner": "o", "repo": "r", "branch": "b", "message": "m",
+      "files": [{"path": "docs/a.md", "content": "x"},
+                {"path": ".github/" + "workflows/x.yml", "content": "x"}]},
+     "R4", "воркфлоу в масиві files"),
+    (M + "github__push_files",
+     {"owner": "o", "repo": "r", "branch": "b", "message": "m",
+      "files": [{"path": "docs/a.md", "content": "x"}]},
+     "R2", "звичайні файли в масиві files — не R4"),
+    # Рев'ю #91: дієслово в КІНЦІ назви — не дія (регресія обгортки `_…_`).
+    (M + "github__get_latest_release", {}, "R0", "читання з `release` наприкінці"),
+    (M + "Vercel__get_rolling_release", {}, "R0", "читання з `release` наприкінці"),
+    (M + "Notion__notion-create-view", {}, "R2", "`view` наприкінці — не читання"),
+    (M + "Vercel__rerequest_check", {}, "R2", "`check` наприкінці — не читання"),
+    (M + "github__sub_issue_write", {"method": "remove"}, "R4", "голе дієслово в method"),
+    # Рев'ю #91: фільтр файлів у Grep, що прямо називає секрет.
+    ("Grep", {"pattern": "KEY", "glob": "." + "env", "output_mode": "content"},
+     "R4", "glob називає секрет"),
+    ("Grep", {"pattern": "KEY", "glob": "*.py"}, "R0", "звичайний glob"),
 
     # ── P2: згадка в лапках — це дані, не дія ───────────────────────────────
     # R0, а не просто «не R4»: прибравши дані з лапок, лишається чисте

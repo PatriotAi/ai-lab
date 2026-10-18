@@ -122,15 +122,16 @@ security/
 ├── fixtures/                 # ЗАМОРОЖЕНІ зразки для канарок (F-4)
 │   └── crossref-drift.SKILL.md
 ├── tests/
-│   └── test-standalone.sh    # доказ переносимості: 18 перевірок поза ai-lab
+│   └── test-standalone.sh    # доказ переносимості: 21 перевірка поза ai-lab
 ├── audit/                    # журнал рішень (поза git — .gitignore)
 └── trivy.yaml                # (було раніше)
 
 tests/                        # рівні доказовості — від прикладів до інваріантів
-├── probe-classify.py         #   приклади: 19 випадків
-├── probe-mcp-and-quotes.py   #   приклади: 27 випадків (MCP + точність збігу)
-├── property-classify.py      #   S5.1 ІНВАРІАНТИ на згенерованих входах
-├── mutation-classify.py      #   S5.2 гейт для гейта: 10 мутантів
+├── probe-classify.py         #   приклади: 85 випадків
+├── probe-mcp-and-quotes.py   #   приклади: 43 випадки (MCP + точність збігу)
+├── probe-consent-scope.py    #   згода й ціль (F-17, W-12, F-24): 30 випадків, 13 мутантів
+├── property-classify.py      #   S5.1 ІНВАРІАНТИ на згенерованих входах (9 + симлінк)
+├── mutation-classify.py      #   S5.2 гейт для гейта: 37 мутантів
 ├── fuzz-scan-input.py        #   S5.3 фазинг розбору недовіреного тексту
 └── mobile-agent-browser.mjs  #   E2E: 29 перевірок у справжньому Chromium
 ```
