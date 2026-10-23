@@ -61,6 +61,14 @@ bash_prefixes = [
 "git diff" = ["--output"]
 "git log" = ["--output"]
 "git show" = ["--output"]
+# Той самий клас за рев'ю #94 (згода власника 2026-10-20): `find -fprintf <файл>`
+# пише будь-що в будь-який файл, `rg --pre bash` виконує кожен знайдений файл,
+# `git remote -v remove origin` справді видаляє remote. Слова без дефіса —
+# підкоманди, що звіряються дослівно.
+"find" = ["-fprint", "-fprint0", "-fprintf", "-fls"]
+"rg" = ["--pre"]
+"git remote -v" = ["add", "remove", "rm", "rename", "set-url", "set-head",
+                   "set-branches", "prune", "update"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # РІВЕНЬ R1 — локальний запис у межах репозиторію.

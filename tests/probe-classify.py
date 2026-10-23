@@ -27,6 +27,7 @@ MERGE_TOOL = "merge_pull" + "_request"
 PUSHF = "git " + "push --for" + "ce origin main"    # незворотна дія для «текст як код»
 PYW = f"open('{WF}','w').write('x')"                # запис у захищене з інлайн-коду
 DEL = "--" + "delete"
+MERGE_WORD = "mer" + "ge"                           # «gh pr merge» без підрядка в стенді
 
 CASES: list[tuple[str, str, str]] = [
     # Запис у захищене — має ловитись, навіть через оболонку.
@@ -211,6 +212,107 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "git push origin :", "R2"),              # «push matching», не видалення
     ("Bash", f"git push --dry-run origin {DEL} x", "R2"),
     ("Bash", f'echo "git push origin {DEL} x"', "R0"),
+    # ── Рев'ю #94 (2026-10-19): кожен випадок, що має ловитись, падав на голові
+    # PR `23df722`; позначені «регресія» на `1be990d` ловились (широкими підрядками).
+    # Виміряно окремим процесом зі старим кодом: 42 з 49 падають, решта 7 — сторожі
+    # від хибних тривог нового розбору.
+    # №1 (регресія): процес-підстановка — вміст `<(…)` теж команда.
+    ("Bash", f'cat <(bash -c "{PUSHF}")', "R4"),
+    ("Bash", f'echo >(bash -c "{PUSHF}")', "R4"),
+    ("Bash", f"cat <(git push origin {DEL} feature)", "R4"),
+    # №2 (регресія): злипла пунктуація — роздільник і перенаправлення окремо.
+    ("Bash", f'echo hi;>/dev/null bash -c "{PUSHF}"', "R4"),
+    ("Bash", f'echo "{PUSHF}" |>/dev/null bash', "R4"),
+    # №3 (регресія): виконавці поза переліком — за явними ознаками коду.
+    ("Bash", f'pwsh -c "{PUSHF}"', "R4"),
+    ("Bash", f'xonsh -c "{PUSHF}"', "R4"),
+    ("Bash", f'rbash -c "{PUSHF}"', "R4"),
+    ("Bash", f'ts-node -e "execSync(\'{PUSHF}\')"', "R4"),
+    ("Bash", f'ipython -c "import os; os.system(\'{PUSHF}\')"', "R4"),
+    ("Bash", f"tclsh <<'EOF'\nexec {PUSHF}\nEOF", "R4"),
+    ("Bash", f'python3 -m timeit "import os; os.system(\'{PUSHF}\')"', "R4"),
+    # №4 (регресія): `find -okdir` — теж виконання.
+    ("Bash", f'find . -okdir sh -c "{PUSHF}" \\;', "R4"),
+    # №13 (регресія): назва виконавця як АРГУМЕНТ — не робить лапки кодом.
+    ("Bash", f'npm install node && git commit -m "docs: mention gh pr {MERGE_WORD} flow"', "R2"),
+    ("Bash", f'git commit -m "x gh pr {MERGE_WORD}" -- sh', "R2"),
+    ("Bash", f'apt-get install -y python3 && echo "gh pr {MERGE_WORD}"', "R2"),
+    # Схожа на оболонку назва в позиції команди без явних ознак коду — не виконавець.
+    ("Bash", f'hash -r && git commit -m "x {PUSHF}"', "R2"),
+    # Виконавець з ЯВНИМ кодом як аргумент команди-читання — друк, не виконання;
+    # у конвеєр в оболонку — вже виконання.
+    ("Bash", f'echo bash -c "{PUSHF}"', "R0"),
+    ("Bash", f'grep -rn -e python3 -c "{PYW}" .', "R0"),
+    ("Bash", f'echo bash -c "{PUSHF}" | sh', "R4"),
+    # №5: прапорці запису/виконання інших читальних префіксів (згода власника 2026-10-20).
+    ("Bash", f"find . -maxdepth 0 -fprintf {ST} x", "R4"),
+    ("Bash", "rg --pre bash x scripts/", "R2"),
+    ("Bash", "git remote -v remove origin", "R2"),
+    ("Bash", "git remote -v rm origin", "R2"),
+    ("Bash", "git remote -v", "R0"),
+    # №6: текст в оболонку через `echo`/`printf` — код, і видалення гілки в ньому теж.
+    ("Bash", f'echo "git push origin {DEL} feature" |bash', "R4"),
+    ("Bash", f'echo "git push origin {DEL} feature" | sudo bash', "R4"),
+    ("Bash", "printf 'git push origin :feature' | zsh", "R4"),
+    # №7: прапорець у лапках і скорочений довгий прапорець — той самий прапорець.
+    ("Bash", 'git branch "-D" feature', "R2"),
+    ("Bash", "git branch '-D' feature", "R2"),
+    ("Bash", "git branch --del feature", "R2"),
+    ("Bash", "git branch --forc main HEAD~5", "R2"),
+    ("Bash", "git branch --mov old new", "R2"),
+    ("Bash", "git branch --contains HEAD", "R0"),       # повний прапорець читання — не скорочення
+    # №8: ціль `--output` — під правилами шляхів.
+    ("Bash", f"git diff --output={ST}", "R4"),
+    ("Bash", f"git diff '--output={ST}'", "R4"),
+    # №9: heredoc БЕЗ лапок розгортає `$(…)`; у лапках — літерал.
+    ("Bash", f"cat <<EOF\n$(cat {ENV})\nEOF", "R4"),
+    ("Bash", f"cat <<EOF\n$({PUSHF})\nEOF", "R4"),
+    ("Bash", f"cat <<'EOF'\n$({PUSHF})\nEOF", "R0"),
+    # №10 і F-29 (давнє, з `main`): перенесення рядка, подвійний пробіл, табуляція.
+    ("Bash", f"git push \\\n  origin {DEL} feature", "R4"),
+    ("Bash", f'bash -lc "git push \\\n origin {DEL} feature"', "R4"),
+    ("Bash", "git push \\\n --for" + "ce origin main", "R4"),
+    ("Bash", "git push  --for" + "ce origin main", "R4"),
+    ("Bash", "git push\t--for" + "ce origin main", "R4"),
+    # №11: аргументи СПИСКОМ у коді інтерпретатора.
+    ("Bash", f"python3 -c \"import subprocess; subprocess.run(['git','push','origin','{DEL}','feature'])\"", "R4"),
+    ("Bash", f"node -e \"require('child_process').execFileSync('git', ['push','origin','{DEL}','x'])\"", "R4"),
+    ("Bash", "python3 -c \"import subprocess; subprocess.run(['git','push','--for" + "ce','origin','main'])\"", "R4"),
+    # №12: сухий прогін — за ОСТАННІМ прапорцем; `-o` бере решту кластера.
+    ("Bash", f"git push --dry-run --no-dry-run origin {DEL} feature", "R4"),
+    ("Bash", f"git push -ocontinue {DEL} origin feature", "R4"),
+    # ── Рев'ю 2026-10-23 (code-review high на діфі поверх `23df722`). Виміряно на
+    # коді до виправлення: 15 з 18 падають, решта 3 — сторожі (`--pr`, підоболонка,
+    # код у лапках `bash -c "git diff --output=…"`).
+    # №1 (регресія рев'ю #94): виконавець, якому конвеєр подає текст, — за
+    # обгорткою поза переліком `_WRAPPERS`.
+    ("Bash", f'echo "{PUSHF}" | strace bash', "R4"),
+    ("Bash", f'echo "{PUSHF}" | sudo --user root bash', "R4"),
+    ("Bash", f'echo "{PUSHF}" | env --unset X bash', "R4"),
+    # Підоболонка після конвеєра: позицію команди дає пропуск провідного
+    # перенаправлення (без нього вижив мутант, бо `|` тепер виводить stdin сам).
+    ("Bash", f'echo "{PUSHF}" | ( >/dev/null bash )', "R4"),
+    # №2 (давнє): `\⏎` оболонка видаляє — і посеред слова теж.
+    ("Bash", "git push --for\\\nce origin main", "R4"),
+    # №3 (давнє): у тілі heredoc без лапок `'` — символ, `$(…)` у ньому виконується.
+    ("Bash", f"cat <<EOF\n'$(cat {ENV})'\nEOF", "R4"),
+    # №4: однозначні скорочення прапорців видалення; неоднозначне — не видалення.
+    ("Bash", "git push origin --del feature", "R4"),
+    ("Bash", "git push --pru origin", "R4"),
+    ("Bash", "git push origin --mirr", "R4"),
+    ("Bash", "git push --pr origin main", "R2"),        # `--progress` чи `--prune`: git відмовить
+    # №5, №6 (регресія): ціль прапорця-файла — лише у СВОЄЇ команди.
+    ("Bash", f"ls -fls {ST}", "R0"),
+    ("Bash", f'echo "--output={WF}"', "R0"),
+    ("Bash", f'grep -rn -- "--output {WF}" docs', "R0"),
+    ("Bash", f"git log --out={WF}", "R4"),
+    ("Bash", f'bash -c "git diff --output={ST}"', "R4"),
+    # №8 (регресія): `echo` без конвеєра лише друкує, навіть якщо далі є код.
+    ("Bash", f'echo "git push origin {DEL} x"; python3 -c "pass"', "R2"),
+    # №9 (регресія): тіло heredoc-літерала — дані й для прапорців запису.
+    ("Bash", "cat <<'EOF'\ngit branch -D x\nEOF", "R0"),
+    # №10 (давнє): `command -v` лише шукає шлях, нічого не запускає.
+    ("Bash", f'command -v bash && git commit -m "x {PUSHF}"', "R2"),
 ]
 
 
