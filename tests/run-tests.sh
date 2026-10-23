@@ -455,6 +455,36 @@ rev_out=$($REV "$TMPROOT/rev-canary" 2>&1); rev_rc=$?
   && ok "costly, рішення з власником і проза — не знахідки" \
   || bad "немає хибних тривог у незворотності" "лише один випадок" "${rev_out:0:140}"
 
+# ── Заморозка пре-реєстрації (Фаза 13, Ф0.7) ──
+# Пороги гіпотез фіксуються комітом ДО даних. Без перевірки «заморожено» — лише слово:
+# поріг можна тихо підігнати під результат. Канарки — на справжньому git-репо, бо
+# перевірка звіряє тіло з комітом заморозки.
+PRF="python3 $REPO/scripts/check-prereg-freeze.py"
+$PRF "$REPO" >/dev/null 2>&1 \
+  && ok "заморожені пре-реєстрації в репо не змінено" \
+  || bad "пре-реєстрації не змінено після заморозки" "код 0" "$($PRF "$REPO" 2>&1 | head -2)"
+PRF_T="$TMPROOT/prereg-canary"; mkdir -p "$PRF_T/experiments/x"
+printf '%s\n' '# П' '' '**SHA:** —' '' '## H1' '- поріг 10%' '' '## Журнал відхилень' '| — |' \
+  > "$PRF_T/experiments/x/preregistration.md"
+( cd "$PRF_T" && git init -q && git -c user.email=t@t -c user.name=t add -A \
+  && git -c user.email=t@t -c user.name=t commit -qm freeze )
+prf_sha=$(git -C "$PRF_T" rev-parse --short HEAD)
+sed -i "s/\*\*SHA:\*\* —/**SHA:** $prf_sha/" "$PRF_T/experiments/x/preregistration.md"
+echo '| 2026-10-24 | поріг | причина | [C] |' >> "$PRF_T/experiments/x/preregistration.md"
+$PRF "$PRF_T" >/dev/null 2>&1 \
+  && ok "канарка: рядок у журналі відхилень після заморозки — не знахідка" \
+  || bad "канарка: журнал відхилень" "код 0" "$($PRF "$PRF_T" 2>&1 | head -2)"
+sed -i 's/поріг 10%/поріг 20%/' "$PRF_T/experiments/x/preregistration.md"
+prf_out=$($PRF "$PRF_T" 2>&1); prf_rc=$?
+[[ "$prf_rc" == "1" && "$prf_out" == *"поріг 20%"* ]] \
+  && ok "канарка: поріг, змінений після заморозки, спіймано" \
+  || bad "канарка: зміна порогу" "код 1 + рядок" "rc=$prf_rc ${prf_out:0:80}"
+sed -i "s/\*\*SHA:\*\* $prf_sha/**SHA:** deadbeef/" "$PRF_T/experiments/x/preregistration.md"
+$PRF "$PRF_T" >/dev/null 2>&1; prf_rc=$?
+[[ "$prf_rc" == "2" ]] \
+  && ok "канарка: неіснуючий коміт заморозки — код 2, а не «чисто»" \
+  || bad "канарка: коміт заморозки не знайдено" "код 2" "rc=$prf_rc"
+
 # ── Реєстр «розбитих вікон» (хвиля 5) ──
 # Борг фіксувався прозою й 🟡-статусами — чесно, але не як гейт: ніщо не
 # заважало віддати роботу з відкритим боргом. Реєстр робить борг перелічуваним,
