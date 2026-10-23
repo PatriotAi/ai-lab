@@ -2020,6 +2020,163 @@ check "[E] з неіснуючим файлом у теці з крапкою �
 check "[E] з неіснуючим шляхом — ловиться, як і раніше" "1" "$ev_miss"
 
 echo ""
+echo "════════ 33. Скіли акаунта не старші за канон (2026-10-18) ════════"
+# Інцидент: 28 із 28 змонтованих скілів melania були старші за MANIFEST — і цього не
+# бачила жодна перевірка. Перелік інцидентів, а не число: старша копія мовчала · версія
+# лише у вкладеному metadata.version давала хибний нуль · версія лише в H1 пропускалась ·
+# скіл без версії рахувався свіжим.
+AS="$TMPROOT/acctskills"; mkdir -p "$AS"
+printf '{"skills": {"alpha": {"version": "1.5.0"}, "beta": {"version": "2.0.0"}, "delta": {"version": "1.5.0-alpha.10"}}}\n' > "$AS/MANIFEST.json"
+printf '{"skills": ["alpha"]}\n' > "$AS/bad-manifest.json"
+printf '{"skills": {"alpha": {"version": "not-a-version"}, "beta": {"version": "2.0.0"}}}\n' > "$AS/badver-manifest.json"
+acct_mk() { mkdir -p "$AS/$1/u/$2"; printf '%s\n' "$3" > "$AS/$1/u/$2/SKILL.md"; }
+acct_run() { ACCOUNT_SKILLS_GLOB="$AS/$1/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/MANIFEST.json" 2>&1; }
+acct_mk older   alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+acct_mk equal   alpha $'---\nname: alpha\nversion: 1.5.0\n---\n# Alpha'
+acct_mk nested  alpha $'---\nname: alpha\nmetadata:\n  version: 1.1.0\n---\n# Alpha'
+acct_mk h1only  beta  $'---\nname: beta\n---\n# Beta — v1.9.0 — опис'
+acct_mk nover   alpha $'---\nname: alpha\n---\n# Alpha без версії'
+acct_mk outside gamma $'---\nname: gamma\nversion: 0.1.0\n---\n# Gamma'
+# Рев'ю Codex (PR #93): розкладка claude.ai (/mnt/skills/user/<назва>/), prerelease,
+# невалідний UTF-8 в одному файлі.
+mkdir -p "$AS/flat/alpha" && printf -- '---\nname: alpha\nversion: 1.1.0\n---\n' > "$AS/flat/alpha/SKILL.md"
+acct_mk pre     alpha $'---\nname: alpha\nversion: 1.5.0-alpha.1\n---\n# Alpha'
+acct_mk badutf  beta  $'---\nname: beta\nversion: 1.9.0\n---\n# Beta'
+mkdir -p "$AS/badutf/u/alpha" && printf -- '---\nname: alpha\n\xff\xfe\n---\n' > "$AS/badutf/u/alpha/SKILL.md"
+# Друге рев'ю: рівна копія не ховає застарілу · повний порядок prerelease · інша структура маніфесту.
+acct_mk dup     alpha $'---\nname: alpha\nversion: 1.5.0\n---\n# Alpha'
+mkdir -p "$AS/dup/v/alpha" && printf -- '---\nname: alpha\nversion: 1.1.0\n---\n' > "$AS/dup/v/alpha/SKILL.md"
+acct_mk pre2    delta $'---\nname: delta\nversion: 1.5.0-alpha.2\n---\n# Delta'
+# Третє рев'ю: версія канону не за SemVer.
+acct_mk badver  alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+acct_mk badver  beta  $'---\nname: beta\nversion: 1.9.0\n---\n# Beta'
+# Власне рев'ю (Codex вичерпав ліміт): коментар у блоці коду й пізніший заголовок — не версія ·
+# версія залежності — не версія скіла · копія без версії не ховає застарілу · 1.5 = 1.5.0 · BOM.
+acct_mk fence   beta  $'---\nname: beta\n---\n```bash\n# needs node v9.0.0\n```\n# Beta'
+acct_mk h1first beta  $'---\nname: beta\n---\n# Beta\n\n# Примітки v9.0.0'
+acct_mk depver  alpha $'---\nname: alpha\ndependencies:\n  foo:\n    version: 0.1.0\nmetadata:\n  version: 1.5.0\n---\n# Alpha'
+acct_mk mixed   alpha $'---\nname: alpha\nversion: 1.1.0\n---\n# Alpha'
+mkdir -p "$AS/mixed/v/alpha" && printf -- '---\nname: alpha\n---\n# Alpha\n' > "$AS/mixed/v/alpha/SKILL.md"
+acct_mk short   alpha $'---\nname: alpha\nversion: "1.5"\n---\n# Alpha'
+mkdir -p "$AS/bom/u/alpha" && printf '\xef\xbb\xbf---\nname: alpha\nmetadata:\n  version: 1.1.0\n---\n# Alpha\n' > "$AS/bom/u/alpha/SKILL.md"
+a_older=$(acct_run older); a_nested=$(acct_run nested); a_h1=$(acct_run h1only); a_nover=$(acct_run nover)
+[[ "$a_older" == *"1 із 1 старші за канон (alpha 1.1.0 → 1.5.0)"* ]] \
+  && ok "старша копія — рядок із числом і прикладом" \
+  || bad "старша копія — рядок із числом і прикладом" "1 із 1 … alpha 1.1.0 → 1.5.0" "$a_older"
+check "рівна канону — тиша" "" "$(acct_run equal)"
+check "монтування нема — тиша" "" "$(acct_run absent)"
+[[ "$a_nested" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "версія лише у вкладеному metadata.version — спіймано (інцидент хибного нуля)" \
+  || bad "версія лише у вкладеному metadata.version — спіймано" "alpha 1.1.0 → 1.5.0" "$a_nested"
+[[ "$a_h1" == *"beta 1.9.0 → 2.0.0"* ]] \
+  && ok "версія лише в H1 — спіймано" || bad "версія лише в H1 — спіймано" "beta 1.9.0 → 2.0.0" "$a_h1"
+[[ "$a_nover" == *"версію не знайдено: alpha"* ]] \
+  && ok "версії нема — названо, а не сховано" || bad "версії нема — названо" "версію не знайдено: alpha" "$a_nover"
+check "скіл поза MANIFEST — ігнор" "" "$(acct_run outside)"
+a_flat=$(ACCOUNT_SKILLS_GLOB="$AS/nowhere/*/*/SKILL.md:$AS/flat/*/SKILL.md" \
+  python3 scripts/check-account-skills.py --manifest "$AS/MANIFEST.json" 2>&1)
+[[ "$a_flat" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "розкладка claude.ai (/mnt/skills/user/<назва>/) у переліку глобів — спіймано" \
+  || bad "розкладка claude.ai — спіймано" "alpha 1.1.0 → 1.5.0" "$a_flat"
+grep -q "/mnt/skills/user/\*/SKILL.md" scripts/check-account-skills.py \
+  && ok "типові глоби покривають обидві розкладки монтування" \
+  || bad "типові глоби покривають обидві розкладки" "/mnt/skills/user/*/SKILL.md" "немає"
+a_pre=$(acct_run pre)
+[[ "$a_pre" == *"alpha 1.5.0-alpha.1 → 1.5.0"* ]] \
+  && ok "prerelease-копія старша за реліз — спіймано" \
+  || bad "prerelease-копія старша за реліз" "alpha 1.5.0-alpha.1 → 1.5.0" "$a_pre"
+a_bad=$(acct_run badutf); a_bad_rc=$?
+[[ $a_bad_rc -eq 0 && "$a_bad" == *"beta 1.9.0 → 2.0.0"* ]] \
+  && ok "невалідний UTF-8 в одному файлі не обриває обхід (exit 0, решту знайдено)" \
+  || bad "невалідний UTF-8 не обриває обхід" "exit 0 і beta 1.9.0 → 2.0.0" "exit $a_bad_rc: $a_bad"
+a_dup=$(acct_run dup)
+[[ "$a_dup" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "рівна канону копія не ховає застарілу копію того самого скіла" \
+  || bad "рівна копія не ховає застарілу" "alpha 1.1.0 → 1.5.0" "$a_dup"
+a_pre2=$(acct_run pre2)
+[[ "$a_pre2" == *"delta 1.5.0-alpha.2 → 1.5.0-alpha.10"* ]] \
+  && ok "prerelease порівнюється за SemVer поштучно (alpha.2 < alpha.10)" \
+  || bad "повний порядок prerelease" "delta 1.5.0-alpha.2 → 1.5.0-alpha.10" "$a_pre2"
+a_badm=$(ACCOUNT_SKILLS_GLOB="$AS/older/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/bad-manifest.json" 2>&1); a_badm_rc=$?
+check "маніфест іншої структури — тиша й exit 0, а не збій" "0:" "$a_badm_rc:$a_badm"
+a_badv=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 scripts/check-account-skills.py --manifest "$AS/badver-manifest.json" 2>&1); a_badv_rc=$?
+[[ "$a_badv_rc" == 0 && "$a_badv" == *"1 із 1 старші за канон (beta 1.9.0 → 2.0.0)"* ]] \
+  && ok "версія канону не за SemVer — скіл пропущено, решта перевірена, exit 0" \
+  || bad "версія канону не за SemVer — пропуск, exit 0" "0: 1 із 1 … beta 1.9.0 → 2.0.0" "$a_badv_rc: $a_badv"
+a_fence=$(acct_run fence); a_h1f=$(acct_run h1first); a_mixed=$(acct_run mixed); a_bom=$(acct_run bom)
+[[ "$a_fence" == *"версію не знайдено: beta"* ]] \
+  && ok "коментар «# … v9.0.0» у блоці коду — не версія" || bad "блок коду — не версія" "версію не знайдено: beta" "$a_fence"
+[[ "$a_h1f" == *"версію не знайдено: beta"* ]] \
+  && ok "версія — лише з першого заголовка, не з пізнішого" || bad "лише перший заголовок" "версію не знайдено: beta" "$a_h1f"
+check "версія залежності у frontmatter — не версія скіла (тиша)" "" "$(acct_run depver)"
+[[ "$a_mixed" == *"alpha 1.1.0 → 1.5.0"* && "$a_mixed" == *"версію не знайдено: alpha"* ]] \
+  && ok "копія без версії не ховає застарілу сусідню" \
+  || bad "копія без версії не ховає застарілу" "alpha 1.1.0 → 1.5.0 + версію не знайдено: alpha" "$a_mixed"
+check "1.5 дорівнює 1.5.0 (тиша)" "" "$(acct_run short)"
+[[ "$a_bom" == *"alpha 1.1.0 → 1.5.0"* ]] \
+  && ok "SKILL.md із BOM не губить frontmatter" || bad "BOM не губить frontmatter" "alpha 1.1.0 → 1.5.0" "$a_bom"
+# Запобіжник класу «код 0»: без точкового захисту непередбачена помилка названа, а код — 0.
+sed 's/ or not re.fullmatch(SEMVER, canon\[name\])//' scripts/check-account-skills.py > "$AS/noguard.py"
+a_grd=$(ACCOUNT_SKILLS_GLOB="$AS/badver/*/*/SKILL.md" python3 "$AS/noguard.py" --manifest "$AS/badver-manifest.json" 2>&1); a_grd_rc=$?
+[[ "$a_grd_rc" == 0 && "$a_grd" == *"перевірку не виконано (ValueError"* ]] \
+  && ok "непередбачена помилка — рядок «перевірку не виконано» і exit 0" \
+  || bad "непередбачена помилка — названо, exit 0" "0: перевірку не виконано (ValueError…" "$a_grd_rc: $a_grd"
+grep -q "scripts/check-account-skills.py" automations/session-start/session-start.sh \
+  && ok "SessionStart справді викликає детектор" \
+  || bad "SessionStart справді викликає детектор" "виклик у session-start.sh" "немає"
+# Самоперевірка канарок (Core Rule 15): кожна поломка детектора мусить бути спіймана.
+acct_mut=$(python3 - "$AS" <<'PY'
+import os, pathlib, subprocess, sys
+d = pathlib.Path(sys.argv[1])
+src = pathlib.Path('scripts/check-account-skills.py').read_text(encoding='utf-8')
+mutants = [("for rx in (VERSION_TOP, VERSION_META):", "for rx in (VERSION_TOP,):"), ("h1 = H1.search(body)", "h1 = None"),
+           ('VERSION_TOP = re.compile(r"^version:', 'VERSION_TOP = re.compile(r"^\\s*version:'),
+           ('body = FENCE.sub("", body)', "pass"), ("H1_VERSION.search(h1.group(0))", "H1_VERSION.search(body)"),
+           ("unknown.append(name)", "pass"), ("unknown.append(name)", "unknown.append(name); continue"),
+           ("key(oldest) < key(canon[name])", "False"), ("while len(nums) > 1 and nums[-1] == 0:", "while False:"),
+           ('encoding="utf-8-sig"', 'encoding="utf-8"'),
+           ('errors="replace"', 'errors="strict"'), ("oldest = min(known, key=key, default=None)", "oldest = (known or [None])[0]"),
+           ('tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in pre.split("."))', "()"),
+           ("return nums, 1, ()", "return nums, 0, ()"),
+           ("except (OSError, ValueError, AttributeError, TypeError):", "except (OSError, ValueError):"),
+           (" or not re.fullmatch(SEMVER, canon[name])", "")]
+want = {"older": "1.1.0 → 1.5.0", "nested": "1.1.0 → 1.5.0", "h1only": "1.9.0 → 2.0.0",
+        "nover": "версію не знайдено", "pre": "1.5.0-alpha.1 → 1.5.0", "badutf": "1.9.0 → 2.0.0",
+        "dup": "1.1.0 → 1.5.0", "pre2": "1.5.0-alpha.2 → 1.5.0-alpha.10",
+        "fence": "версію не знайдено: beta", "h1first": "версію не знайдено: beta",
+        "mixed": "1.1.0 → 1.5.0", "bom": "1.1.0 → 1.5.0"}
+quiet = ["equal", "depver", "short"]
+survived = 0
+for old, new in mutants:
+    assert old in src, old
+    (d / "mut.py").write_text(src.replace(old, new, 1), encoding="utf-8")
+    ok = all(w in subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "MANIFEST.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / case / "*" / "*" / "SKILL.md"))).stdout
+        for case, w in want.items())
+    r = subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "bad-manifest.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "older" / "*" / "*" / "SKILL.md")))
+    ok = ok and r.returncode == 0 and r.stdout == ""
+    ok = ok and "beta 1.9.0 → 2.0.0" in subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "badver-manifest.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / "badver" / "*" / "*" / "SKILL.md"))).stdout
+    ok = ok and all(subprocess.run(
+        [sys.executable, str(d / "mut.py"), "--manifest", str(d / "MANIFEST.json")],
+        capture_output=True, text=True,
+        env=dict(os.environ, ACCOUNT_SKILLS_GLOB=str(d / case / "*" / "*" / "SKILL.md"))).stdout == ""
+        for case in quiet)
+    survived += ok
+print(f"{len(mutants)} {survived}")
+PY
+)
+read -r am_total am_survived <<<"$acct_mut"
+check "канарки ловлять кожну з ${am_total:-?} поломок детектора (вижило)" "0" "${am_survived:-?}"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then

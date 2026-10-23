@@ -72,6 +72,16 @@ build_digest() {
     fi
   fi
 
+  # Скіли акаунта, старші за канон: дрейф «28 із 28» (2026-10-17) жив лише в уважності
+  # агента. Рядок — лише коли є що сказати (дрейф або «перевірку не виконано»);
+  # монтування нема чи все рівне канону — тиша.
+  if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-account-skills.py ]; then
+    acct="$(python3 scripts/check-account-skills.py 2>/dev/null || true)"
+    if [ -n "${acct:-}" ]; then
+      printf '%s\n\n' "$acct"
+    fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi
