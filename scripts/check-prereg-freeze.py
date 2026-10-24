@@ -17,12 +17,14 @@
 в історії: підставити SHA пізнішого коміту, де тіло вже змінене, — це перезаморозка без
 журналу відхилень (друге рев'ю Codex до PR #96). І файл не може тихо зникнути: заморожена
 пре-реєстрація, якої вже немає на своєму шляху (видалена чи перейменована), — знахідка
-(третє рев'ю Codex до PR #96).
+(третє рев'ю Codex до PR #96). В обрізаному (shallow) клоні історії замало, щоб це довести:
+файл, видалений до межі завантаженої історії, просто не видно. Тоді перевірка не виконується
+(код 2, «НЕ ГАНЯЛОСЬ»), а не звітує «чисто» (шосте рев'ю Codex до PR #96).
 
 Запуск:
     python3 scripts/check-prereg-freeze.py [корінь]
 Код виходу: 0 — чисто · 1 — тіло змінено після заморозки або заморозку знято ·
-2 — коміт заморозки не знайдено.
+2 — перевірити неможливо (коміт заморозки не знайдено або клон обрізаний).
 """
 from __future__ import annotations
 
@@ -79,6 +81,12 @@ def main(argv: list[str]) -> int:
     root = Path(argv[1]) if len(argv) > 1 else Path(__file__).resolve().parents[1]
     if not root.is_dir():
         print(f"check-prereg-freeze: немає такої теки: {root}", file=sys.stderr)
+        return 2
+    shallow = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=root,
+                             capture_output=True, text=True).stdout.strip()
+    if shallow == "true":
+        print("⊘ НЕ ГАНЯЛОСЬ: клон обрізаний (shallow) — історії замало, щоб довести, що "
+              "заморожені пре-реєстрації не змінені й не зникли; потрібен git fetch --unshallow")
         return 2
     changed: list[str] = []
     missing: list[str] = []
