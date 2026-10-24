@@ -394,6 +394,73 @@ try {
   await page.evaluate(() => { delete document.visibilityState; });
   await reset();
 
+  // ── 2026-10-23: HTTP 200 ≠ відповідь. Модель може відмовити (stop_reason "refusal") або
+  // впертися в ліміт (stop_reason "max_tokens"); обидва приходять як 200 OK. Контур мусить
+  // назвати це прямо, а не «провайдери недоступні», і не видавати обрізаний текст за повний.
+  // Форма запиту звірена з довідкою Claude API (кеш 2026-10-06): thinking рахується в
+  // max_tokens, тож 800 токенів для моделі з adaptive thinking — ризик порожньої відповіді.
+  const reply200 = (body) => (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  await page.unroute("**/api.anthropic.com/**");
+  let sent = null;
+  await page.route("**/api.anthropic.com/**", (route) => {
+    sent = { headers: route.request().headers(), body: JSON.parse(route.request().postData() || "{}") };
+    return reply200({ content: [{ type: "thinking", thinking: "" }, { type: "text", text: "відповідь після блоку thinking" }],
+      stop_reason: "end_turn" })(route);
+  });
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "звичайне запитання");
+  await page.click("#send");
+  await until("звичайна відповідь дійшла", () => document.querySelectorAll(".note").length === 1);
+  check("запит: модель за замовчуванням — поточне покоління середнього класу", "claude-sonnet-5-5", sent.body.model);
+  check("запит: версія API 2026-10-21", "2026-10-21", sent.headers["anthropic-version"]);
+  check("запит: effort явно low (чат; модель пропускає thinking на простих запитах)", "low", sent.body.output_config?.effort);
+  truthy("запит: max_tokens має запас під thinking (≥ 4096), а не 800", sent.body.max_tokens >= 4096, `≥ 4096; фактично ${sent.body.max_tokens}`);
+  truthy("запит: без temperature/top_p/top_k (на 2026-10-21 вони дають 400)",
+    !["temperature", "top_p", "top_k"].some((k) => k in sent.body), `без них; фактично ключі ${JSON.stringify(Object.keys(sent.body))}`);
+  truthy("відповідь читається за типом блоку: порожній thinking попереду не ховає текст",
+    (await page.textContent(".note .a")).includes("відповідь після блоку thinking"));
+
+  await page.unroute("**/api.anthropic.com/**");
+  let refusalCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { refusalCalls++;
+    return reply200({ content: [], stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber" } })(route); });
+  await reset(`s.apiKey = "k";`);
+  // Вхід навмисно БЕЗ кореня «відмов»: офлайн-нотатка повторює вхід, і перший варіант цього
+  // тесту («запит, на який модель відмовить») проходив на зламаному коді (2026-10-23).
+  await page.fill("#input", "запит про щось заборонене");
+  await page.click("#send");
+  await until("відмова моделі доходить до людини", () => document.querySelectorAll(".note").length === 1);
+  const refusalNote = await page.textContent(".note .a");
+  check("відмова: рівно один виклик — без повторів і без обходу через інших провайдерів", 1, refusalCalls);
+  truthy("відмова: людині прямо сказано, що модель відмовилась", /відмов/i.test(refusalNote), `містить «відмов»; фактично: ${refusalNote.slice(0, 90)}`);
+  truthy("відмова: НЕ видається за «провайдери недоступні»", !refusalNote.includes("Провайдери недоступні"), `без «Провайдери недоступні»; фактично: ${refusalNote.slice(0, 90)}`);
+
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", reply200({
+    content: [{ type: "text", text: "Початок відповіді, що обірвалась" }], stop_reason: "max_tokens" }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "запит із довгою відповіддю");
+  await page.click("#send");
+  await until("обрізана відповідь дійшла", () => document.querySelectorAll(".note").length === 1);
+  const cutNote = await page.textContent(".note .a");
+  truthy("обрізана відповідь: текст збережено", cutNote.includes("Початок відповіді"), `містить текст; фактично: ${cutNote.slice(0, 90)}`);
+  truthy("обрізана відповідь: прямо позначено, що її обрізано лімітом", /обрізан/i.test(cutNote), `містить «обрізан»; фактично: ${cutNote.slice(0, 90)}`);
+
+  // Збережені налаштування перекривали б новий DEFAULT: хто колись відкрив налаштування,
+  // назавжди лишився б на старому ID. Мігрує лише старий ТИПОВИЙ ID, а не вибір людини.
+  await page.evaluate(() => localStorage.setItem("pocket-agent.settings.v1", JSON.stringify({ model: "claude-sonnet-5" })));
+  await page.reload({ waitUntil: "networkidle" });
+  check("налаштування: старий типовий ID мігрує на поточний", "claude-sonnet-5-5",
+    await page.evaluate(() => window.PocketAgent.state.settings.model));
+  await page.evaluate(() => localStorage.setItem("pocket-agent.settings.v1", JSON.stringify({ model: "claude-opus-5-5" })));
+  await page.reload({ waitUntil: "networkidle" });
+  check("налаштування: власний вибір людини не чіпаємо", "claude-opus-5-5",
+    await page.evaluate(() => window.PocketAgent.state.settings.model));
+  await page.evaluate(() => localStorage.removeItem("pocket-agent.settings.v1"));
+  await page.reload({ waitUntil: "networkidle" });
+  await page.unroute("**/api.anthropic.com/**");
+  await reset();
+
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: join(SHOTS, "pixel7-offline.png"), fullPage: false });
   ok("знімок екрана збережено (dist/screenshots/pixel7-offline.png)");

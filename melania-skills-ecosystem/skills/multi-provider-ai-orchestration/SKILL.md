@@ -3,14 +3,14 @@ name: multi-provider-ai-orchestration
 description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
 license: MIT
 metadata:
-  version: 1.7.4
+  version: 1.7.5
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-10-16
+  last_updated: 2026-10-23
 ---
 
-# Multi-Provider AI Orchestration — v1.7.4
+# Multi-Provider AI Orchestration — v1.7.5
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -31,6 +31,7 @@ metadata:
 - **[C] Провайдери у ланцюгу впорядковані за tier: менше число = вищий пріоритет.** Дефолтний порядок класів вузлів — платні якісні (tier 0) → безкоштовні швидкі (tier 1-3) → custom (tier 5) → браузерний WebLLM (tier 9) → локальні (tier 10-12); task-routing може це перевизначити.
 - **[C] Rate-limit детектується за підрядком у тексті помилки.** Failover-логіка (Pattern 2) розпізнає вичерпання ліміту за наявністю в повідомленні про помилку одного з рядків «429», «rate», «quota» або «limit».
 - **[E] `Retry-After` у браузері читається лише якщо провайдер розкриває його через `Access-Control-Expose-Headers`.** Без цього `fetch(...).headers.get("retry-after")` повертає `null`, і «`Retry-After` має пріоритет» лишається мертвим кодом — контур мусить працювати на експоненті. Доведено прямо: `tests/mobile-agent-browser.mjs`, Chromium, 2026-09-29 (з розкритим заголовком пауза 30 с, без нього <3 с). Чи розкривають його конкретні провайдери — не перевірено.
+- **[E] Відмова моделі приходить як HTTP 200 і без окремої обробки видається за збій провайдера.** Відповідь `200` з `stop_reason: "refusal"` і порожнім `content` контур без перевірки статусу класифікує як фатальний збій («провайдери недоступні»); з перевіркою — рівно один виклик і пряме «модель відмовилась». Доказ: `tests/mobile-agent-browser.mjs` (блок «HTTP 200 ≠ відповідь», 2026-10-23; на коді v0.2.0 перевірки падали).
 - **[C] Деякі провайдери приймають Anthropic-формат запитів напряму.** Достатньо змінити `base_url` і ключ у наявному Anthropic-клієнті — такі воркери стають drop-in замінюваними в ланцюгу без окремого адаптера.
 
 ---
@@ -142,6 +143,13 @@ task = reschedule(task, backoff(task.attempts, f.retryAfterMs));  // затри�
 те саме) · `switchProvider` (цьому вузлу повтор не допоможе) · `fatal` (зламаний
 наш запит, не допоможе ніде). 401/403 — не retryable, але switchProvider:
 чужий ключ в одного провайдера не означає збою в іншого.
+
+**Четверта річ — HTTP 200, що не є відповіддю.** Транспорт успішний, а модель сказала
+«не відповім» (`stop_reason: "refusal"`, OpenAI — `finish_reason: "content_filter"`) або
+«не вмістилось» (`"max_tokens"` / `"length"`). Читати статус ДО тексту: відмова — окремий вид,
+без повторів і без перекидання відхиленого запиту іншим провайдерам (людина бачить причину);
+обрізання — текст із позначкою «обрізано», а не мовчки як повна відповідь. Моделі з
+адаптивним thinking рахують його в `max_tokens`, тож малий ліміт дає саме цей випадок.
 
 **Референсна реалізація:** [E] `projects/mobile-agent/src/core.js` (чиста логіка)
 + `tests/mobile-agent-tests.mjs` §11–16 · перевірено мутаційним скриптом
@@ -294,6 +302,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.7.5** (2026-10-23) — Pattern 2b, класифікація збою: **четверта річ — HTTP 200, що не є відповіддю.** Відмова моделі (`stop_reason: "refusal"` / `finish_reason: "content_filter"`) і обрізання лімітом (`"max_tokens"` / `"length"`) приходять як успіх; відмова — не повторювати й не перекидати іншим провайдерам, обрізання — показувати з позначкою. Критичний факт [E] із доказом `tests/mobile-agent-browser.mjs` (на коді до зміни відмова показувалась як «провайдери недоступні»). Знайдено звіркою `projects/mobile-agent` з власним знімком 2026-10. Лише додавання.
 - **v1.7.4** (2026-10-16) — Вказівник на знімок моделей став не-старіючим: «поточний — найновіший файл» замість зашитого `model-snapshot-2026-07.md`. Сам знімок замінено на `model-snapshot-2026-10.md` (покоління Claude 5.5, GPT-6, Grok 4.7, Kimi K3; з'явився середній клас Sonnet; рейтинги AA Cyber Index і AA-3D) — дослідження `docs/reviews/2026-10-16-tools-harvest.md`, рішення власника. Логіка скіла не змінена.
 - **v1.7.3** (2026-09-30) — Pattern 2b: сніпет обходу ланцюга переписано під реальну чисту функцію `planDispatch` (`run`/`wait`/`exhausted`; попередній `pick(chain,…)` описував API, якого більше нема — дубль диспетчера видалено з коду). Твердження про мутаційний прогін замінено відтворюваним: скрипт `tests/mutation-mobile-agent.py` (21 мутант: 16 у ядрі + 5 у браузері; кожен мусить бути спійманий саме тією перевіркою, заради якої придуманий — інакше «спіймано» може бути випадковим збоєм). Попереднє «7/7» від 2026-09-28 скрипта не мало й відтворити його не можна. Додано eval-кейс 5 (`resilient-contour-outage`). Версію піднято до 1.7.3, бо 1.7.2 у `main` уже зайнята зміною ліцензії на MIT. Лише додавання і уточнення.
 - **v1.7.2** (2026-09-30) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й Pattern 2b незмінні.
