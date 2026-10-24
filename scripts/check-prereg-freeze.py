@@ -15,7 +15,9 @@
 заморозки, а не чернетка: інакше достатньо стерти SHA, щоб правки порогів пройшли мовчки
 (рев'ю Codex до PR #96). Так само SHA мусить лишатися ПЕРВІСНИМ — тим, що вперше записаний
 в історії: підставити SHA пізнішого коміту, де тіло вже змінене, — це перезаморозка без
-журналу відхилень (друге рев'ю Codex до PR #96).
+журналу відхилень (друге рев'ю Codex до PR #96). І файл не може тихо зникнути: заморожена
+пре-реєстрація, якої вже немає на своєму шляху (видалена чи перейменована), — знахідка
+(третє рев'ю Codex до PR #96).
 
 Запуск:
     python3 scripts/check-prereg-freeze.py [корінь]
@@ -65,6 +67,14 @@ def resolve(root: Path, sha: str) -> str:
     return run.stdout.strip() or sha
 
 
+def historical_paths(root: Path) -> set[str]:
+    """Усі шляхи `experiments/**/preregistration.md`, що будь-коли були в історії git."""
+    log = subprocess.run(["git", "log", "--format=", "--name-only", "--",
+                          ":(glob)experiments/**/preregistration.md"],
+                         cwd=root, capture_output=True, text=True)
+    return {ln.strip() for ln in log.stdout.splitlines() if ln.strip()}
+
+
 def main(argv: list[str]) -> int:
     root = Path(argv[1]) if len(argv) > 1 else Path(__file__).resolve().parents[1]
     if not root.is_dir():
@@ -96,6 +106,13 @@ def main(argv: list[str]) -> int:
                         min(len(now), len(then)))
             line = (now[diff] if diff < len(now) else "(рядок видалено)")[:90]
             changed.append(f"{rel}: тіло змінено після заморозки {m.group(1)} — «{line}»")
+    for rel in sorted(historical_paths(root)):
+        if (root / rel).is_file():
+            continue
+        first = original_freeze(root, rel)
+        if first:
+            changed.append(f"{rel}: заморожену пре-реєстрацію (заморозка {first}) "
+                           f"видалено або перейменовано")
     for f in missing:
         print(f"  ✗ {f}")
     for f in changed:
