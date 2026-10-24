@@ -10,11 +10,15 @@
 Шапка (статус, рядок заморозки) і сам журнал відхилень змінюватися можуть: туди й
 записуються свідомі відхилення з причиною.
 
-Не заморожено (`**SHA:** —`) — чернетка, перевіряти нічого.
+Не заморожено (`**SHA:** —`) — чернетка, перевіряти нічого. Але якщо в історії git
+файл УЖЕ мав коміт заморозки, а зараз рядка SHA немає чи він пошкоджений — це зняття
+заморозки, а не чернетка: інакше достатньо стерти SHA, щоб правки порогів пройшли мовчки
+(рев'ю Codex до PR #96).
 
 Запуск:
     python3 scripts/check-prereg-freeze.py [корінь]
-Код виходу: 0 — чисто · 1 — тіло змінено після заморозки · 2 — коміт заморозки не знайдено.
+Код виходу: 0 — чисто · 1 — тіло змінено після заморозки або заморозку знято ·
+2 — коміт заморозки не знайдено.
 """
 from __future__ import annotations
 
@@ -41,6 +45,17 @@ def frozen_text(root: Path, sha: str, rel: str) -> str | None:
     return run.stdout if run.returncode == 0 else None
 
 
+def was_frozen(root: Path, rel: str) -> str | None:
+    """Коміт, у якому файл уже мав рядок заморозки, якщо такий був в історії."""
+    log = subprocess.run(["git", "log", "--format=%H", "--", rel], cwd=root,
+                         capture_output=True, text=True)
+    for sha in log.stdout.split():
+        old = frozen_text(root, sha, rel)
+        if old and SHA.search(old):
+            return sha[:7]
+    return None
+
+
 def main(argv: list[str]) -> int:
     root = Path(argv[1]) if len(argv) > 1 else Path(__file__).resolve().parents[1]
     if not root.is_dir():
@@ -51,9 +66,13 @@ def main(argv: list[str]) -> int:
     for path in sorted((root / "experiments").rglob("preregistration.md")):
         text = path.read_text(encoding="utf-8", errors="replace")
         m = SHA.search(text)
-        if not m:
-            continue
         rel = path.relative_to(root).as_posix()
+        if not m:
+            seen = was_frozen(root, rel)
+            if seen:
+                changed.append(f"{rel}: заморозку знято — рядок SHA відсутній чи пошкоджений, "
+                               f"а коміт {seen} уже мав його")
+            continue
         old = frozen_text(root, m.group(1), rel)
         if old is None:
             missing.append(f"{rel}: коміт заморозки {m.group(1)} не знайдено")
