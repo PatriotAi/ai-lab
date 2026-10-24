@@ -174,7 +174,7 @@ function main() {
   writeFileSync(DIST_FILE, html);
   writeFileSync(SW_FILE, sw);
   const versionJson = JSON.stringify(
-    { version, notes: "Резервний контур: черга завдань, повтори з паузою, запасний провайдер, сповіщення.", updated: "2026-07-24" },
+    { version, notes: "Поточне покоління моделі; відмова й обрізання відповіді показуються прямо; запас під thinking.", updated: "2026-10-24" },
     null,
     2,
   ) + "\n";

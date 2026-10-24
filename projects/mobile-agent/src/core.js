@@ -6,13 +6,24 @@
 // Правило: усе, що можна перевірити без браузера, живе ТУТ.
 // Усе, що потребує DOM/мережі/WebGPU — в app.html і перевіряється браузерним прогоном.
 
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.3.0";
 
 // Ідентифікатор моделі — це КОНФІГ застосунку, а не правило лабораторії
 // (закон не-старіння: назви моделей не живуть у правилах). Змінюється в налаштуваннях.
-export const DEFAULT_CLOUD_MODEL = "claude-sonnet-5";
+export const DEFAULT_CLOUD_MODEL = "claude-sonnet-5-5";
+// Колишні ТИПОВІ значення. Збережені налаштування перекривають DEFAULT, тож без міграції
+// кожен, хто колись відкрив налаштування, назавжди лишився б на старому ID. Мігрує лише
+// точний збіг зі старим типовим — власний вибір людини не чіпаємо.
+export const PREVIOUS_DEFAULT_MODELS = ["claude-sonnet-5"];
 export const NOTES_KEY = "pocket-agent.notes.v1";
 export const SECRET_KEY = "pocket-agent.secret.v1";
+
+/** Збережені налаштування → актуальні: замінює лише колишній типовий ID моделі. */
+export function migrateSettings(saved) {
+  const out = { ...(saved && typeof saved === "object" ? saved : {}) };
+  if (PREVIOUS_DEFAULT_MODELS.includes(out.model)) out.model = DEFAULT_CLOUD_MODEL;
+  return out;
+}
 
 // ── Версії / авто-оновлення ────────────────────────────────────────────────
 /** Чи candidate новіший за current (X.Y.Z; нечислові хвости ігноруються). */
@@ -234,10 +245,26 @@ export function rankLocalModels(models, estVramMB) {
 
 // ── Хмарний запит (побудова, БЕЗ виконання) ────────────────────────────────
 /**
+ * Чи приймає модель Claude параметр effort. Відомо, що приймають покоління 4.6 і новіші;
+ * Sonnet 4.5 / Haiku 4.5 і давніші відповідають 400. Невідома форма ID → не надсилаємо
+ * (безпечно: запит без effort працює на будь-якій моделі). Довідка Claude API, кеш 2026-10-06.
+ */
+export function supportsEffort(model) {
+  const m = /^claude-[a-z]+-(\d+)(?:-(\d{1,2}))?(?:-|$)/.exec(String(model ?? ""));
+  if (!m) return false;
+  const major = Number(m[1]), minor = Number(m[2] ?? 0);
+  return major > 4 || (major === 4 && minor >= 6);
+}
+
+/** Межа відповіді Anthropic: thinking рахується в max_tokens, тож запас потрібен під обидва. */
+export const ANTHROPIC_MAX_TOKENS = 16000;
+
+/**
  * Формує {url, headers, body} для хмарного провайдера. Ключ іде ЛИШЕ в заголовку,
  * ніколи в URL (URL потрапляє в логи/історію).
  * @param {{provider:"anthropic"|"openai", apiKey:string, model?:string,
- *          messages:Array<{role:string,content:string}>, system?:string, maxTokens?:number}} o
+ *          messages:Array<{role:string,content:string}>, system?:string, maxTokens?:number, effort?:string}} o
+ *   maxTokens — для OpenAI-сумісних; Anthropic отримує запас ANTHROPIC_MAX_TOKENS під thinking.
  */
 export function buildCloudRequest(o = {}) {
   const provider = o.provider || "anthropic";
@@ -248,16 +275,21 @@ export function buildCloudRequest(o = {}) {
   const maxTokens = o.maxTokens || 1024;
 
   if (provider === "anthropic") {
+    const body = { model, max_tokens: Math.max(maxTokens, ANTHROPIC_MAX_TOKENS), system: o.system || undefined, messages };
+    // effort low — рекомендований старт для чату: на простих запитах модель пропускає thinking,
+    // тож відповідь швидша й дешевша. Моделі без effort отримали б 400 — їм не надсилаємо.
+    if (supportsEffort(model)) body.output_config = { effort: o.effort || "low" };
     return {
       url: "https://api.anthropic.com/v1/messages",
       headers: {
         "content-type": "application/json",
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        // 2026-10-21: temperature/top_p/top_k дають 400, тому їх тут нема й не має з'явитися.
+        "anthropic-version": "2026-10-21",
         // Без цього заголовка браузерний виклик Anthropic API блокується CORS.
         "anthropic-dangerous-direct-browser-access": "true",
       },
-      body: { model, max_tokens: maxTokens, system: o.system || undefined, messages },
+      body,
     };
   }
   // OpenAI-сумісний (у т.ч. локальні шлюзи й більшість провайдерів)
@@ -270,6 +302,26 @@ export function buildCloudRequest(o = {}) {
       messages: o.system ? [{ role: "system", content: o.system }, ...messages] : messages,
     },
   };
+}
+
+/**
+ * HTTP 200 ще не означає відповідь. Модель може відмовити (Anthropic: stop_reason "refusal",
+ * OpenAI: finish_reason "content_filter" чи поле message.refusal) або впертися в ліміт
+ * ("max_tokens" / "length").
+ * Повертає {refusal: null|{category}, truncated: bool}. Зіпсовані дані → «усе гаразд»:
+ * порожній текст однаково зловить перевірка на порожню відповідь.
+ */
+export function cloudReplyStatus(provider, data) {
+  if (!data || typeof data !== "object") return { refusal: null, truncated: false };
+  if (provider === "anthropic") {
+    if (data.stop_reason === "refusal") return { refusal: { category: data.stop_details?.category ?? null }, truncated: false };
+    return { refusal: null, truncated: data.stop_reason === "max_tokens" };
+  }
+  const reason = data?.choices?.[0]?.finish_reason;
+  if (reason === "content_filter") return { refusal: { category: "content_filter" }, truncated: false };
+  // OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop" (рев'ю Codex, PR #100).
+  if (data?.choices?.[0]?.message?.refusal) return { refusal: { category: null }, truncated: false };
+  return { refusal: null, truncated: reason === "length" };
 }
 
 /** Витяг тексту відповіді з формату будь-якого з двох провайдерів. */
@@ -377,6 +429,16 @@ export function classifyFailure(o = {}) {
   const msg = String(o.message ?? "").toLowerCase();
   const retryAfterMs = parseRetryAfter(o.retryAfter);
 
+  if (o.refusal === true) {
+    // Відмова моделі — рішення про зміст запиту, а не збій. Повтор дасть те саме, а
+    // перекидати відхилений запит іншим провайдерам ми свідомо не робимо: людина бачить причину.
+    return { kind: "refusal", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
+  if (o.truncated === true) {
+    // Ліміт вичерпано ще до першого тексту. Повтор дасть те саме, а інший вузол міг би тихо
+    // підмінити відповідь офлайн-заглушкою — тому окремий вид із чесним поясненням (PR #100).
+    return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
   if (o.offline === true || (!status && /failed to fetch|networkerror|network request|load failed/.test(msg))) {
     return { kind: "offline", retryable: true, switchProvider: false, retryAfterMs };
   }

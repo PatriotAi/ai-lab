@@ -243,13 +243,24 @@
 // Правило: усе, що можна перевірити без браузера, живе ТУТ.
 // Усе, що потребує DOM/мережі/WebGPU — в app.html і перевіряється браузерним прогоном.
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.3.0";
 
 // Ідентифікатор моделі — це КОНФІГ застосунку, а не правило лабораторії
 // (закон не-старіння: назви моделей не живуть у правилах). Змінюється в налаштуваннях.
-const DEFAULT_CLOUD_MODEL = "claude-sonnet-5";
+const DEFAULT_CLOUD_MODEL = "claude-sonnet-5-5";
+// Колишні ТИПОВІ значення. Збережені налаштування перекривають DEFAULT, тож без міграції
+// кожен, хто колись відкрив налаштування, назавжди лишився б на старому ID. Мігрує лише
+// точний збіг зі старим типовим — власний вибір людини не чіпаємо.
+const PREVIOUS_DEFAULT_MODELS = ["claude-sonnet-5"];
 const NOTES_KEY = "pocket-agent.notes.v1";
 const SECRET_KEY = "pocket-agent.secret.v1";
+
+/** Збережені налаштування → актуальні: замінює лише колишній типовий ID моделі. */
+function migrateSettings(saved) {
+  const out = { ...(saved && typeof saved === "object" ? saved : {}) };
+  if (PREVIOUS_DEFAULT_MODELS.includes(out.model)) out.model = DEFAULT_CLOUD_MODEL;
+  return out;
+}
 
 // ── Версії / авто-оновлення ────────────────────────────────────────────────
 /** Чи candidate новіший за current (X.Y.Z; нечислові хвости ігноруються). */
@@ -471,10 +482,26 @@ function rankLocalModels(models, estVramMB) {
 
 // ── Хмарний запит (побудова, БЕЗ виконання) ────────────────────────────────
 /**
+ * Чи приймає модель Claude параметр effort. Відомо, що приймають покоління 4.6 і новіші;
+ * Sonnet 4.5 / Haiku 4.5 і давніші відповідають 400. Невідома форма ID → не надсилаємо
+ * (безпечно: запит без effort працює на будь-якій моделі). Довідка Claude API, кеш 2026-10-06.
+ */
+function supportsEffort(model) {
+  const m = /^claude-[a-z]+-(\d+)(?:-(\d{1,2}))?(?:-|$)/.exec(String(model ?? ""));
+  if (!m) return false;
+  const major = Number(m[1]), minor = Number(m[2] ?? 0);
+  return major > 4 || (major === 4 && minor >= 6);
+}
+
+/** Межа відповіді Anthropic: thinking рахується в max_tokens, тож запас потрібен під обидва. */
+const ANTHROPIC_MAX_TOKENS = 16000;
+
+/**
  * Формує {url, headers, body} для хмарного провайдера. Ключ іде ЛИШЕ в заголовку,
  * ніколи в URL (URL потрапляє в логи/історію).
  * @param {{provider:"anthropic"|"openai", apiKey:string, model?:string,
- *          messages:Array<{role:string,content:string}>, system?:string, maxTokens?:number}} o
+ *          messages:Array<{role:string,content:string}>, system?:string, maxTokens?:number, effort?:string}} o
+ *   maxTokens — для OpenAI-сумісних; Anthropic отримує запас ANTHROPIC_MAX_TOKENS під thinking.
  */
 function buildCloudRequest(o = {}) {
   const provider = o.provider || "anthropic";
@@ -485,16 +512,21 @@ function buildCloudRequest(o = {}) {
   const maxTokens = o.maxTokens || 1024;
 
   if (provider === "anthropic") {
+    const body = { model, max_tokens: Math.max(maxTokens, ANTHROPIC_MAX_TOKENS), system: o.system || undefined, messages };
+    // effort low — рекомендований старт для чату: на простих запитах модель пропускає thinking,
+    // тож відповідь швидша й дешевша. Моделі без effort отримали б 400 — їм не надсилаємо.
+    if (supportsEffort(model)) body.output_config = { effort: o.effort || "low" };
     return {
       url: "https://api.anthropic.com/v1/messages",
       headers: {
         "content-type": "application/json",
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        // 2026-10-21: temperature/top_p/top_k дають 400, тому їх тут нема й не має з'явитися.
+        "anthropic-version": "2026-10-21",
         // Без цього заголовка браузерний виклик Anthropic API блокується CORS.
         "anthropic-dangerous-direct-browser-access": "true",
       },
-      body: { model, max_tokens: maxTokens, system: o.system || undefined, messages },
+      body,
     };
   }
   // OpenAI-сумісний (у т.ч. локальні шлюзи й більшість провайдерів)
@@ -507,6 +539,26 @@ function buildCloudRequest(o = {}) {
       messages: o.system ? [{ role: "system", content: o.system }, ...messages] : messages,
     },
   };
+}
+
+/**
+ * HTTP 200 ще не означає відповідь. Модель може відмовити (Anthropic: stop_reason "refusal",
+ * OpenAI: finish_reason "content_filter" чи поле message.refusal) або впертися в ліміт
+ * ("max_tokens" / "length").
+ * Повертає {refusal: null|{category}, truncated: bool}. Зіпсовані дані → «усе гаразд»:
+ * порожній текст однаково зловить перевірка на порожню відповідь.
+ */
+function cloudReplyStatus(provider, data) {
+  if (!data || typeof data !== "object") return { refusal: null, truncated: false };
+  if (provider === "anthropic") {
+    if (data.stop_reason === "refusal") return { refusal: { category: data.stop_details?.category ?? null }, truncated: false };
+    return { refusal: null, truncated: data.stop_reason === "max_tokens" };
+  }
+  const reason = data?.choices?.[0]?.finish_reason;
+  if (reason === "content_filter") return { refusal: { category: "content_filter" }, truncated: false };
+  // OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop" (рев'ю Codex, PR #100).
+  if (data?.choices?.[0]?.message?.refusal) return { refusal: { category: null }, truncated: false };
+  return { refusal: null, truncated: reason === "length" };
 }
 
 /** Витяг тексту відповіді з формату будь-якого з двох провайдерів. */
@@ -614,6 +666,16 @@ function classifyFailure(o = {}) {
   const msg = String(o.message ?? "").toLowerCase();
   const retryAfterMs = parseRetryAfter(o.retryAfter);
 
+  if (o.refusal === true) {
+    // Відмова моделі — рішення про зміст запиту, а не збій. Повтор дасть те саме, а
+    // перекидати відхилений запит іншим провайдерам ми свідомо не робимо: людина бачить причину.
+    return { kind: "refusal", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
+  if (o.truncated === true) {
+    // Ліміт вичерпано ще до першого тексту. Повтор дасть те саме, а інший вузол міг би тихо
+    // підмінити відповідь офлайн-заглушкою — тому окремий вид із чесним поясненням (PR #100).
+    return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
   if (o.offline === true || (!status && /failed to fetch|networkerror|network request|load failed/.test(msg))) {
     return { kind: "offline", retryable: true, switchProvider: false, retryAfterMs };
   }
@@ -918,7 +980,7 @@ const state = {
   settings: Object.assign(
     { prefer: "auto", provider: "anthropic", model: DEFAULT_CLOUD_MODEL, updateUrl: "", baseUrl: "", ram: "",
       backupProvider: "", backupModel: "", backupBaseUrl: "" },
-    LS.get(SETTINGS_KEY, {}),
+    migrateSettings(LS.get(SETTINGS_KEY, {})),   // старий типовий ID моделі → поточний
   ),
   apiKey: "",            // лише в пам'яті сесії, ніколи в localStorage у відкритому вигляді
   backupKey: "",         // ключ запасного провайдера — так само лише в пам'яті
@@ -1029,9 +1091,22 @@ async function runCloud(text, backup = false) {
     err.retryAfter = res.headers.get("retry-after");
     throw err;
   }
-  const reply = readCloudReply(backup ? (s.backupProvider || "openai") : s.provider, await res.json());
-  if (!reply) throw new Error("Порожня відповідь провайдера");
-  return reply;
+  const provider = backup ? (s.backupProvider || "openai") : s.provider;
+  const data = await res.json();
+  // HTTP 200 ще не відповідь: відмову й обрізання модель повідомляє полем stop_reason.
+  const st = cloudReplyStatus(provider, data);
+  if (st.refusal) {
+    const err = new Error("Модель відмовилась відповідати" + (st.refusal.category ? ` (категорія: ${st.refusal.category})` : ""));
+    err.refusal = true;
+    throw err;
+  }
+  const reply = readCloudReply(provider, data);
+  if (!reply) {
+    const err = new Error(st.truncated ? "Відповідь обрізано лімітом ще до появи тексту" : "Порожня відповідь провайдера");
+    err.truncated = st.truncated;
+    throw err;
+  }
+  return st.truncated ? `${reply}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : reply;
 }
 
 const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
@@ -1163,7 +1238,7 @@ async function drainQueue() {
       } catch (err) {
         failure = classifyFailure({
           status: err.status, message: err.message, retryAfter: err.retryAfter,
-          offline: navigator.onLine === false,
+          offline: navigator.onLine === false, refusal: err.refusal === true, truncated: err.truncated === true,
         });
         lastErr = redactSecrets(err.message || String(err));
         state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
@@ -1180,10 +1255,13 @@ async function drainQueue() {
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
         // і придатним до ручного повтору. Мовчазної втрати не буває.
-        state.notes.unshift(makeNote({
-          input: task.input, kind: task.kind, engine: "offline",
-          answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.`,
-        }));
+        // Відмова й обрізання — не «провайдери недоступні»: мережа й ключ були, відповіла сама модель.
+        const modelSide = { refusal: "Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.",
+          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит." }[f.kind];
+        state.notes.unshift(modelSide
+          ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud", answer: `⚠️ ${lastErr}. ${modelSide}` })
+          : makeNote({ input: task.input, kind: task.kind, engine: "offline",
+              answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.` }));
         saveNotes();
         notifyFailure(after);
       }
@@ -1429,7 +1507,8 @@ if (state.settings.updateUrl) checkUpdate(true);
 window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
-          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
+          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };
