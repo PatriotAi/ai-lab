@@ -316,6 +316,20 @@ try {
   truthy("Retry-After без CORS-дозволу браузер не віддає → контур падає на експоненту (пауза коротка), а не ламається",
     hiddenCd < 3000, "пауза < 3 с");
 
+  // Anthropic розкриває заголовки зірочкою (`access-control-expose-headers: *`, проба 2026-10-24).
+  // Зірочка діє лише для запитів без облікових даних — перевіряємо, що наш fetch саме такий.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", (route) =>
+    route.fulfill({ status: 429, contentType: "application/json",
+      headers: { "retry-after": "30", "access-control-allow-origin": "*", "access-control-expose-headers": "*" },
+      body: JSON.stringify({ error: { message: "rate limit" } }) }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "завдання під розкриттям зірочкою");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  const starCd = await page.evaluate(() => window.PocketAgent.state.health.cloud.cooldownUntil - Date.now());
+  truthy("Retry-After під «expose-headers: *» (як у Anthropic) читається браузером → пауза ~30 с", starCd > 25000, `> 25000; фактично ${starCd}`);
+
   // P1-2: cooldown не з'їдає спроб і не б'є провайдера, що ще на паузі
   await page.unroute("**/api.anthropic.com/**");
   let coolCalls = 0;
@@ -413,6 +427,8 @@ try {
   await until("звичайна відповідь дійшла", () => document.querySelectorAll(".note").length === 1);
   check("запит: модель за замовчуванням — поточне покоління середнього класу", "claude-sonnet-5-5", sent.body.model);
   check("запит: версія API 2026-10-21", "2026-10-21", sent.headers["anthropic-version"]);
+  check("запит: серверний fallbacks \"default\"", "default", sent.body.fallbacks);
+  check("запит: бета-заголовок fallback пройшов у справжньому браузері", "server-side-fallback-2026-07-01", sent.headers["anthropic-beta"]);
   check("запит: effort явно low (чат; модель пропускає thinking на простих запитах)", "low", sent.body.output_config?.effort);
   truthy("запит: max_tokens має запас під thinking (≥ 4096), а не 800", sent.body.max_tokens >= 4096, `≥ 4096; фактично ${sent.body.max_tokens}`);
   truthy("запит: без temperature/top_p/top_k (на 2026-10-21 вони дають 400)",
@@ -458,6 +474,35 @@ try {
   truthy("обрізано до появи тексту: прямо сказано про ліміт", /обрізан/i.test(emptyCut), `містить «обрізан»; фактично: ${emptyCut.slice(0, 90)}`);
   truthy("обрізано до появи тексту: НЕ видається за «провайдери недоступні»", !emptyCut.includes("Провайдери недоступні"),
     `без «Провайдери недоступні»; фактично: ${emptyCut.slice(0, 90)}`);
+
+  // Рев'ю Codex до PR #101 (A): відповіла резервна модель (fallback або закріплення на ~годину) —
+  // людина має бачити, яка модель відповіла насправді.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", reply200({ model: "claude-sonnet-5",
+    content: [{ type: "fallback", from: { model: "claude-sonnet-5-5" }, to: { model: "claude-sonnet-5" } },
+      { type: "text", text: "текст від іншої моделі" }], stop_reason: "end_turn" }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "запит, який обробила інша модель");
+  await page.click("#send");
+  await until("відповідь резервної моделі дійшла", () => document.querySelectorAll(".note").length === 1);
+  const fbNote = await page.textContent(".note .a");
+  truthy("резервна модель названа в нотатці", fbNote.includes("claude-sonnet-5") && /резервн/i.test(fbNote),
+    `містить «claude-sonnet-5» і «резервн»; фактично: ${fbNote.slice(0, 120)}`);
+
+  // (C): відмова з recommended_model — резервна модель не змогла (ліміт/перевантаження), тож це
+  // тимчасово: завдання лишається в черзі з паузою, а не стає остаточною відмовою.
+  await page.unroute("**/api.anthropic.com/**");
+  let busyCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { busyCalls++;
+    return reply200({ content: [], stop_reason: "refusal",
+      stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })(route); });
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "запит у хвилину перевантаження");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1), null, { timeout: 15000 });
+  const busyTask = await page.evaluate(() => window.PocketAgent.state.queue[0]);
+  check("recommended_model: завдання чекає повтору, а не провалене", "pending", busyTask.status);
+  check("recommended_model: офлайн- чи відмовної нотатки нема", 0, await page.locator(".note").count());
 
   // Збережені налаштування перекривали б новий DEFAULT: хто колись відкрив налаштування,
   // назавжди лишився б на старому ID. Мігрує лише старий ТИПОВИЙ ID, а не вибір людини.

@@ -6,7 +6,7 @@
 // Правило: усе, що можна перевірити без браузера, живе ТУТ.
 // Усе, що потребує DOM/мережі/WebGPU — в app.html і перевіряється браузерним прогоном.
 
-export const APP_VERSION = "0.3.0";
+export const APP_VERSION = "0.3.1";
 
 // Ідентифікатор моделі — це КОНФІГ застосунку, а не правило лабораторії
 // (закон не-старіння: назви моделей не живуть у правилах). Змінюється в налаштуваннях.
@@ -256,6 +256,15 @@ export function supportsEffort(model) {
   return major > 4 || (major === 4 && minor >= 6);
 }
 
+/**
+ * Моделі, для яких довідка Claude API (кеш 2026-10-06) радить серверний fallbacks: "default".
+ * У Haiku 5.5 серверного fallback нема; про решту не відомо — їм не надсилаємо (безпечно).
+ */
+export const SERVER_FALLBACK_MODELS = ["claude-fable-5-1", "claude-fable-5", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"];
+export function supportsServerFallback(model) {
+  return SERVER_FALLBACK_MODELS.includes(String(model ?? ""));
+}
+
 /** Межа відповіді Anthropic: thinking рахується в max_tokens, тож запас потрібен під обидва. */
 export const ANTHROPIC_MAX_TOKENS = 16000;
 
@@ -279,18 +288,22 @@ export function buildCloudRequest(o = {}) {
     // effort low — рекомендований старт для чату: на простих запитах модель пропускає thinking,
     // тож відповідь швидша й дешевша. Моделі без effort отримали б 400 — їм не надсилаємо.
     if (supportsEffort(model)) body.output_config = { effort: o.effort || "low" };
-    return {
-      url: "https://api.anthropic.com/v1/messages",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        // 2026-10-21: temperature/top_p/top_k дають 400, тому їх тут нема й не має з'явитися.
-        "anthropic-version": "2026-10-21",
-        // Без цього заголовка браузерний виклик Anthropic API блокується CORS.
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body,
+    const headers = {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      // 2026-10-21: temperature/top_p/top_k дають 400, тому їх тут нема й не має з'явитися.
+      "anthropic-version": "2026-10-21",
+      // Без цього заголовка браузерний виклик Anthropic API блокується CORS.
+      "anthropic-dangerous-direct-browser-access": "true",
     };
+    if (supportsServerFallback(model)) {
+      // Відхилений політикою запит сервер Anthropic сам перезапускає на рекомендованій моделі
+      // (за категорією відмови). Це їхній механізм, а не наше перекидання іншим провайдерам.
+      // CORS-preflight пропускає anthropic-beta — перевірено пробою 2026-10-24.
+      body.fallbacks = "default";
+      headers["anthropic-beta"] = "server-side-fallback-2026-07-01";
+    }
+    return { url: "https://api.anthropic.com/v1/messages", headers, body };
   }
   // OpenAI-сумісний (у т.ч. локальні шлюзи й більшість провайдерів)
   return {
@@ -314,7 +327,12 @@ export function buildCloudRequest(o = {}) {
 export function cloudReplyStatus(provider, data) {
   if (!data || typeof data !== "object") return { refusal: null, truncated: false };
   if (provider === "anthropic") {
-    if (data.stop_reason === "refusal") return { refusal: { category: data.stop_details?.category ?? null }, truncated: false };
+    if (data.stop_reason === "refusal") {
+      // recommended_model з'являється лише коли повтор на резервній моделі НЕ відбувся (її ліміт
+      // чи перевантаження) — тоді пізніший повтор може спрацювати (рев'ю Codex, PR #101).
+      const rm = data.stop_details?.recommended_model;
+      return { refusal: { category: data.stop_details?.category ?? null, ...(rm ? { recommendedModel: rm } : {}) }, truncated: false };
+    }
     return { refusal: null, truncated: data.stop_reason === "max_tokens" };
   }
   const reason = data?.choices?.[0]?.finish_reason;
@@ -322,6 +340,16 @@ export function cloudReplyStatus(provider, data) {
   // OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop" (рев'ю Codex, PR #100).
   if (data?.choices?.[0]?.message?.refusal) return { refusal: { category: null }, truncated: false };
   return { refusal: null, truncated: reason === "length" };
+}
+
+/**
+ * Позначка, якщо відповіла не та модель, яку просили: серверний fallback або закріплення
+ * резервної моделі за тим самим запитом приблизно на годину (рев'ю Codex, PR #101).
+ */
+export function fallbackNote(requestedModel, data) {
+  const served = data && typeof data === "object" ? data.model : null;
+  if (!served || !requestedModel || served === requestedModel) return "";
+  return `↪ Відповіла резервна модель ${served}: сервер Anthropic перезапустив запит, відхилений моделлю ${requestedModel}.`;
 }
 
 /** Витяг тексту відповіді з формату будь-якого з двох провайдерів. */
@@ -429,6 +457,10 @@ export function classifyFailure(o = {}) {
   const msg = String(o.message ?? "").toLowerCase();
   const retryAfterMs = parseRetryAfter(o.retryAfter);
 
+  if (o.refusal === true && o.capacity === true) {
+    // Відмова, але резервна модель не змогла через ліміт чи перевантаження: це тимчасово.
+    return { kind: "refusal-busy", retryable: true, switchProvider: false, retryAfterMs: null };
+  }
   if (o.refusal === true) {
     // Відмова моделі — рішення про зміст запиту, а не збій. Повтор дасть те саме, а
     // перекидати відхилений запит іншим провайдерам ми свідомо не робимо: людина бачить причину.

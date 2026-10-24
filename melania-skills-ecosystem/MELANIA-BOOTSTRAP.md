@@ -55,7 +55,7 @@
 | ai-core-runtime | 3.13.1 | архітектура AI-систем, оркестраційний runtime, reasoning-пайплайни, microkernel, deferred tools; fallback-вхід, коли роутер недоступний |
 | rlm-harness | 0.8.0 | важкі багатокрокові процеси: deep research, security audit, red-team, бенчмаркінг; роль→клас канон + safe-action-gate |
 | workflow-orchestration | 1.6.1 | вибір топології: subagents vs agent teams, fan-out, декомпозиція, evaluator-optimizer |
-| multi-provider-ai-orchestration | 1.7.5 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
+| multi-provider-ai-orchestration | 1.7.6 | runtime-маршрутизація LLM-провайдерів, ротація ключів, failover; тримає датований model-snapshot (джерело істини моделей/цін) |
 | ai-dev-workflow | 1.4.1 | сольна розробка з кількома AI: розподіл задач, захист ідеї, промпти для інших AI, фази проєкту |
 | skill-creation-guide | 1.11.1 | написати новий SKILL.md: формат, frontmatter, evals-шаблон, структура (авторинг; governance/оновлення → SMA) |
 | skill-ecosystem-auditor | 1.8.1 | аудит/ревізія всієї екосистеми скілів, дрейф версій, дублювання, Self-Dev беклог |
