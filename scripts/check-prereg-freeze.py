@@ -19,12 +19,14 @@
 пре-реєстрація, якої вже немає на своєму шляху (видалена чи перейменована), — знахідка
 (третє рев'ю Codex до PR #96). В обрізаному (shallow) клоні історії замало, щоб це довести:
 файл, видалений до межі завантаженої історії, просто не видно. Тоді перевірка не виконується
-(код 2, «НЕ ГАНЯЛОСЬ»), а не звітує «чисто» (шосте рев'ю Codex до PR #96).
+(код 2, «НЕ ГАНЯЛОСЬ»), а не звітує «чисто» (шосте рев'ю Codex до PR #96). Так само, якщо
+переданий шлях не є коренем git-репозиторію: порожній результат там нічого не доводить
+(сьоме рев'ю Codex до PR #96).
 
 Запуск:
     python3 scripts/check-prereg-freeze.py [корінь]
 Код виходу: 0 — чисто · 1 — тіло змінено після заморозки або заморозку знято ·
-2 — перевірити неможливо (коміт заморозки не знайдено або клон обрізаний).
+2 — перевірити неможливо (коміт заморозки не знайдено, клон обрізаний або це не корінь репо).
 """
 from __future__ import annotations
 
@@ -81,6 +83,12 @@ def main(argv: list[str]) -> int:
     root = Path(argv[1]) if len(argv) > 1 else Path(__file__).resolve().parents[1]
     if not root.is_dir():
         print(f"check-prereg-freeze: немає такої теки: {root}", file=sys.stderr)
+        return 2
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=root,
+                         capture_output=True, text=True)
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != root.resolve():
+        print(f"⊘ НЕ ГАНЯЛОСЬ: {root} — не корінь git-репозиторію; без історії перевірити "
+              f"заморозку неможливо")
         return 2
     shallow = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=root,
                              capture_output=True, text=True).stdout.strip()
