@@ -131,6 +131,13 @@ CORE_MUTANTS: list[Mutant] = [
     ("max_tokens без запасу під thinking", CORE,
      "max_tokens: Math.max(maxTokens, ANTHROPIC_MAX_TOKENS)", "max_tokens: maxTokens",
      "thinking з'їдає 800 токенів — порожня або обрізана відповідь"),
+    ("відмова OpenAI через message.refusal не розпізнається", CORE,
+     "if (data?.choices?.[0]?.message?.refusal) return", "if (false) return",
+     "запасний OpenAI-провайдер відмовив, а людина бачить «провайдери недоступні» (рев'ю Codex, PR #100)"),
+    ("обрізання без тексту класифіковано як fatal", CORE,
+     'return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };',
+     'return { kind: "fatal", retryable: false, switchProvider: false, retryAfterMs: null };',
+     "ліміт вичерпано до тексту, а людина бачить «провайдери недоступні» (рев'ю Codex, PR #100)"),
 ]
 
 APP_MUTANTS: list[Mutant] = [
@@ -165,6 +172,9 @@ APP_MUTANTS: list[Mutant] = [
     ("міграція налаштувань не викликається", APP,
      "migrateSettings(LS.get(SETTINGS_KEY, {})),", "LS.get(SETTINGS_KEY, {}),",
      "збережені налаштування назавжди тримають старий типовий ID моделі"),
+    ("проводка не передає ознаку обрізання", APP,
+     "refusal: err.refusal === true, truncated: err.truncated === true,", "refusal: err.refusal === true,",
+     "чиста classifyFailure знає обрізання, а застосунок її не передає (рев'ю Codex, PR #100)"),
 ]
 
 
@@ -201,6 +211,9 @@ EXPECT: dict[str, str] = {
     "проводка не передає ознаку відмови": "відмова: НЕ видається за «провайдери недоступні»",
     "обрізана відповідь без позначки": "обрізана відповідь: прямо позначено",
     "міграція налаштувань не викликається": "налаштування: старий типовий ID мігрує",
+    "відмова OpenAI через message.refusal не розпізнається": "OpenAI message.refusal → відмова",
+    "обрізання без тексту класифіковано як fatal": "обрізання без тексту — окремий вид",
+    "проводка не передає ознаку обрізання": "обрізано до появи тексту: НЕ видається",
 }
 
 

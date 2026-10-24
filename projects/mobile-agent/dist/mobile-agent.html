@@ -543,7 +543,8 @@ function buildCloudRequest(o = {}) {
 
 /**
  * HTTP 200 ще не означає відповідь. Модель може відмовити (Anthropic: stop_reason "refusal",
- * OpenAI: finish_reason "content_filter") або впертися в ліміт ("max_tokens" / "length").
+ * OpenAI: finish_reason "content_filter" чи поле message.refusal) або впертися в ліміт
+ * ("max_tokens" / "length").
  * Повертає {refusal: null|{category}, truncated: bool}. Зіпсовані дані → «усе гаразд»:
  * порожній текст однаково зловить перевірка на порожню відповідь.
  */
@@ -555,6 +556,8 @@ function cloudReplyStatus(provider, data) {
   }
   const reason = data?.choices?.[0]?.finish_reason;
   if (reason === "content_filter") return { refusal: { category: "content_filter" }, truncated: false };
+  // OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop" (рев'ю Codex, PR #100).
+  if (data?.choices?.[0]?.message?.refusal) return { refusal: { category: null }, truncated: false };
   return { refusal: null, truncated: reason === "length" };
 }
 
@@ -667,6 +670,11 @@ function classifyFailure(o = {}) {
     // Відмова моделі — рішення про зміст запиту, а не збій. Повтор дасть те саме, а
     // перекидати відхилений запит іншим провайдерам ми свідомо не робимо: людина бачить причину.
     return { kind: "refusal", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
+  if (o.truncated === true) {
+    // Ліміт вичерпано ще до першого тексту. Повтор дасть те саме, а інший вузол міг би тихо
+    // підмінити відповідь офлайн-заглушкою — тому окремий вид із чесним поясненням (PR #100).
+    return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };
   }
   if (o.offline === true || (!status && /failed to fetch|networkerror|network request|load failed/.test(msg))) {
     return { kind: "offline", retryable: true, switchProvider: false, retryAfterMs };
@@ -1093,7 +1101,11 @@ async function runCloud(text, backup = false) {
     throw err;
   }
   const reply = readCloudReply(provider, data);
-  if (!reply) throw new Error(st.truncated ? "Відповідь обрізано лімітом ще до появи тексту" : "Порожня відповідь провайдера");
+  if (!reply) {
+    const err = new Error(st.truncated ? "Відповідь обрізано лімітом ще до появи тексту" : "Порожня відповідь провайдера");
+    err.truncated = st.truncated;
+    throw err;
+  }
   return st.truncated ? `${reply}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : reply;
 }
 
@@ -1226,7 +1238,7 @@ async function drainQueue() {
       } catch (err) {
         failure = classifyFailure({
           status: err.status, message: err.message, retryAfter: err.retryAfter,
-          offline: navigator.onLine === false, refusal: err.refusal === true,
+          offline: navigator.onLine === false, refusal: err.refusal === true, truncated: err.truncated === true,
         });
         lastErr = redactSecrets(err.message || String(err));
         state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
@@ -1243,10 +1255,11 @@ async function drainQueue() {
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
         // і придатним до ручного повтору. Мовчазної втрати не буває.
-        // Відмова моделі — не «провайдери недоступні»: мережа й ключ були, модель відхилила зміст.
-        state.notes.unshift(f.kind === "refusal"
-          ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud",
-              answer: `⚠️ ${lastErr}. Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.` })
+        // Відмова й обрізання — не «провайдери недоступні»: мережа й ключ були, відповіла сама модель.
+        const modelSide = { refusal: "Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.",
+          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит." }[f.kind];
+        state.notes.unshift(modelSide
+          ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud", answer: `⚠️ ${lastErr}. ${modelSide}` })
           : makeNote({ input: task.input, kind: task.kind, engine: "offline",
               answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.` }));
         saveNotes();

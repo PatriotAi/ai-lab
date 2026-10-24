@@ -183,10 +183,21 @@ check("cloudReplyStatus: OpenAI content_filter → відмова", JSON.stringi
 check("cloudReplyStatus: OpenAI length → обрізано", JSON.stringify({ refusal: null, truncated: true }),
   st("openai", { choices: [{ finish_reason: "length", message: { content: "по" } }] }));
 check("cloudReplyStatus: зіпсовані дані → без винятку", JSON.stringify({ refusal: null, truncated: false }), st("anthropic", null));
+// Рев'ю Codex до PR #100: OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop"
+check("cloudReplyStatus: OpenAI message.refusal → відмова (finish_reason \"stop\", content null)",
+  JSON.stringify({ refusal: { category: null }, truncated: false }),
+  st("openai", { choices: [{ finish_reason: "stop", message: { content: null, refusal: "I can't help with that." } }] }));
+check("cloudReplyStatus: OpenAI порожній refusal — не відмова", JSON.stringify({ refusal: null, truncated: false }),
+  st("openai", { choices: [{ finish_reason: "stop", message: { content: "так", refusal: null } }] }));
 const rf = core.classifyFailure({ refusal: true, status: 200, message: "Модель відмовилась відповідати" });
 check("classifyFailure: відмова — окремий вид", "refusal", rf.kind);
 truthy("classifyFailure: відмова не повторюється й не перекидається на інших провайдерів",
   rf.retryable === false && rf.switchProvider === false, JSON.stringify(rf));
+// Рев'ю Codex до PR #100: обрізання ДО появи тексту — не «провайдери недоступні»
+const tf = core.classifyFailure({ truncated: true, status: 200, message: "Відповідь обрізано лімітом ще до появи тексту" });
+check("classifyFailure: обрізання без тексту — окремий вид", "truncated", tf.kind);
+truthy("classifyFailure: обрізання без тексту не повторюється й не підміняється іншим вузлом",
+  tf.retryable === false && tf.switchProvider === false, JSON.stringify(tf));
 
 // ═══════ 9. Збірка: dist синхронний з джерелами ═══════
 console.log('\n════════ 9. Збірка одного файлу ════════');

@@ -446,6 +446,19 @@ try {
   truthy("обрізана відповідь: текст збережено", cutNote.includes("Початок відповіді"), `містить текст; фактично: ${cutNote.slice(0, 90)}`);
   truthy("обрізана відповідь: прямо позначено, що її обрізано лімітом", /обрізан/i.test(cutNote), `містить «обрізан»; фактично: ${cutNote.slice(0, 90)}`);
 
+  // Рев'ю Codex до PR #100: обрізано ще ДО першого тексту. Вхід без кореня «обріз»,
+  // щоб перевірка не знайшла шуканого слова у власному вході (урок 2026-10-23).
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", reply200({ content: [{ type: "thinking", thinking: "" }], stop_reason: "max_tokens" }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "дуже складне питання");
+  await page.click("#send");
+  await until("порожня обрізана відповідь дійшла до людини", () => document.querySelectorAll(".note").length === 1);
+  const emptyCut = await page.textContent(".note .a");
+  truthy("обрізано до появи тексту: прямо сказано про ліміт", /обрізан/i.test(emptyCut), `містить «обрізан»; фактично: ${emptyCut.slice(0, 90)}`);
+  truthy("обрізано до появи тексту: НЕ видається за «провайдери недоступні»", !emptyCut.includes("Провайдери недоступні"),
+    `без «Провайдери недоступні»; фактично: ${emptyCut.slice(0, 90)}`);
+
   // Збережені налаштування перекривали б новий DEFAULT: хто колись відкрив налаштування,
   // назавжди лишився б на старому ID. Мігрує лише старий ТИПОВИЙ ID, а не вибір людини.
   await page.evaluate(() => localStorage.setItem("pocket-agent.settings.v1", JSON.stringify({ model: "claude-sonnet-5" })));

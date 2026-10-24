@@ -306,7 +306,8 @@ export function buildCloudRequest(o = {}) {
 
 /**
  * HTTP 200 ще не означає відповідь. Модель може відмовити (Anthropic: stop_reason "refusal",
- * OpenAI: finish_reason "content_filter") або впертися в ліміт ("max_tokens" / "length").
+ * OpenAI: finish_reason "content_filter" чи поле message.refusal) або впертися в ліміт
+ * ("max_tokens" / "length").
  * Повертає {refusal: null|{category}, truncated: bool}. Зіпсовані дані → «усе гаразд»:
  * порожній текст однаково зловить перевірка на порожню відповідь.
  */
@@ -318,6 +319,8 @@ export function cloudReplyStatus(provider, data) {
   }
   const reason = data?.choices?.[0]?.finish_reason;
   if (reason === "content_filter") return { refusal: { category: "content_filter" }, truncated: false };
+  // OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop" (рев'ю Codex, PR #100).
+  if (data?.choices?.[0]?.message?.refusal) return { refusal: { category: null }, truncated: false };
   return { refusal: null, truncated: reason === "length" };
 }
 
@@ -430,6 +433,11 @@ export function classifyFailure(o = {}) {
     // Відмова моделі — рішення про зміст запиту, а не збій. Повтор дасть те саме, а
     // перекидати відхилений запит іншим провайдерам ми свідомо не робимо: людина бачить причину.
     return { kind: "refusal", retryable: false, switchProvider: false, retryAfterMs: null };
+  }
+  if (o.truncated === true) {
+    // Ліміт вичерпано ще до першого тексту. Повтор дасть те саме, а інший вузол міг би тихо
+    // підмінити відповідь офлайн-заглушкою — тому окремий вид із чесним поясненням (PR #100).
+    return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };
   }
   if (o.offline === true || (!status && /failed to fetch|networkerror|network request|load failed/.test(msg))) {
     return { kind: "offline", retryable: true, switchProvider: false, retryAfterMs };
