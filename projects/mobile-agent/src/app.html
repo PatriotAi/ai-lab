@@ -367,8 +367,11 @@ async function runCloud(text, backup = false) {
   // HTTP 200 ще не відповідь: відмову й обрізання модель повідомляє полем stop_reason.
   const st = cloudReplyStatus(provider, data);
   if (st.refusal) {
-    const err = new Error("Модель відмовилась відповідати" + (st.refusal.category ? ` (категорія: ${st.refusal.category})` : ""));
+    const err = new Error(st.refusal.recommendedModel
+      ? "Модель відмовила, а резервна модель зараз перевантажена"
+      : "Модель відмовилась відповідати" + (st.refusal.category ? ` (категорія: ${st.refusal.category})` : ""));
     err.refusal = true;
+    err.capacity = !!st.refusal.recommendedModel;
     throw err;
   }
   const reply = readCloudReply(provider, data);
@@ -377,7 +380,9 @@ async function runCloud(text, backup = false) {
     err.truncated = st.truncated;
     throw err;
   }
-  return st.truncated ? `${reply}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : reply;
+  const note = provider === "anthropic" ? fallbackNote(req.body.model, data) : "";
+  const body = note ? `${reply}\n\n${note}` : reply;
+  return st.truncated ? `${body}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : body;
 }
 
 const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
@@ -510,6 +515,7 @@ async function drainQueue() {
         failure = classifyFailure({
           status: err.status, message: err.message, retryAfter: err.retryAfter,
           offline: navigator.onLine === false, refusal: err.refusal === true, truncated: err.truncated === true,
+          capacity: err.capacity === true,
         });
         lastErr = redactSecrets(err.message || String(err));
         state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
@@ -528,7 +534,8 @@ async function drainQueue() {
         // і придатним до ручного повтору. Мовчазної втрати не буває.
         // Відмова й обрізання — не «провайдери недоступні»: мережа й ключ були, відповіла сама модель.
         const modelSide = { refusal: "Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.",
-          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит." }[f.kind];
+          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит.",
+          "refusal-busy": "Резервна модель була перевантажена до кінця спроб; повтор пізніше може спрацювати — кнопка повтору в черзі." }[f.kind];
         state.notes.unshift(modelSide
           ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud", answer: `⚠️ ${lastErr}. ${modelSide}` })
           : makeNote({ input: task.input, kind: task.kind, engine: "offline",
@@ -779,7 +786,7 @@ window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
           classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
-          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest },
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };
