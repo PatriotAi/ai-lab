@@ -251,7 +251,7 @@ const state = {
   settings: Object.assign(
     { prefer: "auto", provider: "anthropic", model: DEFAULT_CLOUD_MODEL, updateUrl: "", baseUrl: "", ram: "",
       backupProvider: "", backupModel: "", backupBaseUrl: "" },
-    LS.get(SETTINGS_KEY, {}),
+    migrateSettings(LS.get(SETTINGS_KEY, {})),   // старий типовий ID моделі → поточний
   ),
   apiKey: "",            // лише в пам'яті сесії, ніколи в localStorage у відкритому вигляді
   backupKey: "",         // ключ запасного провайдера — так само лише в пам'яті
@@ -362,9 +362,22 @@ async function runCloud(text, backup = false) {
     err.retryAfter = res.headers.get("retry-after");
     throw err;
   }
-  const reply = readCloudReply(backup ? (s.backupProvider || "openai") : s.provider, await res.json());
-  if (!reply) throw new Error("Порожня відповідь провайдера");
-  return reply;
+  const provider = backup ? (s.backupProvider || "openai") : s.provider;
+  const data = await res.json();
+  // HTTP 200 ще не відповідь: відмову й обрізання модель повідомляє полем stop_reason.
+  const st = cloudReplyStatus(provider, data);
+  if (st.refusal) {
+    const err = new Error("Модель відмовилась відповідати" + (st.refusal.category ? ` (категорія: ${st.refusal.category})` : ""));
+    err.refusal = true;
+    throw err;
+  }
+  const reply = readCloudReply(provider, data);
+  if (!reply) {
+    const err = new Error(st.truncated ? "Відповідь обрізано лімітом ще до появи тексту" : "Порожня відповідь провайдера");
+    err.truncated = st.truncated;
+    throw err;
+  }
+  return st.truncated ? `${reply}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : reply;
 }
 
 const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
@@ -496,7 +509,7 @@ async function drainQueue() {
       } catch (err) {
         failure = classifyFailure({
           status: err.status, message: err.message, retryAfter: err.retryAfter,
-          offline: navigator.onLine === false,
+          offline: navigator.onLine === false, refusal: err.refusal === true, truncated: err.truncated === true,
         });
         lastErr = redactSecrets(err.message || String(err));
         state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
@@ -513,10 +526,13 @@ async function drainQueue() {
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
         // і придатним до ручного повтору. Мовчазної втрати не буває.
-        state.notes.unshift(makeNote({
-          input: task.input, kind: task.kind, engine: "offline",
-          answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.`,
-        }));
+        // Відмова й обрізання — не «провайдери недоступні»: мережа й ключ були, відповіла сама модель.
+        const modelSide = { refusal: "Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.",
+          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит." }[f.kind];
+        state.notes.unshift(modelSide
+          ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud", answer: `⚠️ ${lastErr}. ${modelSide}` })
+          : makeNote({ input: task.input, kind: task.kind, engine: "offline",
+              answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.` }));
         saveNotes();
         notifyFailure(after);
       }
@@ -762,7 +778,8 @@ if (state.settings.updateUrl) checkUpdate(true);
 window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
-          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
+          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };
