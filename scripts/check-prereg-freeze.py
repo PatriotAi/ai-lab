@@ -13,7 +13,9 @@
 Не заморожено (`**SHA:** —`) — чернетка, перевіряти нічого. Але якщо в історії git
 файл УЖЕ мав коміт заморозки, а зараз рядка SHA немає чи він пошкоджений — це зняття
 заморозки, а не чернетка: інакше достатньо стерти SHA, щоб правки порогів пройшли мовчки
-(рев'ю Codex до PR #96).
+(рев'ю Codex до PR #96). Так само SHA мусить лишатися ПЕРВІСНИМ — тим, що вперше записаний
+в історії: підставити SHA пізнішого коміту, де тіло вже змінене, — це перезаморозка без
+журналу відхилень (друге рев'ю Codex до PR #96).
 
 Запуск:
     python3 scripts/check-prereg-freeze.py [корінь]
@@ -45,15 +47,22 @@ def frozen_text(root: Path, sha: str, rel: str) -> str | None:
     return run.stdout if run.returncode == 0 else None
 
 
-def was_frozen(root: Path, rel: str) -> str | None:
-    """Коміт, у якому файл уже мав рядок заморозки, якщо такий був в історії."""
-    log = subprocess.run(["git", "log", "--format=%H", "--", rel], cwd=root,
+def original_freeze(root: Path, rel: str) -> str | None:
+    """Первісний SHA заморозки: той, що стоїть у найстарішій версії файлу з рядком SHA."""
+    log = subprocess.run(["git", "log", "--reverse", "--format=%H", "--", rel], cwd=root,
                          capture_output=True, text=True)
     for sha in log.stdout.split():
         old = frozen_text(root, sha, rel)
-        if old and SHA.search(old):
-            return sha[:7]
+        m = SHA.search(old or "")
+        if m:
+            return m.group(1)
     return None
+
+
+def resolve(root: Path, sha: str) -> str:
+    run = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+                         cwd=root, capture_output=True, text=True)
+    return run.stdout.strip() or sha
 
 
 def main(argv: list[str]) -> int:
@@ -67,11 +76,15 @@ def main(argv: list[str]) -> int:
         text = path.read_text(encoding="utf-8", errors="replace")
         m = SHA.search(text)
         rel = path.relative_to(root).as_posix()
+        first = original_freeze(root, rel)
         if not m:
-            seen = was_frozen(root, rel)
-            if seen:
+            if first:
                 changed.append(f"{rel}: заморозку знято — рядок SHA відсутній чи пошкоджений, "
-                               f"а коміт {seen} уже мав його")
+                               f"а історія вже мала заморозку {first}")
+            continue
+        if first and resolve(root, first) != resolve(root, m.group(1)):
+            changed.append(f"{rel}: SHA заморозки підмінено — первісний {first}, "
+                           f"зараз {m.group(1)}")
             continue
         old = frozen_text(root, m.group(1), rel)
         if old is None:
