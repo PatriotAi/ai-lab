@@ -1345,7 +1345,7 @@ check "S5.2b порожній корпус — помилка, не «змін �
 fz=$(cd "$REPO" && python3 tests/fuzz-scan-input.py --cases 150 >/dev/null 2>&1; echo $?)
 check "S5.3 розбір недовіреного входу не падає" "0" "$fz"
 
-# S5.4 Мутації резервного контуру (проєкт mobile-agent). 180 зелених перевірок не доводять, що
+# S5.4 Мутації резервного контуру (проєкт mobile-agent). Зелені перевірки самі не доводять, що
 # контур захищений: доводить лише мутант, якого вони вбивають. Три стани, як у секції 17:
 # код 0 = усі спіймані ТІЄЮ перевіркою, що мала · 1 = діра або нестабільна база · 2 = НЕ ГАНЯВСЯ.
 mutation_gate() {  # $1 — назва, $2.. — аргументи скрипта
@@ -1361,11 +1361,11 @@ mutation_gate() {  # $1 — назва, $2.. — аргументи скрипт
 if ! command -v node >/dev/null 2>&1; then
   skip "S5.4 мутації резервного контуру" "node не встановлено"
 else
-  mutation_gate "S5.4 мутанти ядра резервного контуру (16)"
+  mutation_gate "S5.4 мутанти ядра резервного контуру"
   if [[ "$E2E_RAN" == "1" && "${SKIP_BROWSER_MUTATION:-0}" != "1" ]]; then
-    mutation_gate "S5.4b мутанти ядра + проводки застосунку в браузері (16+5)" --browser
+    mutation_gate "S5.4b мутанти ядра + проводки застосунку в браузері" --browser
   else
-    skip "S5.4b мутанти ядра + проводки застосунку в браузері (16+5)" \
+    skip "S5.4b мутанти ядра + проводки застосунку в браузері" \
          "браузерний набір не ганявся у цьому прогоні (секція 17) або SKIP_BROWSER_MUTATION=1; вручну: python3 tests/mutation-mobile-agent.py --browser"
   fi
 fi
@@ -1943,6 +1943,35 @@ grep -q "snapshot_age_warnings(datetime" melania-skills-ecosystem/scripts/mainta
   && grep -q "maintain.py snapshot-age" automations/session-start/session-start.sh \
   && ok "попередження підключене у verify і в SessionStart" \
   || bad "попередження підключене у verify і в SessionStart" "обидва виклики" "бракує"
+
+# Споживач знімка (2026-10-23): знімок оновили 2026-10-16, а модель за замовчуванням
+# у projects/mobile-agent лишилась попереднього покоління — і жодна перевірка цього не бачила.
+# Свіжість знімка ≠ свіжість тих, хто з нього бере. Типова модель продукту мусить бути
+# в матриці НАЙНОВІШОГО знімка; знімок поміняли без продукту — набір червоніє.
+snap_consumer() {  # $1 — тека зі знімками, $2 — core.js; друкує "ok" або причину
+  python3 - "$1" "$2" <<'PY'
+import re, sys, pathlib
+d, core = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+snaps = sorted(d.glob("model-snapshot-*.md"))
+m = re.search(r'export const DEFAULT_CLOUD_MODEL\s*=\s*"([^"]+)"', core)
+if not snaps or not m:
+    print("нема знімка або DEFAULT_CLOUD_MODEL"); sys.exit()
+matrix = snaps[-1].read_text(encoding="utf-8").split("## Матриця провайдерів", 1)[-1].split("\n## ", 1)[0]
+print("ok" if m.group(1) in set(re.findall(r"`(claude-[a-z0-9-]+)`", matrix))
+      else f"{m.group(1)} нема в матриці {snaps[-1].name}")
+PY
+}
+check "модель за замовчуванням мобільного агента є в матриці поточного знімка" "ok" \
+  "$(snap_consumer melania-skills-ecosystem/skills/multi-provider-ai-orchestration/references projects/mobile-agent/src/core.js)"
+mkdir -p "$SA/consumer"
+printf '## Матриця провайдерів\n| Sonnet 5 (`claude-sonnet-5`) |\n' > "$SA/consumer/model-snapshot-2026-07.md"
+printf '## Матриця провайдерів\n| Sonnet 5.5 (`claude-sonnet-5-5`) |\n## Модель-нотатки\n- `claude-sonnet-5` ще обслуговується\n' \
+  > "$SA/consumer/model-snapshot-2026-10.md"
+printf 'export const DEFAULT_CLOUD_MODEL = "claude-sonnet-5";\n' > "$SA/stale-core.js"
+printf 'export const DEFAULT_CLOUD_MODEL = "claude-sonnet-5-5";\n' > "$SA/fresh-core.js"
+check "канарка: стан до 2026-10-23 ловиться (старий ID є лише в старому знімку й поза матрицею нового)" \
+  "claude-sonnet-5 нема в матриці model-snapshot-2026-10.md" "$(snap_consumer "$SA/consumer" "$SA/stale-core.js")"
+check "канарка: актуальний ID у матриці найновішого знімка — тиша" "ok" "$(snap_consumer "$SA/consumer" "$SA/fresh-core.js")"
 
 echo ""
 echo "════════ 30. AGENTS.md — тонкий вказівник для інших агентів ════════"
