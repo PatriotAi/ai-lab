@@ -670,6 +670,51 @@ crp_out=$($CRP "$REPO" --codebook "$CRP_T/broken.md" 2>&1); crp_rc=$?
   && ok "канарка: неповна кодова книга (тип code без таблиці) — код 2" \
   || bad "канарка: неповна кодова книга" "код 2 + назва поля" "rc=$crp_rc ${crp_out:0:100}"
 
+# ── Набір задач абляції розрізняє «до» і «після» (Фаза 13, Ф0.6) ──
+# Твердження, що проходить без роботи агента, нічого не міряє; що падає на справжньому
+# рішенні — міряє шум. Канарки — на справжньому git-репо з комітами «старт» і «рішення».
+ABL="python3 $REPO/scripts/check-ablation-tasks.py"
+ABL_T="$TMPROOT/ablation"; mkdir -p "$ABL_T/r/docs" "$ABL_T/r/security"
+printf 'v1\n' > "$ABL_T/r/docs/a.md"; printf 'keep\n' > "$ABL_T/r/security/k.md"; printf 'print(1)\n' > "$ABL_T/r/ok.py"
+( cd "$ABL_T/r" && git init -q && git -c user.email=t@t -c user.name=t add -A \
+  && git -c user.email=t@t -c user.name=t commit -qm start \
+  && printf 'v2\nлічильник: 2\n' > docs/a.md && git -c user.email=t@t -c user.name=t commit -qam sol )
+abl_st=$(git -C "$ABL_T/r" rev-parse HEAD~1); abl_so=$(git -C "$ABL_T/r" rev-parse HEAD)
+abl_task() { # abl_task <id> <start> <solution> <твердження-JSON...>
+  local id="$1" st="$2" so="$3"; shift 3
+  local IFS=,; printf '{"id":"%s","start":"%s","solution":"%s","area":"x","prompt":"онови лічильник","assertions":[%s]}\n' \
+    "$id" "$st" "$so" "$*"
+}
+A_CNT='{"type":"contains","path":"docs/a.md","regex":"^лічильник: 2$"}'
+A_SEC='{"type":"untouched","glob":"security/**"}'
+A_CMD='{"type":"cmd","run":"python3 ok.py","exit":0}'
+abl_task good-task "$abl_st" "$abl_so" "$A_CNT" "$A_SEC" "$A_CMD" > "$ABL_T/good.jsonl"
+$ABL "$ABL_T/r" --tasks "$ABL_T/good.jsonl" --limits 1:10 >/dev/null 2>&1 \
+  && ok "канарка: задача, що падає на старті й проходить на рішенні, — не знахідка" \
+  || bad "канарка: добра задача абляції" "код 0" "$($ABL "$ABL_T/r" --tasks "$ABL_T/good.jsonl" --limits 1:10 2>&1 | head -2)"
+{ abl_task trivial-task "$abl_st" "$abl_so" '{"type":"exists","path":"docs/a.md"}' "$A_SEC" "$A_CMD"
+  abl_task wrong-task "$abl_st" "$abl_so" '{"type":"contains","path":"docs/a.md","regex":"^лічильник: 3$"}' "$A_SEC" "$A_CMD"
+  abl_task touch-task "$abl_st" "$abl_so" "$A_CNT" '{"type":"untouched","glob":"docs/**"}' "$A_CMD"
+} > "$ABL_T/bad.jsonl"
+abl_out=$($ABL "$ABL_T/r" --tasks "$ABL_T/bad.jsonl" --limits 1:10 2>&1); abl_rc=$?
+[[ "$abl_rc" == "1" && "$abl_out" == *"trivial-task: на старті всі"* && "$abl_out" == *"wrong-task: на справжньому рішенні"* \
+   && "$abl_out" == *"touch-task: на справжньому рішенні"* ]] \
+  && ok "канарка: тривіальна задача, хибне твердження й зачеплений захищений шлях — спіймано" \
+  || bad "канарка: вади розрізнення задач" "код 1 + trivial/wrong/touch" "rc=$abl_rc ${abl_out:0:160}"
+{ abl_task dup "$abl_st" "$abl_so" "$A_CNT" "$A_SEC" "$A_CMD"
+  abl_task dup "$abl_st" "$abl_so" "$A_CNT" "$A_SEC"
+  abl_task rev "$abl_so" "$abl_st" "$A_CNT" "$A_SEC" "$A_CMD"
+} > "$ABL_T/fmt.jsonl"
+abl_out=$($ABL "$ABL_T/r" --tasks "$ABL_T/fmt.jsonl" --limits 1:10 2>&1); abl_rc=$?
+[[ "$abl_rc" == "1" && "$abl_out" == *"повторюється"* && "$abl_out" == *"3–6"* && "$abl_out" == *"не є предком"* ]] \
+  && ok "канарка: формат задач — дубль id, < 3 тверджень, старт не предок рішення — спіймано" \
+  || bad "канарка: формат задач абляції" "код 1 + три знахідки" "rc=$abl_rc ${abl_out:0:160}"
+abl_task ghost "0123456789abcdef0123456789abcdef01234567" "$abl_so" "$A_CNT" "$A_SEC" "$A_CMD" > "$ABL_T/ghost.jsonl"
+$ABL "$ABL_T/r" --tasks "$ABL_T/ghost.jsonl" --limits 1:10 >/dev/null 2>&1; abl_rc=$?
+[[ "$abl_rc" == "2" ]] \
+  && ok "канарка: коміту задачі немає в історії — «не ганялось» (код 2), а не «чисто»" \
+  || bad "канарка: відсутній коміт задачі" "код 2" "rc=$abl_rc"
+
 # ── Реєстр «розбитих вікон» (хвиля 5) ──
 # Борг фіксувався прозою й 🟡-статусами — чесно, але не як гейт: ніщо не
 # заважало віддати роботу з відкритим боргом. Реєстр робить борг перелічуваним,
