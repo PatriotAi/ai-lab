@@ -316,6 +316,20 @@ try {
   truthy("Retry-After без CORS-дозволу браузер не віддає → контур падає на експоненту (пауза коротка), а не ламається",
     hiddenCd < 3000, "пауза < 3 с");
 
+  // Anthropic розкриває заголовки зірочкою (`access-control-expose-headers: *`, проба 2026-10-24).
+  // Зірочка діє лише для запитів без облікових даних — перевіряємо, що наш fetch саме такий.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", (route) =>
+    route.fulfill({ status: 429, contentType: "application/json",
+      headers: { "retry-after": "30", "access-control-allow-origin": "*", "access-control-expose-headers": "*" },
+      body: JSON.stringify({ error: { message: "rate limit" } }) }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "завдання під розкриттям зірочкою");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  const starCd = await page.evaluate(() => window.PocketAgent.state.health.cloud.cooldownUntil - Date.now());
+  truthy("Retry-After під «expose-headers: *» (як у Anthropic) читається браузером → пауза ~30 с", starCd > 25000, `> 25000; фактично ${starCd}`);
+
   // P1-2: cooldown не з'їдає спроб і не б'є провайдера, що ще на паузі
   await page.unroute("**/api.anthropic.com/**");
   let coolCalls = 0;
@@ -413,6 +427,8 @@ try {
   await until("звичайна відповідь дійшла", () => document.querySelectorAll(".note").length === 1);
   check("запит: модель за замовчуванням — поточне покоління середнього класу", "claude-sonnet-5-5", sent.body.model);
   check("запит: версія API 2026-10-21", "2026-10-21", sent.headers["anthropic-version"]);
+  check("запит: серверний fallbacks \"default\"", "default", sent.body.fallbacks);
+  check("запит: бета-заголовок fallback пройшов у справжньому браузері", "server-side-fallback-2026-07-01", sent.headers["anthropic-beta"]);
   check("запит: effort явно low (чат; модель пропускає thinking на простих запитах)", "low", sent.body.output_config?.effort);
   truthy("запит: max_tokens має запас під thinking (≥ 4096), а не 800", sent.body.max_tokens >= 4096, `≥ 4096; фактично ${sent.body.max_tokens}`);
   truthy("запит: без temperature/top_p/top_k (на 2026-10-21 вони дають 400)",
@@ -458,6 +474,82 @@ try {
   truthy("обрізано до появи тексту: прямо сказано про ліміт", /обрізан/i.test(emptyCut), `містить «обрізан»; фактично: ${emptyCut.slice(0, 90)}`);
   truthy("обрізано до появи тексту: НЕ видається за «провайдери недоступні»", !emptyCut.includes("Провайдери недоступні"),
     `без «Провайдери недоступні»; фактично: ${emptyCut.slice(0, 90)}`);
+
+  // Рев'ю Codex до PR #101 (A): відповіла резервна модель (fallback або закріплення на ~годину) —
+  // людина має бачити, яка модель відповіла насправді.
+  await page.unroute("**/api.anthropic.com/**");
+  await page.route("**/api.anthropic.com/**", reply200({ model: "claude-sonnet-5",
+    content: [{ type: "fallback", from: { model: "claude-sonnet-5-5" }, to: { model: "claude-sonnet-5" } },
+      { type: "text", text: "текст від іншої моделі" }], stop_reason: "end_turn" }));
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "запит, який обробила інша модель");
+  await page.click("#send");
+  await until("відповідь резервної моделі дійшла", () => document.querySelectorAll(".note").length === 1);
+  const fbNote = await page.textContent(".note .a");
+  truthy("резервна модель названа в нотатці", fbNote.includes("claude-sonnet-5") && /резервн/i.test(fbNote),
+    `містить «claude-sonnet-5» і «резервн»; фактично: ${fbNote.slice(0, 120)}`);
+
+  // (C): відмова з recommended_model — резервна модель не змогла (ліміт/перевантаження), тож це
+  // тимчасово: завдання лишається в черзі з паузою, а не стає остаточною відмовою.
+  await page.unroute("**/api.anthropic.com/**");
+  let busyCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { busyCalls++;
+    return reply200({ content: [], stop_reason: "refusal",
+      stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })(route); });
+  await reset(`s.apiKey = "k";`);
+  await page.fill("#input", "запит у хвилину перевантаження");
+  await page.click("#send");
+  await page.waitForFunction(() => window.PocketAgent.state.queue.some((x) => x.attempts === 1), null, { timeout: 15000 });
+  const busyTask = await page.evaluate(() => window.PocketAgent.state.queue[0]);
+  check("recommended_model: завдання чекає повтору, а не провалене", "pending", busyTask.status);
+  check("recommended_model: офлайн- чи відмовної нотатки нема", 0, await page.locator(".note").count());
+
+  // Повторне рев'ю Codex до PR #101 (D): відмова — рішення про зміст, а не збій вузла. Із запасним
+  // провайдером відхилений запит не має потрапити до нього ні при повторі, ні через паузу вузла;
+  // і пауза не має перекидати на запасний СТОРОННІ завдання.
+  await page.unroute("**/api.anthropic.com/**");
+  let anthMode = "busy", anthCalls = 0, openaiCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { anthCalls++;
+    if (anthMode === "busy") return reply200({ content: [], stop_reason: "refusal",
+      stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })(route);
+    if (anthMode === "refuse") return reply200({ content: [], stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber" } })(route);
+    return reply200({ content: [{ type: "text", text: "відповідь основного вузла" }], stop_reason: "end_turn" })(route); });
+  await page.route("**/api.openai.com/**", (route) => { openaiCalls++;
+    return route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "НЕ МАЛО ПРИЛЕТІТИ від запасного" } }] }) }); });
+  await reset(`s.apiKey = "k"; s.backupKey = "k2"; s.settings.backupProvider = "openai"; s.settings.backupModel = "m";`);
+  await page.fill("#input", "запит, що спершу впирається в перевантаження резервної");
+  await page.click("#send");
+  await until("перша тимчасова відмова", () => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  // Детерміновано: вузол Anthropic на паузі (з будь-якої причини), а завдання готове вже зараз.
+  // Перший варіант чекав природних пауз і проходив на старому коді — перегони випадкові (2026-10-25).
+  await page.evaluate(() => {
+    const st = window.PocketAgent.state;
+    st.health.cloud = { fails: 1, cooldownUntil: Date.now() + 60000 };
+    st.queue[0].nextAttemptAt = Date.now() - 1;
+    window.PocketAgent.queue.drain();
+  });
+  await until("закріплене завдання відкладено (або пішло деінде)", () => {
+    const st = window.PocketAgent.state; const t = st.queue[0];
+    return st.notes.length > 0 || (t && t.status === "pending" && t.nextAttemptAt > Date.now() + 20000);
+  });
+  check("тимчасова відмова: запасному провайдеру НЕ передано", 0, openaiCalls);
+  check("тимчасова відмова: завдання чекає того самого вузла Anthropic", "pending",
+    await page.evaluate(() => window.PocketAgent.state.queue[0]?.status));
+  anthMode = "refuse";
+  await reset(`s.apiKey = "k"; s.backupKey = "k2"; s.settings.backupProvider = "openai"; s.settings.backupModel = "m";`);
+  await page.fill("#input", "запит, який модель відхилить");
+  await page.click("#send");
+  await until("відмова дійшла до людини", () => document.querySelectorAll(".note").length === 1);
+  anthMode = "ok";
+  await page.fill("#input", "стороннє наступне завдання");
+  await page.click("#send");
+  await until("стороннє завдання виконано", () => document.querySelectorAll(".note").length === 2);
+  check("після відмови вузол не на паузі: стороннє завдання — до основного, не до запасного", 0, openaiCalls);
+  truthy("стороннє завдання отримало відповідь основного вузла",
+    (await page.textContent(".note .a")).includes("відповідь основного вузла"));
+  await page.unroute("**/api.openai.com/**");
+  await reset(`s.backupKey = ""; s.settings.backupProvider = ""; s.settings.backupModel = "";`);
 
   // Збережені налаштування перекривали б новий DEFAULT: хто колись відкрив налаштування,
   // назавжди лишився б на старому ID. Мігрує лише старий ТИПОВИЙ ID, а не вибір людини.

@@ -174,7 +174,7 @@ function main() {
   writeFileSync(DIST_FILE, html);
   writeFileSync(SW_FILE, sw);
   const versionJson = JSON.stringify(
-    { version, notes: "Поточне покоління моделі; відмова й обрізання відповіді показуються прямо; запас під thinking.", updated: "2026-10-24" },
+    { version, notes: "Запит, відхилений політикою, сервер Anthropic сам перезапускає на рекомендованій моделі (fallbacks).", updated: "2026-10-25" },
     null,
     2,
   ) + "\n";
