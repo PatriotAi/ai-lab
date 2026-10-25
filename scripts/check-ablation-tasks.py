@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -102,6 +103,9 @@ def format_errors(root: Path, tasks: list[dict], lo: int, hi: int) -> tuple[list
             for f in NEED[kind]:
                 if not isinstance(a.get(f), str) or not a[f].strip():
                     errs.append(f"{tid}: твердження {i} ({kind}) — бракує `{f}`")
+            target = a.get("path") or a.get("glob")
+            if isinstance(target, str) and outside(target):
+                errs.append(f"{tid}: твердження {i} — шлях «{target}» виходить за межі репо")
             if kind in ("contains", "not_contains") and isinstance(a.get("regex"), str):
                 try:
                     re.compile(a["regex"])
@@ -112,26 +116,39 @@ def format_errors(root: Path, tasks: list[dict], lo: int, hi: int) -> tuple[list
     return errs, missing
 
 
+def outside(target: str) -> bool:
+    """Абсолютний шлях чи `..` читали б файли поза worktree — і давали б різне в різних
+    середовищах (рев'ю Codex до PR #103)."""
+    return Path(target).is_absolute() or ".." in Path(target).parts
+
+
 def holds(wt: Path, start: str, a: dict) -> bool:
     """Чи виконується твердження в робочому дереві `wt` (база для `untouched` — коміт `start`)."""
     kind = a["type"]
     if kind == "cmd":
         try:
+            # Без байткоду: інакше __pycache__ у робочому дереві виглядав би як зміна для `untouched`.
             run = subprocess.run(shlex.split(a["run"]), cwd=wt, capture_output=True, text=True,
-                                 timeout=CMD_TIMEOUT)
+                                 timeout=CMD_TIMEOUT, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
         except (OSError, subprocess.TimeoutExpired):
             return False
         return run.returncode == a.get("exit", 0)
+    if kind != "untouched":
+        path = (wt / a["path"]).resolve()
+        if outside(a["path"]) or not path.is_relative_to(wt.resolve()):
+            return False
     if kind == "exists":
-        return (wt / a["path"]).exists()
+        return path.exists()
     if kind in ("contains", "not_contains"):
-        path = wt / a["path"]
         text = path.read_text(encoding="utf-8", errors="replace") if path.is_file() else None
         found = text is not None and re.search(a["regex"], text, re.M) is not None
         return found if kind == "contains" else not found
     spec = f":(glob){a['glob']}"
     changed = git(wt, "diff", "--quiet", start, "--", spec).returncode != 0
-    added = git(wt, "ls-files", "--others", "--exclude-standard", "--", spec).stdout.strip()
+    # Нові файли рахуються й тоді, коли їх ховає .gitignore: інакше задача могла б покласти
+    # ігнорований файл у захищену теку непомітно (рев'ю Codex до PR #103). Кеш байткоду — не зміна.
+    added = [ln for ln in git(wt, "ls-files", "--others", "--", spec).stdout.splitlines()
+             if "__pycache__/" not in ln and not ln.endswith(".pyc")]
     return not changed and not added
 
 

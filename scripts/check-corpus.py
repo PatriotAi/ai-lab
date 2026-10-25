@@ -11,9 +11,11 @@
 списку кодів тут немає, тож кодова книга й перевірка не можуть розійтися (крок Ф0.5).
 
 Типи в таблиці структури: `id` (`vd-NNN`), `date` (`YYYY-MM-DD`, справжня дата), `text`
-(непорожній рядок), `code` (значення з таблиці цього поля), `codes:<поле>` (список кодів із
-таблиці іншого поля), `int?` (ціле ≥ 0 або `null`), `indicators` (список з `I1`–`I6`),
-`names` (непорожній список непорожніх рядків).
+(непорожній рядок), `source` (вказівник, що існує: `PR #N`, коміт, що є в історії, або шлях
+у репо, можна з `#фрагментом`), `code` (значення з таблиці цього поля), `codes:<поле>` (список
+кодів із таблиці іншого поля), `int?` (ціле ≥ 0 або `null`), `indicators` (список з `I1`–`I6`),
+`names` / `names:N` (список непорожніх імен; з `:N` — щонайменше N різних). Обов'язковість —
+лише `так` або `ні`: описка там мовчки зробила б поле необов'язковим (рев'ю Codex до PR #103).
 
 Запуск:
     python3 scripts/check-corpus.py [корінь] [--corpus ШЛЯХ] [--codebook ШЛЯХ]
@@ -26,6 +28,7 @@ import argparse
 import datetime as dt
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -36,7 +39,9 @@ FIELD_HEADING = re.compile(r"^### Поле `([a-z_]+)`")
 CELL_CODE = re.compile(r"^`([^`]+)`$")
 ID = re.compile(r"^vd-\d{3,}$")
 INDICATORS = {f"I{n}" for n in range(1, 7)}
-TYPES = re.compile(r"^(id|date|text|code|codes:[a-z_]+|int\?|indicators|names)$")
+TYPES = re.compile(r"^(id|date|text|source|code|codes:[a-z_]+|int\?|indicators|names(?::\d+)?)$")
+PR = re.compile(r"^PR #\d+$")
+COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 def table_rows(lines: list[str], start: int) -> list[list[str]]:
@@ -58,15 +63,19 @@ def parse_codebook(text: str) -> tuple[dict[str, tuple[str, bool]], dict[str, se
     lines = text.splitlines()
     fields: dict[str, tuple[str, bool]] = {}
     codes: dict[str, set[str]] = {}
+    bad_required: list[str] = []
     for i, ln in enumerate(lines):
         if ln.strip() == STRUCTURE:
             for cells in table_rows(lines, i):
                 if len(cells) >= 3:
-                    fields[CELL_CODE.match(cells[0]).group(1)] = (cells[1], cells[2] == "так")
+                    name = CELL_CODE.match(cells[0]).group(1)
+                    fields[name] = (cells[1], cells[2] == "так")
+                    if cells[2] not in ("так", "ні"):
+                        bad_required.append(f"поле `{name}`: обов'язковість «{cells[2]}» — має бути «так» або «ні»")
         m = FIELD_HEADING.match(ln)
         if m:
             codes[m.group(1)] = {CELL_CODE.match(c[0]).group(1) for c in table_rows(lines, i)}
-    flaws = []
+    flaws = list(bad_required)
     for name, (kind, _) in fields.items():
         if not TYPES.match(kind):
             flaws.append(f"поле `{name}`: невідомий тип «{kind}»")
@@ -87,8 +96,27 @@ def valid_date(value: object) -> bool:
     return True
 
 
-def type_error(value: object, kind: str, field: str, codes: dict[str, set[str]]) -> str | None:
+def source_error(value: object, root: Path) -> str | None:
+    """Вказівник на доказ, що існує: `PR #N`, коміт з історії або шлях у репо (рев'ю Codex до PR #103)."""
+    if not isinstance(value, str) or not value.strip():
+        return "очікувано вказівник: шлях у репо, `PR #N` або коміт"
+    if PR.match(value):
+        return None
+    if COMMIT.match(value):
+        run = subprocess.run(["git", "cat-file", "-e", f"{value}^{{commit}}"], cwd=root,
+                             capture_output=True, text=True)
+        return None if run.returncode == 0 else f"коміту {value} нема в історії репо"
+    path = value.split("#", 1)[0]
+    if Path(path).is_absolute() or ".." in Path(path).parts or not (root / path).exists():
+        return f"«{value}» — не `PR #N`, не коміт і не наявний шлях у репо"
+    return None
+
+
+def type_error(value: object, kind: str, field: str, codes: dict[str, set[str]],
+               root: Path) -> str | None:
     """Опис порушення типу або None, якщо значення відповідає типу з кодової книги."""
+    if kind == "source":
+        return source_error(value, root)
     if kind == "id":
         return None if isinstance(value, str) and ID.match(value) else "очікувано `vd-NNN`"
     if kind == "date":
@@ -109,14 +137,17 @@ def type_error(value: object, kind: str, field: str, codes: dict[str, set[str]])
     if kind == "indicators":
         ok = isinstance(value, list) and all(v in INDICATORS for v in value)
         return None if ok else "очікувано список з I1–I6"
-    if kind == "names":
-        ok = isinstance(value, list) and value and all(isinstance(v, str) and v.strip() for v in value)
-        return None if ok else "очікувано непорожній список імен"
+    if kind.startswith("names"):
+        need = int(kind.split(":", 1)[1]) if ":" in kind else 1
+        ok = isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
+        if not ok or len(set(value)) < need:
+            return f"очікувано щонайменше {need} різн{'е ім’я' if need == 1 else 'і імені'}"
+        return None
     return f"невідомий тип «{kind}»"
 
 
 def check_corpus(text: str, fields: dict[str, tuple[str, bool]],
-                 codes: dict[str, set[str]]) -> list[str]:
+                 codes: dict[str, set[str]], root: Path) -> list[str]:
     errors: list[str] = []
     seen: dict[str, int] = {}
     for n, raw in enumerate(text.splitlines(), 1):
@@ -137,7 +168,7 @@ def check_corpus(text: str, fields: dict[str, tuple[str, bool]],
                 if required:
                     errors.append(f"рядок {n}: бракує обов'язкового поля `{name}`")
                 continue
-            err = type_error(rec[name], kind, name, codes)
+            err = type_error(rec[name], kind, name, codes, root)
             if err:
                 errors.append(f"рядок {n}: `{name}` — {err}")
         rid = rec.get("id")
@@ -176,7 +207,7 @@ def main(argv: list[str]) -> int:
         print(f"✅ кодова книга цілісна ({len(fields)} полів); корпусу ще нема ({corpus.name}) — "
               f"перевірено лише кодову книгу")
         return 0
-    errors = check_corpus(corpus.read_text(encoding="utf-8", errors="replace"), fields, codes)
+    errors = check_corpus(corpus.read_text(encoding="utf-8", errors="replace"), fields, codes, root)
     for e in errors[:30]:
         print(f"  ✗ {e}")
     if len(errors) > 30:

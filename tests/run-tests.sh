@@ -629,7 +629,7 @@ crp_out=$($CRP "$REPO" 2>&1); crp_rc=$?
 CRP_T="$TMPROOT/corpus"; mkdir -p "$CRP_T"
 printf '%s\n' \
   '{"id":"vd-001","date":"2026-07-19","source":"docs/learnings.md","summary":"с","kind":"defect","detector":"external","detectors_other":["runtime"],"mechanism_before":"T","latency_days":3,"severity":"high","mast_mode":"FM-3.2","coders":["a","b"]}' \
-  '{"id":"vd-002","date":"2026-10-23","source":"PR #96","summary":"с","kind":"process","detector":"external","detectors_other":[],"mechanism_before":"none","latency_days":null,"severity":"medium","mast_mode":"FM-2.2","indicators_before":["I1"],"coders":["a"]}' \
+  '{"id":"vd-002","date":"2026-10-23","source":"PR #96","summary":"с","kind":"process","detector":"external","detectors_other":[],"mechanism_before":"none","latency_days":null,"severity":"medium","mast_mode":"FM-2.2","indicators_before":["I1"],"coders":["a","b"]}' \
   > "$CRP_T/ok.jsonl"
 $CRP "$REPO" --corpus "$CRP_T/ok.jsonl" >/dev/null 2>&1 \
   && ok "канарка: корпус за кодовою книгою — не знахідка" \
@@ -641,12 +641,12 @@ printf '%s\n' \
   > "$CRP_T/bad.jsonl"
 crp_out=$($CRP "$REPO" --corpus "$CRP_T/bad.jsonl" 2>&1); crp_rc=$?
 crp_miss=""
-for m in "справжню дату" "«intuition»" "ціле ≥ 0" "«FM-4.1»" "поза кодовою книгою" "уже був" "містить перший виявлювач" "бракує обов'язкового поля"; do
+for m in "справжню дату" "«intuition»" "ціле ≥ 0" "«FM-4.1»" "поза кодовою книгою" "уже був" "містить перший виявлювач" "бракує обов'язкового поля" "не наявний шлях у репо" "2 різні імені"; do
   [[ "$crp_out" == *"$m"* ]] || crp_miss+="[$m] "
 done
 [[ "$crp_rc" == "1" && -z "$crp_miss" ]] \
-  && ok "канарка: 8 класів порушень корпусу спіймано (дата, код, тип, MAST, зайве поле, дубль id, виявлювач двічі, брак поля)" \
-  || bad "канарка: порушення корпусу ловляться" "код 1 + усі 8 класів" "rc=$crp_rc, не спіймано: $crp_miss"
+  && ok "канарка: 10 класів порушень корпусу спіймано (дата, код, тип, MAST, зайве поле, дубль id, виявлювач двічі, брак поля, вигадане джерело, один кодувальник)" \
+  || bad "канарка: порушення корпусу ловляться" "код 1 + усі 10 класів" "rc=$crp_rc, не спіймано: $crp_miss"
 $CRP "$REPO" --codebook "$CRP_T/nema.md" >/dev/null 2>&1; crp_rc=$?
 [[ "$crp_rc" == "2" ]] \
   && ok "канарка: без кодової книги — «не ганялось» (код 2), а не «чисто»" \
@@ -654,7 +654,7 @@ $CRP "$REPO" --codebook "$CRP_T/nema.md" >/dev/null 2>&1; crp_rc=$?
 # Одне джерело: код, дописаний у таблицю кодової книги, приймається без правки скрипта.
 sed 's/^| `unknown` |/| `intuition` | інтуїція без перевірки |\n| `unknown` |/' \
   "$REPO/experiments/verified-development/preregistration.md" > "$CRP_T/book.md"
-printf '%s\n' '{"id":"vd-009","date":"2026-07-19","source":"x","summary":"с","kind":"defect","detector":"intuition","detectors_other":[],"mechanism_before":"T","latency_days":0,"severity":"low","mast_mode":"none","coders":["a"]}' \
+printf '%s\n' '{"id":"vd-009","date":"2026-07-19","source":"PR #1","summary":"с","kind":"defect","detector":"intuition","detectors_other":[],"mechanism_before":"T","latency_days":0,"severity":"low","mast_mode":"none","coders":["a","b"]}' \
   > "$CRP_T/one.jsonl"
 if $CRP "$REPO" --codebook "$CRP_T/book.md" --corpus "$CRP_T/one.jsonl" >/dev/null 2>&1 \
    && ! $CRP "$REPO" --corpus "$CRP_T/one.jsonl" >/dev/null 2>&1; then
@@ -669,6 +669,13 @@ crp_out=$($CRP "$REPO" --codebook "$CRP_T/broken.md" 2>&1); crp_rc=$?
 [[ "$crp_rc" == "2" && "$crp_out" == *"severity"* ]] \
   && ok "канарка: неповна кодова книга (тип code без таблиці) — код 2" \
   || bad "канарка: неповна кодова книга" "код 2 + назва поля" "rc=$crp_rc ${crp_out:0:100}"
+# Описка в колонці обов'язковості мовчки робила поле необов'язковим (рев'ю Codex до PR #103).
+sed 's/^| `summary` | text | так |/| `summary` | text | тк |/' \
+  "$REPO/experiments/verified-development/preregistration.md" > "$CRP_T/typo.md"
+crp_out=$($CRP "$REPO" --codebook "$CRP_T/typo.md" --corpus "$CRP_T/ok.jsonl" 2>&1); crp_rc=$?
+[[ "$crp_rc" == "2" && "$crp_out" == *"обов'язковість «тк»"* ]] \
+  && ok "канарка: обов'язковість не «так»/«ні» — неповна кодова книга (код 2), а не мовчки необов'язкове поле" \
+  || bad "канарка: описка в обов'язковості" "код 2 + «тк»" "rc=$crp_rc ${crp_out:0:100}"
 
 # ── Набір задач абляції розрізняє «до» і «після» (Фаза 13, Ф0.6) ──
 # Твердження, що проходить без роботи агента, нічого не міряє; що падає на справжньому
@@ -719,6 +726,25 @@ abl_out=$($ABL "$ABL_T/r" --tasks "$ABL_T/fmt.jsonl" --limits 1:10 2>&1); abl_rc
 [[ "$abl_rc" == "1" && "$abl_out" == *"повторюється"* && "$abl_out" == *"3–6"* && "$abl_out" == *"не є предком"* ]] \
   && ok "канарка: формат задач — дубль id, < 3 тверджень, старт не предок рішення — спіймано" \
   || bad "канарка: формат задач абляції" "код 1 + три знахідки" "rc=$abl_rc ${abl_out:0:160}"
+# Шляхи поза worktree читали б файли хоста й давали різне в різних середовищах (рев'ю Codex до PR #103).
+abl_task esc "$abl_st" "$abl_so" "$A_CNT" '{"type":"exists","path":"/etc/passwd"}' '{"type":"contains","path":"../../x","regex":"."}' > "$ABL_T/esc.jsonl"
+abl_out=$($ABL "$ABL_T/r" --tasks "$ABL_T/esc.jsonl" --limits 1:10 2>&1); abl_rc=$?
+[[ "$abl_rc" == "1" && "$abl_out" == *"«/etc/passwd» виходить за межі"* && "$abl_out" == *"«../../x» виходить за межі"* ]] \
+  && ok "канарка: абсолютний шлях і «..» у твердженні — знахідка формату" \
+  || bad "канарка: шляхи тверджень у межах репо" "код 1 + обидва шляхи" "rc=$abl_rc ${abl_out:0:160}"
+# Ігнорований (.gitignore) файл у захищеній теці — теж зміна для `untouched` (рев'ю Codex до PR #103).
+ABL_I="$TMPROOT/ablation-ign"; mkdir -p "$ABL_I/security" "$ABL_I/docs"
+printf '*.local\n' > "$ABL_I/.gitignore"; printf 'keep\n' > "$ABL_I/security/k.md"; printf 'v1\n' > "$ABL_I/docs/a.md"
+printf 'import pathlib\npathlib.Path("security/x.local").write_text("x")\n' > "$ABL_I/mk.py"
+( cd "$ABL_I" && git init -q && git -c user.email=t@t -c user.name=t add -A \
+  && git -c user.email=t@t -c user.name=t commit -qm start \
+  && printf 'v2\n' > docs/a.md && git -c user.email=t@t -c user.name=t commit -qam sol )
+abl_task ign "$(git -C "$ABL_I" rev-parse HEAD~1)" "$(git -C "$ABL_I" rev-parse HEAD)" \
+  '{"type":"contains","path":"docs/a.md","regex":"v2"}' '{"type":"cmd","run":"python3 mk.py","exit":0}' "$A_SEC" > "$ABL_T/ign.jsonl"
+abl_out=$($ABL "$ABL_I" --tasks "$ABL_T/ign.jsonl" --limits 1:10 2>&1); abl_rc=$?
+[[ "$abl_rc" == "1" && "$abl_out" == *"ign: на справжньому рішенні падає «security/**»"* ]] \
+  && ok "канарка: ігнорований файл, покладений у захищену теку, — порушення untouched" \
+  || bad "канарка: untouched бачить ігноровані файли" "код 1 + security/**" "rc=$abl_rc ${abl_out:0:160}"
 abl_task ghost "0123456789abcdef0123456789abcdef01234567" "$abl_so" "$A_CNT" "$A_SEC" "$A_CMD" > "$ABL_T/ghost.jsonl"
 $ABL "$ABL_T/r" --tasks "$ABL_T/ghost.jsonl" --limits 1:10 >/dev/null 2>&1; abl_rc=$?
 [[ "$abl_rc" == "2" ]] \
