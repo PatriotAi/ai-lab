@@ -504,6 +504,53 @@ try {
   check("recommended_model: завдання чекає повтору, а не провалене", "pending", busyTask.status);
   check("recommended_model: офлайн- чи відмовної нотатки нема", 0, await page.locator(".note").count());
 
+  // Повторне рев'ю Codex до PR #101 (D): відмова — рішення про зміст, а не збій вузла. Із запасним
+  // провайдером відхилений запит не має потрапити до нього ні при повторі, ні через паузу вузла;
+  // і пауза не має перекидати на запасний СТОРОННІ завдання.
+  await page.unroute("**/api.anthropic.com/**");
+  let anthMode = "busy", anthCalls = 0, openaiCalls = 0;
+  await page.route("**/api.anthropic.com/**", (route) => { anthCalls++;
+    if (anthMode === "busy") return reply200({ content: [], stop_reason: "refusal",
+      stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })(route);
+    if (anthMode === "refuse") return reply200({ content: [], stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber" } })(route);
+    return reply200({ content: [{ type: "text", text: "відповідь основного вузла" }], stop_reason: "end_turn" })(route); });
+  await page.route("**/api.openai.com/**", (route) => { openaiCalls++;
+    return route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "НЕ МАЛО ПРИЛЕТІТИ від запасного" } }] }) }); });
+  await reset(`s.apiKey = "k"; s.backupKey = "k2"; s.settings.backupProvider = "openai"; s.settings.backupModel = "m";`);
+  await page.fill("#input", "запит, що спершу впирається в перевантаження резервної");
+  await page.click("#send");
+  await until("перша тимчасова відмова", () => window.PocketAgent.state.queue.some((x) => x.attempts === 1));
+  // Детерміновано: вузол Anthropic на паузі (з будь-якої причини), а завдання готове вже зараз.
+  // Перший варіант чекав природних пауз і проходив на старому коді — перегони випадкові (2026-10-25).
+  await page.evaluate(() => {
+    const st = window.PocketAgent.state;
+    st.health.cloud = { fails: 1, cooldownUntil: Date.now() + 60000 };
+    st.queue[0].nextAttemptAt = Date.now() - 1;
+    window.PocketAgent.queue.drain();
+  });
+  await until("закріплене завдання відкладено (або пішло деінде)", () => {
+    const st = window.PocketAgent.state; const t = st.queue[0];
+    return st.notes.length > 0 || (t && t.status === "pending" && t.nextAttemptAt > Date.now() + 20000);
+  });
+  check("тимчасова відмова: запасному провайдеру НЕ передано", 0, openaiCalls);
+  check("тимчасова відмова: завдання чекає того самого вузла Anthropic", "pending",
+    await page.evaluate(() => window.PocketAgent.state.queue[0]?.status));
+  anthMode = "refuse";
+  await reset(`s.apiKey = "k"; s.backupKey = "k2"; s.settings.backupProvider = "openai"; s.settings.backupModel = "m";`);
+  await page.fill("#input", "запит, який модель відхилить");
+  await page.click("#send");
+  await until("відмова дійшла до людини", () => document.querySelectorAll(".note").length === 1);
+  anthMode = "ok";
+  await page.fill("#input", "стороннє наступне завдання");
+  await page.click("#send");
+  await until("стороннє завдання виконано", () => document.querySelectorAll(".note").length === 2);
+  check("після відмови вузол не на паузі: стороннє завдання — до основного, не до запасного", 0, openaiCalls);
+  truthy("стороннє завдання отримало відповідь основного вузла",
+    (await page.textContent(".note .a")).includes("відповідь основного вузла"));
+  await page.unroute("**/api.openai.com/**");
+  await reset(`s.backupKey = ""; s.settings.backupProvider = ""; s.settings.backupModel = "";`);
+
   // Збережені налаштування перекривали б новий DEFAULT: хто колись відкрив налаштування,
   // назавжди лишився б на старому ID. Мігрує лише старий ТИПОВИЙ ID, а не вибір людини.
   await page.evaluate(() => localStorage.setItem("pocket-agent.settings.v1", JSON.stringify({ model: "claude-sonnet-5" })));

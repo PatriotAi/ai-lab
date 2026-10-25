@@ -491,7 +491,7 @@ async function drainQueue() {
     while (true) {
       const plan = planDispatch({
         chain, health: state.health, caps, tried, lastChance,
-        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud",
+        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud", pin: task.pin,
       });
       if (plan.action === "wait") {
         // Чекання — не невдача: спробу НЕ витрачаємо. Cooldown — таймер, ключ/мережа — подія.
@@ -518,7 +518,10 @@ async function drainQueue() {
           capacity: err.capacity === true,
         });
         lastErr = redactSecrets(err.message || String(err));
-        state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        // Відмова й обрізання — відповідь моделі, а не збій вузла: паузи вузла не ставимо.
+        if (!isModelSideOutcome(failure.kind)) {
+          state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        }
         if (!failure.switchProvider) break;   // наступний вузол не допоможе
       }
     }
@@ -528,6 +531,8 @@ async function drainQueue() {
       state.queue = applyOutcome(state.queue, task.id, {
         ok: false, failure: f, engine: node?.id, tried, error: lastErr,
       });
+      // Повтор тимчасової відмови — лише на тому самому вузлі (повторне рев'ю Codex, PR #101).
+      if (f.kind === "refusal-busy" && node) state.queue = pinTask(state.queue, task.id, node.id);
       const after = state.queue.find((x) => x.id === task.id);
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
@@ -786,7 +791,7 @@ window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
           classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
-          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote },
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote, isModelSideOutcome, pinTask },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };

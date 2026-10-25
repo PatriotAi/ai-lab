@@ -586,7 +586,8 @@ function cloudReplyStatus(provider, data) {
 function fallbackNote(requestedModel, data) {
   const served = data && typeof data === "object" ? data.model : null;
   if (!served || !requestedModel || served === requestedModel) return "";
-  return `↪ Відповіла резервна модель ${served}: сервер Anthropic перезапустив запит, відхилений моделлю ${requestedModel}.`;
+  // Нейтрально: при закріпленні резервної моделі нової відмови не було (повторне рев'ю Codex, PR #101).
+  return `↪ Запит обробила резервна модель ${served} замість ${requestedModel} (переспрямування сервера Anthropic).`;
 }
 
 /** Витяг тексту відповіді з формату будь-якого з двох провайдерів. */
@@ -764,6 +765,15 @@ function defaultChain(settings = {}) {
   return chain;
 }
 
+/**
+ * Відповідь самої моделі (відмова, обрізання) — рішення про зміст запиту, а не збій вузла.
+ * Такий результат не ставить вузол на паузу: інакше сторонні завдання йшли б на запасний,
+ * а відхилений запит — до іншого провайдера (повторне рев'ю Codex, PR #101).
+ */
+function isModelSideOutcome(kind) {
+  return kind === "refusal" || kind === "refusal-busy" || kind === "truncated";
+}
+
 /** Невдача вузла: рахуємо поспіль і відсуваємо його на паузу. */
 function markFailure(health, id, o = {}) {
   const now = o.now ?? Date.now();
@@ -821,7 +831,11 @@ function planDispatch(o = {}) {
 
   if (prefer === "offline") return { action: "run", node: offlineNode };
 
-  const real = constrainChain(o.chain || [], prefer).filter((n) => n.kind !== "offline" && !tried.has(n.id));
+  // Закріплене завдання (повтор тимчасової відмови) лишається на своєму вузлі: якщо той на паузі,
+  // чекаємо, а не віддаємо відхилений запит іншому провайдерові.
+  const constrained = constrainChain(o.chain || [], prefer);
+  const pinned = o.pin ? constrained.filter((n) => n.id === o.pin) : constrained;
+  const real = pinned.filter((n) => n.kind !== "offline" && !tried.has(n.id));
   const cooling = [];
   let available = null, lockedBlocked = false, networkBlocked = false;
 
@@ -960,6 +974,11 @@ function requeue(queue, id, now = Date.now()) {
       ? { ...t, status: "pending", attempts: 0, tried: [], nextAttemptAt: now, lastError: null }
       : t,
   );
+}
+
+/** Закріпити завдання за вузлом (повтор тимчасової відмови не йде до іншого провайдера). */
+function pinTask(queue, id, nodeId) {
+  return (queue || []).map((t) => (t.id === id ? { ...t, pin: nodeId } : t));
 }
 
 /** Прибрати завершені — черга не має рости вічно. */
@@ -1252,7 +1271,7 @@ async function drainQueue() {
     while (true) {
       const plan = planDispatch({
         chain, health: state.health, caps, tried, lastChance,
-        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud",
+        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud", pin: task.pin,
       });
       if (plan.action === "wait") {
         // Чекання — не невдача: спробу НЕ витрачаємо. Cooldown — таймер, ключ/мережа — подія.
@@ -1279,7 +1298,10 @@ async function drainQueue() {
           capacity: err.capacity === true,
         });
         lastErr = redactSecrets(err.message || String(err));
-        state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        // Відмова й обрізання — відповідь моделі, а не збій вузла: паузи вузла не ставимо.
+        if (!isModelSideOutcome(failure.kind)) {
+          state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        }
         if (!failure.switchProvider) break;   // наступний вузол не допоможе
       }
     }
@@ -1289,6 +1311,8 @@ async function drainQueue() {
       state.queue = applyOutcome(state.queue, task.id, {
         ok: false, failure: f, engine: node?.id, tried, error: lastErr,
       });
+      // Повтор тимчасової відмови — лише на тому самому вузлі (повторне рев'ю Codex, PR #101).
+      if (f.kind === "refusal-busy" && node) state.queue = pinTask(state.queue, task.id, node.id);
       const after = state.queue.find((x) => x.id === task.id);
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
@@ -1547,7 +1571,7 @@ window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
           classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
-          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote },
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote, isModelSideOutcome, pinTask },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };

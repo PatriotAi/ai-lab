@@ -349,7 +349,8 @@ export function cloudReplyStatus(provider, data) {
 export function fallbackNote(requestedModel, data) {
   const served = data && typeof data === "object" ? data.model : null;
   if (!served || !requestedModel || served === requestedModel) return "";
-  return `↪ Відповіла резервна модель ${served}: сервер Anthropic перезапустив запит, відхилений моделлю ${requestedModel}.`;
+  // Нейтрально: при закріпленні резервної моделі нової відмови не було (повторне рев'ю Codex, PR #101).
+  return `↪ Запит обробила резервна модель ${served} замість ${requestedModel} (переспрямування сервера Anthropic).`;
 }
 
 /** Витяг тексту відповіді з формату будь-якого з двох провайдерів. */
@@ -527,6 +528,15 @@ export function defaultChain(settings = {}) {
   return chain;
 }
 
+/**
+ * Відповідь самої моделі (відмова, обрізання) — рішення про зміст запиту, а не збій вузла.
+ * Такий результат не ставить вузол на паузу: інакше сторонні завдання йшли б на запасний,
+ * а відхилений запит — до іншого провайдера (повторне рев'ю Codex, PR #101).
+ */
+export function isModelSideOutcome(kind) {
+  return kind === "refusal" || kind === "refusal-busy" || kind === "truncated";
+}
+
 /** Невдача вузла: рахуємо поспіль і відсуваємо його на паузу. */
 export function markFailure(health, id, o = {}) {
   const now = o.now ?? Date.now();
@@ -584,7 +594,11 @@ export function planDispatch(o = {}) {
 
   if (prefer === "offline") return { action: "run", node: offlineNode };
 
-  const real = constrainChain(o.chain || [], prefer).filter((n) => n.kind !== "offline" && !tried.has(n.id));
+  // Закріплене завдання (повтор тимчасової відмови) лишається на своєму вузлі: якщо той на паузі,
+  // чекаємо, а не віддаємо відхилений запит іншому провайдерові.
+  const constrained = constrainChain(o.chain || [], prefer);
+  const pinned = o.pin ? constrained.filter((n) => n.id === o.pin) : constrained;
+  const real = pinned.filter((n) => n.kind !== "offline" && !tried.has(n.id));
   const cooling = [];
   let available = null, lockedBlocked = false, networkBlocked = false;
 
@@ -723,6 +737,11 @@ export function requeue(queue, id, now = Date.now()) {
       ? { ...t, status: "pending", attempts: 0, tried: [], nextAttemptAt: now, lastError: null }
       : t,
   );
+}
+
+/** Закріпити завдання за вузлом (повтор тимчасової відмови не йде до іншого провайдера). */
+export function pinTask(queue, id, nodeId) {
+  return (queue || []).map((t) => (t.id === id ? { ...t, pin: nodeId } : t));
 }
 
 /** Прибрати завершені — черга не має рости вічно. */
