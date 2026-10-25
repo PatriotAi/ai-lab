@@ -618,6 +618,58 @@ prf_out=$($PRF "$PRT_T" 2>&1); prf_rc=$?
   && ok "канарка: секцію, дописану після журналу відхилень, спіймано" \
   || bad "канарка: хвіст після журналу заморожений" "код 1 + нова секція" "rc=$prf_rc ${prf_out:0:80}"
 
+# ── Корпус інцидентів відповідає кодовій книзі (Фаза 13, Ф0.5) ──
+# Поля й коди скрипт бере з таблиць кодової книги в пре-реєстрації, тож перевіряємо і
+# корпус-фікстури, і те, що джерело справді одне: код, дописаний у кодову книгу, приймається.
+CRP="python3 $REPO/scripts/check-corpus.py"
+crp_out=$($CRP "$REPO" 2>&1); crp_rc=$?
+[[ "$crp_rc" == "0" && ( "$crp_out" == *"кодова книга цілісна"* || "$crp_out" == *"корпус відповідає"* ) ]] \
+  && ok "кодова книга корпусу в репо цілісна" \
+  || bad "кодова книга корпусу цілісна" "код 0" "rc=$crp_rc ${crp_out:0:120}"
+CRP_T="$TMPROOT/corpus"; mkdir -p "$CRP_T"
+printf '%s\n' \
+  '{"id":"vd-001","date":"2026-07-19","source":"docs/learnings.md","summary":"с","kind":"defect","detector":"external","detectors_other":["runtime"],"mechanism_before":"T","latency_days":3,"severity":"high","mast_mode":"FM-3.2","coders":["a","b"]}' \
+  '{"id":"vd-002","date":"2026-10-23","source":"PR #96","summary":"с","kind":"process","detector":"external","detectors_other":[],"mechanism_before":"none","latency_days":null,"severity":"medium","mast_mode":"FM-2.2","indicators_before":["I1"],"coders":["a"]}' \
+  > "$CRP_T/ok.jsonl"
+$CRP "$REPO" --corpus "$CRP_T/ok.jsonl" >/dev/null 2>&1 \
+  && ok "канарка: корпус за кодовою книгою — не знахідка" \
+  || bad "канарка: чистий корпус проходить" "код 0" "$($CRP "$REPO" --corpus "$CRP_T/ok.jsonl" 2>&1 | head -2)"
+printf '%s\n' \
+  '{"id":"vd-001","date":"2026-02-30","source":"x","summary":"с","kind":"defect","detector":"intuition","detectors_other":[],"mechanism_before":"T","latency_days":-1,"severity":"high","mast_mode":"FM-4.1","coders":["a"]}' \
+  '{"id":"vd-001","date":"2026-07-19","source":"x","summary":"с","kind":"defect","detector":"external","detectors_other":["external"],"mechanism_before":"T","latency_days":0,"severity":"high","mast_mode":"none","coders":["a"],"extra":1}' \
+  '{"id":"vd-003","date":"2026-07-19","source":"x","summary":"с","kind":"defect","detector":"external","detectors_other":[],"mechanism_before":"T","latency_days":0,"mast_mode":"none","coders":["a"]}' \
+  > "$CRP_T/bad.jsonl"
+crp_out=$($CRP "$REPO" --corpus "$CRP_T/bad.jsonl" 2>&1); crp_rc=$?
+crp_miss=""
+for m in "справжню дату" "«intuition»" "ціле ≥ 0" "«FM-4.1»" "поза кодовою книгою" "уже був" "містить перший виявлювач" "бракує обов'язкового поля"; do
+  [[ "$crp_out" == *"$m"* ]] || crp_miss+="[$m] "
+done
+[[ "$crp_rc" == "1" && -z "$crp_miss" ]] \
+  && ok "канарка: 8 класів порушень корпусу спіймано (дата, код, тип, MAST, зайве поле, дубль id, виявлювач двічі, брак поля)" \
+  || bad "канарка: порушення корпусу ловляться" "код 1 + усі 8 класів" "rc=$crp_rc, не спіймано: $crp_miss"
+$CRP "$REPO" --codebook "$CRP_T/nema.md" >/dev/null 2>&1; crp_rc=$?
+[[ "$crp_rc" == "2" ]] \
+  && ok "канарка: без кодової книги — «не ганялось» (код 2), а не «чисто»" \
+  || bad "канарка: без кодової книги код 2" "код 2" "rc=$crp_rc"
+# Одне джерело: код, дописаний у таблицю кодової книги, приймається без правки скрипта.
+sed 's/^| `unknown` |/| `intuition` | інтуїція без перевірки |\n| `unknown` |/' \
+  "$REPO/experiments/verified-development/preregistration.md" > "$CRP_T/book.md"
+printf '%s\n' '{"id":"vd-009","date":"2026-07-19","source":"x","summary":"с","kind":"defect","detector":"intuition","detectors_other":[],"mechanism_before":"T","latency_days":0,"severity":"low","mast_mode":"none","coders":["a"]}' \
+  > "$CRP_T/one.jsonl"
+if $CRP "$REPO" --codebook "$CRP_T/book.md" --corpus "$CRP_T/one.jsonl" >/dev/null 2>&1 \
+   && ! $CRP "$REPO" --corpus "$CRP_T/one.jsonl" >/dev/null 2>&1; then
+  ok "канарка: коди беруться з кодової книги — дописаний код приймається, без нього запис падає"
+else
+  bad "канарка: одне джерело кодів" "з дописаним кодом 0, без нього 1" "$($CRP "$REPO" --codebook "$CRP_T/book.md" --corpus "$CRP_T/one.jsonl" 2>&1 | head -2)"
+fi
+# Неповна кодова книга (тип code без таблиці) — теж «не ганялось», а не мовчазний пропуск поля.
+sed 's/^### Поле `severity`/### Поле `severity_old`/' \
+  "$REPO/experiments/verified-development/preregistration.md" > "$CRP_T/broken.md"
+crp_out=$($CRP "$REPO" --codebook "$CRP_T/broken.md" 2>&1); crp_rc=$?
+[[ "$crp_rc" == "2" && "$crp_out" == *"severity"* ]] \
+  && ok "канарка: неповна кодова книга (тип code без таблиці) — код 2" \
+  || bad "канарка: неповна кодова книга" "код 2 + назва поля" "rc=$crp_rc ${crp_out:0:100}"
+
 # ── Реєстр «розбитих вікон» (хвиля 5) ──
 # Борг фіксувався прозою й 🟡-статусами — чесно, але не як гейт: ніщо не
 # заважало віддати роботу з відкритим боргом. Реєстр робить борг перелічуваним,
