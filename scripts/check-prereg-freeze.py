@@ -5,9 +5,10 @@
 правила аналізу ДО збору даних. Без перевірки «заморозка» — лише слово: пороги можна тихо
 підігнати під дані, і в звіті цього не видно (Core Rule 15, «звіт замість доказу»).
 
-ЩО ПЕРЕВІРЯЄТЬСЯ. Якщо в шапці стоїть `**SHA:** <коміт>`, увесь документ до
-`## Журнал відхилень` — заголовок, преамбула з правилами, гіпотези, пороги — мусить
-збігатися з версією в тому коміті. Змінюватися можуть лише ЗНАЧЕННЯ полів статусу й
+ЩО ПЕРЕВІРЯЄТЬСЯ. Якщо в шапці стоїть `**SHA:** <коміт>`, увесь документ — заголовок,
+преамбула з правилами, гіпотези, пороги й усе після `## Журнал відхилень`, крім записів
+самого журналу, — мусить збігатися з версією в тому коміті (хвіст після журналу —
+дванадцяте рев'ю Codex до PR #96). Змінюватися можуть лише ЗНАЧЕННЯ полів статусу й
 заморозки: слово статусу з версією й датою (`**Статус:** ЗАМОРОЖЕНО v1.0 (2026-11-01)`), дата
 `**Заморожено:**` і `**SHA:**`. Преамбула теж містить правила, і її правка після заморозки
 інакше пройшла б мовчки (дев'яте рев'ю Codex до PR #96). Решта рядка поруч із цими полями
@@ -58,12 +59,34 @@ FREE = {
 MASKS = [re.compile(rf"(\*\*{name}:\*\*)\s*(?:{value})") for name, value in FREE.items()]
 
 
+def journal_span(lines: list[str]) -> range:
+    """Рядки секції журналу відхилень (без її заголовка); порожньо, якщо журналу нема."""
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(JOURNAL)), None)
+    if start is None:
+        return range(0)
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return range(start + 1, end)
+
+
+def data_row(ln: str) -> bool:
+    """Рядок даних таблиці: не шапка «Дата …» і не розділювач. Заглушка «—» теж рядок даних."""
+    if not ln.lstrip().startswith("|") or set(ln.replace("|", "").strip()) <= set("-: "):
+        return False
+    return ln.strip().strip("|").split("|")[0].strip() != "Дата"
+
+
 def body(text: str) -> list[str]:
-    """Усе до журналу відхилень із замаскованими значеннями статусу й заморозки."""
+    """Увесь документ, крім записів журналу, із замаскованими значеннями статусу й заморозки.
+
+    Хвіст після журналу теж заморожений: інакше нову секцію з іншим порогом можна дописати
+    після `## Журнал відхилень`, і її не бачила б жодна перевірка (дванадцяте рев'ю Codex до PR #96).
+    """
     lines = text.splitlines()
-    end = next((i for i, ln in enumerate(lines) if ln.startswith(JOURNAL)), len(lines))
+    span = journal_span(lines)
     masked = []
-    for ln in lines[:end]:
+    for i, ln in enumerate(lines):
+        if i in span and data_row(ln):
+            continue
         for mask in MASKS:
             ln = mask.sub(r"\1 …", ln)
         masked.append(ln)
@@ -71,19 +94,15 @@ def body(text: str) -> list[str]:
 
 
 def journal_rows(text: str) -> list[str]:
-    """Записи журналу відхилень: рядки таблиці без шапки, розділювача й заглушки «—»."""
+    """Записи журналу відхилень: рядки даних таблиці без заглушки «—»."""
     lines = text.splitlines()
-    start = next((i for i, ln in enumerate(lines) if ln.startswith(JOURNAL)), None)
-    if start is None:
-        return []
     rows = []
-    for ln in lines[start + 1:]:
-        if ln.startswith("## "):
-            break
-        cells = [c.strip() for c in ln.strip().strip("|").split("|")]
-        if not ln.lstrip().startswith("|") or set(ln.replace("|", "").strip()) <= set("-: "):
+    for i in journal_span(lines):
+        ln = lines[i]
+        if not data_row(ln):
             continue
-        if cells and (cells[0] == "Дата" or all(c in ("—", "") for c in cells)):
+        cells = [c.strip() for c in ln.strip().strip("|").split("|")]
+        if all(c in ("—", "") for c in cells):
             continue
         rows.append(ln.strip())
     return rows
@@ -181,7 +200,7 @@ def main(argv: list[str]) -> int:
         if now != then:
             diff = next((i for i, (a, b) in enumerate(zip(now, then)) if a != b),
                         min(len(now), len(then)))
-            line = (now[diff] if diff < len(now) else "(рядок видалено)")[:90]
+            line = next((ln for ln in now[diff:] if ln.strip()), "(рядок видалено)")[:90]
             changed.append(f"{rel}: тіло змінено після заморозки {m.group(1)} — «{line}»")
     for rel in sorted(historical_paths(root)):
         if (root / rel).is_file():

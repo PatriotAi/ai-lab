@@ -61,6 +61,10 @@ WAIT_BEFORE = re.compile(
     r"(?:потребу\w*|чека\w*|очіку\w*|потрібн\w*)(?:\s+\S+){0,3}\s*$"
     r"|(?:^|\s)(?:до|без|нема\w*|відсутн\w*)\s*$",
     re.I)
+# «чекаємо: рішення власника», «потрібне — рішення власника»: двокрапка чи тире одразу після
+# слова очікування вводять те, чого чекають, а не нову клаузу (дванадцяте рев'ю Codex до PR #96).
+WAIT_LEAD = re.compile(
+    r"(?:потребу\w*|чека\w*|очіку\w*|потрібн\w*)(?:\s+[^\s.;,]+){0,3}\s*[:—–]\s*$", re.I)
 WAIT_AFTER = re.compile(
     r"^\w*\s*[:—-]?\s*(?:ще\s+)?(?:не\s+(?:ухвал|отрим|погодж|прийнят|схвал|дозвол)\w*|очіку\w*|відклад\w*|чека\w*)",
     re.I)
@@ -70,8 +74,9 @@ def has_owner_decision(bullet: str) -> bool:
     """Хоч один слід рішення власника, який не є очікуванням рішення."""
     text = MARKUP.sub("", bullet)
     for m in OWNER.finditer(text):
-        before = CLAUSE_START.split(text[:m.start()])[-1]
-        if WAIT_BEFORE.search(before) or WAIT_AFTER.match(text[m.end():]):
+        prefix = text[:m.start()]
+        before = CLAUSE_START.split(prefix)[-1]
+        if WAIT_BEFORE.search(before) or WAIT_LEAD.search(prefix) or WAIT_AFTER.match(text[m.end():]):
             continue
         return True
     return False
