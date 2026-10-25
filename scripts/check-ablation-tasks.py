@@ -45,6 +45,7 @@ SALT = "vd-h3-2026-10-24:"
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SHA = re.compile(r"^[0-9a-f]{7,40}$")
 FIELDS = {"id", "start", "solution", "area", "prompt", "assertions"}
+OPTIONAL = {"rules"}  # які правила лабораторії ця задача зачіпає — для аналізу Ф3
 NEED = {"cmd": ("run",), "contains": ("path", "regex"), "not_contains": ("path", "regex"),
         "exists": ("path",), "untouched": ("glob",)}
 CMD_TIMEOUT = 180
@@ -70,7 +71,7 @@ def format_errors(root: Path, tasks: list[dict], lo: int, hi: int) -> tuple[list
         tid = t.get("id", f"#{n}")
         for f in sorted(FIELDS - set(t)):
             errs.append(f"{tid}: бракує поля `{f}`")
-        for f in sorted(set(t) - FIELDS):
+        for f in sorted(set(t) - FIELDS - OPTIONAL):
             errs.append(f"{tid}: поле `{f}` поза форматом")
         if not isinstance(tid, str) or not SLUG.match(tid):
             errs.append(f"{tid}: `id` має бути slug (a-z, 0-9, дефіс)")

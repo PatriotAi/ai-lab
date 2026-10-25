@@ -674,6 +674,16 @@ crp_out=$($CRP "$REPO" --codebook "$CRP_T/broken.md" 2>&1); crp_rc=$?
 # Твердження, що проходить без роботи агента, нічого не міряє; що падає на справжньому
 # рішенні — міряє шум. Канарки — на справжньому git-репо з комітами «старт» і «рішення».
 ABL="python3 $REPO/scripts/check-ablation-tasks.py"
+abl_out=$($ABL "$REPO" 2>&1); abl_rc=$?
+# Справжній набір: кожну задачу розгортає на «старті» й «рішенні». В обрізаному клоні комітів
+# немає — «не ганялось» із причиною, а не провал і не «чисто».
+if [[ "$abl_rc" == "0" ]]; then
+  ok "набір задач абляції в репо розрізняє «до» і «після» ($(grep -o 'задач: [0-9]*' <<<"$abl_out"))"
+elif [[ "$abl_rc" == "2" && "$abl_out" == *"НЕ ГАНЯЛОСЬ"* ]]; then
+  skip "набір задач абляції розрізняє «до» і «після»" "комітів задач немає в історії (обрізаний клон?)"
+else
+  bad "набір задач абляції коректний" "код 0" "$(grep '✗' <<<"$abl_out" | head -2)"
+fi
 ABL_T="$TMPROOT/ablation"; mkdir -p "$ABL_T/r/docs" "$ABL_T/r/security"
 printf 'v1\n' > "$ABL_T/r/docs/a.md"; printf 'keep\n' > "$ABL_T/r/security/k.md"; printf 'print(1)\n' > "$ABL_T/r/ok.py"
 ( cd "$ABL_T/r" && git init -q && git -c user.email=t@t -c user.name=t add -A \
