@@ -532,6 +532,22 @@ prf_out=$($PRF "$TMPROOT/prereg-not-a-repo" 2>&1); prf_rc=$?
 [[ "$prf_rc" == "2" && "$prf_out" == *"не корінь git-репозиторію"* ]] \
   && ok "канарка: тека поза git-репозиторієм — «не ганялось» (код 2), а не «чисто»" \
   || bad "канарка: тека поза репо" "код 2 + «не корінь git-репозиторію»" "rc=$prf_rc ${prf_out:0:80}"
+# Журнал відхилень лише доповнюється: запис, що вже був у коміті після заморозки, не можна
+# тихо прибрати після аналізу (восьме рев'ю Codex до PR #96). Окреме репо — без впливу на канарки вище.
+PRJ_T="$TMPROOT/prereg-journal"; mkdir -p "$PRJ_T/experiments/x"
+printf '%s\n' '# П' '' '**SHA:** —' '' '## H1' '- поріг 10%' '' '## Журнал відхилень' \
+  '| Дата | Що | Чому | Вплив |' '|---|---|---|---|' '| — | — | — | — |' > "$PRJ_T/experiments/x/preregistration.md"
+( cd "$PRJ_T" && git init -q && git -c user.email=t@t -c user.name=t add -A \
+  && git -c user.email=t@t -c user.name=t commit -qm freeze )
+prj_sha=$(git -C "$PRJ_T" rev-parse --short HEAD)
+sed -i "s/\*\*SHA:\*\* —/**SHA:** $prj_sha/" "$PRJ_T/experiments/x/preregistration.md"
+echo '| 2026-10-25 | поріг | причина | [C] |' >> "$PRJ_T/experiments/x/preregistration.md"
+( cd "$PRJ_T" && git -c user.email=t@t -c user.name=t commit -qam deviation )
+sed -i '/2026-10-25 | поріг/d' "$PRJ_T/experiments/x/preregistration.md"
+prf_out=$($PRF "$PRJ_T" 2>&1); prf_rc=$?
+[[ "$prf_rc" == "1" && "$prf_out" == *"журналу відхилень видалено"* ]] \
+  && ok "канарка: видалений після заморозки запис журналу відхилень спіймано" \
+  || bad "канарка: журнал відхилень лише доповнюється" "код 1 + «журналу відхилень видалено»" "rc=$prf_rc ${prf_out:0:80}"
 
 # ── Реєстр «розбитих вікон» (хвиля 5) ──
 # Борг фіксувався прозою й 🟡-статусами — чесно, але не як гейт: ніщо не

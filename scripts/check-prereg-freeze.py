@@ -7,8 +7,9 @@
 
 ЩО ПЕРЕВІРЯЄТЬСЯ. Якщо в шапці стоїть `**SHA:** <коміт>`, тіло документа — від першого
 заголовка `## ` до `## Журнал відхилень` — мусить збігатися з тілом у тому коміті.
-Шапка (статус, рядок заморозки) і сам журнал відхилень змінюватися можуть: туди й
-записуються свідомі відхилення з причиною.
+Шапка (статус, рядок заморозки) змінюватися може, а журнал відхилень — лише доповнюватися:
+запис, що вже був у будь-якому коміті після заморозки, мусить лишатися (восьме рев'ю Codex
+до PR #96 — інакше відхилення можна тихо прибрати після аналізу).
 
 Не заморожено (`**SHA:** —`) — чернетка, перевіряти нічого. Але якщо в історії git
 файл УЖЕ мав коміт заморозки, а зараз рядка SHA немає чи він пошкоджений — це зняття
@@ -47,6 +48,25 @@ def body(text: str) -> list[str]:
     return lines[start:end]
 
 
+def journal_rows(text: str) -> list[str]:
+    """Записи журналу відхилень: рядки таблиці без шапки, розділювача й заглушки «—»."""
+    lines = text.splitlines()
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(JOURNAL)), None)
+    if start is None:
+        return []
+    rows = []
+    for ln in lines[start + 1:]:
+        if ln.startswith("## "):
+            break
+        cells = [c.strip() for c in ln.strip().strip("|").split("|")]
+        if not ln.lstrip().startswith("|") or set(ln.replace("|", "").strip()) <= set("-: "):
+            continue
+        if cells and (cells[0] == "Дата" or all(c in ("—", "") for c in cells)):
+            continue
+        rows.append(ln.strip())
+    return rows
+
+
 def frozen_text(root: Path, sha: str, rel: str) -> str | None:
     run = subprocess.run(["git", "show", f"{sha}:{rel}"], cwd=root,
                          capture_output=True, text=True)
@@ -63,6 +83,20 @@ def original_freeze(root: Path, rel: str) -> str | None:
         if m:
             return m.group(1)
     return None
+
+
+def journal_since_freeze(root: Path, rel: str) -> list[str]:
+    """Усі записи журналу з комітів, починаючи з першої версії з рядком заморозки."""
+    log = subprocess.run(["git", "log", "--reverse", "--format=%H", "--", rel], cwd=root,
+                         capture_output=True, text=True)
+    seen: list[str] = []
+    frozen = False
+    for sha in log.stdout.split():
+        old = frozen_text(root, sha, rel) or ""
+        frozen = frozen or bool(SHA.search(old))
+        if frozen:
+            seen += [r for r in journal_rows(old) if r not in seen]
+    return seen
 
 
 def resolve(root: Path, sha: str) -> str:
@@ -115,6 +149,11 @@ def main(argv: list[str]) -> int:
         old = frozen_text(root, m.group(1), rel)
         if old is None:
             missing.append(f"{rel}: коміт заморозки {m.group(1)} не знайдено")
+            continue
+        current = journal_rows(text)
+        lost = [r for r in journal_since_freeze(root, rel) if r not in current]
+        if lost:
+            changed.append(f"{rel}: запис журналу відхилень видалено після заморозки — «{lost[0][:70]}»")
             continue
         now, then = body(text), body(old)
         if now != then:
