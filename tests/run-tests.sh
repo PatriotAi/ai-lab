@@ -426,11 +426,12 @@ IDX="python3 $REPO/scripts/check-skills-index.py"
 $IDX "$REPO" >/dev/null 2>&1 \
   && ok "індекс skills/README.md збігається з лабораторними навичками на диску" \
   || bad "індекс навичок збігається з диском" "код 0" "$($IDX "$REPO" 2>&1 | head -2)"
-idx_case() { # idx_case <назва> <очікуваний-код> <фрагмент-причини|-> <тека|!тека-без-SKILL.md|-> <рядки README...>
+idx_case() { # idx_case <назва> <очікуваний-код> <фрагмент-причини|-> <тека|!тека-без-SKILL.md|тека~битий-симлінк|-> <рядки README...>
   local name="$1" want="$2" why="$3" skill="$4"; shift 4
   local d="$TMPROOT/idx-$(printf '%s' "$name" | md5sum | cut -c1-8)"
   mkdir -p "$d/.claude/skills" "$d/skills" "$d/melania/linked"
   : > "$d/melania/linked/SKILL.md"; ln -sfn "$d/melania/linked" "$d/.claude/skills/linked"
+  if [[ "$skill" == *~* ]]; then ln -sfn "$d/nowhere" "$d/.claude/skills/${skill#*~}"; skill="${skill%%~*}"; fi
   if [[ "$skill" == !* ]]; then mkdir -p "$d/.claude/skills/${skill#!}"
   elif [[ "$skill" != "-" ]]; then mkdir -p "$d/.claude/skills/$skill"; : > "$d/.claude/skills/$skill/SKILL.md"; fi
   printf '%s\n' "$@" > "$d/skills/README.md"
@@ -455,6 +456,11 @@ idx_case "вкладений підпункт і рядок у блоці код
   '## Активні навички' '- `alpha` — опис.' '  - `--flag` — підпункт.' '```' '- `ghost` у прикладі' '```'
 idx_case "канарка: симлінк melania в індексі названо симлінком, не привидом" 1 "симлінк melania" alpha \
   '## Активні навички' '- `alpha` — опис.' '- `linked` — навичка melania.'
+# Обидва випадки — з рев'ю Codex до PR #104, відтворені до виправлення.
+idx_case "заголовок-приклад у блоці коду до справжньої секції — не секція" 0 - alpha \
+  '# Навички' '```' '## Активні навички' '- `ghost` — приклад' '```' '## Активні навички' '- `alpha` — опис.'
+idx_case "канарка: битий симлінк у .claude/skills ловиться" 1 "битий симлінк: .claude/skills/gone" 'alpha~gone' \
+  '## Активні навички' '- `alpha` — опис.'
 
 # ── Незворотність РІШЕНЬ (хвиля 4): `one-way` мусить мати рішення власника ──
 # Рівні R0–R4 судять дію в момент виконання; рішення «формат на диску» — це

@@ -72,11 +72,11 @@
       `aria-expanded`/`aria-controls` для розкривних панелей.
 
 ```ts
-// lib/useLocalStorage.ts — SSR-безпечно, синхронно між вкладками, переживає збій запису
+// lib/useLocalStorage.ts — SSR-безпечно, синхронно між вкладками, переживає збій сховища
 import { useCallback, useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
-const memory = new Map<string, string>(); // значення, чий запис у localStorage впав
+const memory = new Map<string, string>(); // значення, яке не вдалося записати або прочитати назад
 function subscribe(l: () => void) {
   listeners.add(l); window.addEventListener("storage", l);
   return () => { listeners.delete(l); window.removeEventListener("storage", l); };
@@ -89,14 +89,17 @@ function read(key: string) {
 export function useLocalStorage(key: string, fallback: string): [string, (v: string) => void] {
   const stored = useSyncExternalStore(subscribe, () => read(key), () => null);
   const set = useCallback((v: string) => {
-    try { window.localStorage.setItem(key, v); memory.delete(key); } catch { memory.set(key, v); }
+    let saved = false;
+    try { window.localStorage.setItem(key, v); saved = window.localStorage.getItem(key) === v; } catch {}
+    if (saved) memory.delete(key); else memory.set(key, v);
     listeners.forEach((l) => l());
   }, [key]);
   return [stored || fallback, set]; // порожній рядок = значення відсутнє
 }
 ```
 - Перевірка (браузер): вибір переживає перезавантаження; видно в іншій вкладці без
-  перезавантаження; працює, коли `localStorage` кидає виняток на читання і коли лише на запис.
+  перезавантаження; вибір не губиться, коли `localStorage` недоступний повністю, коли падає
+  лише запис і коли падає лише читання.
 
 ## 7. Smoke-тест
 - [ ] Піднімає **production**-сервер (`next start`) на окремому порту й ганяє контракт API.

@@ -11,11 +11,12 @@
 `.claude/skills/`. Симлінки ведуть у `melania-skills-ecosystem/` і мають
 власний облік (`MANIFEST`, `maintain.py verify`), тому тут не рахуються.
 Пункт індексу — рядок списку БЕЗ відступу під заголовком «## Активні навички»,
-що починається з назви в зворотних лапках; вкладені підпункти й рядки в
-блоках коду ``` пунктами не є. Падіння:
+що починається з назви в зворотних лапках; вкладені підпункти, а також усе
+всередині блоків коду ``` (зокрема заголовок-приклад) не рахуються. Падіння:
   - навичка є на диску, але не в індексі;
   - пункт є в індексі, але лабораторної теки нема (або це симлінк melania);
-  - тека в `.claude/skills/` без `SKILL.md` — це не навичка, а поломка.
+  - тека в `.claude/skills/` без `SKILL.md` — це не навичка, а поломка;
+  - битий симлінк у `.claude/skills/` — Claude Code таку навичку не завантажить.
 
 Запуск:
     python3 scripts/check-skills-index.py [корінь]
@@ -37,15 +38,15 @@ def indexed(text: str) -> set[str] | None:
     names: set[str] = set()
     inside = in_fence = False
     for line in text.splitlines():
-        if HEADING.match(line):
-            inside = True
-            continue
-        if not inside:
-            continue
         if FENCE.match(line):
             in_fence = not in_fence
             continue
         if in_fence:
+            continue
+        if HEADING.match(line):
+            inside = True
+            continue
+        if not inside:
             continue
         if NEXT_HEADING.match(line):
             break
@@ -70,12 +71,15 @@ def main(argv: list[str]) -> int:
         return 2
 
     linked = {d.name for d in entries if d.is_symlink()}
+    dangling = sorted(d.name for d in entries if d.is_symlink() and not d.exists())
     real = [d for d in entries if d.is_dir() and not d.is_symlink()]
     present = {d.name for d in real if (d / "SKILL.md").is_file()}
     broken = sorted(d.name for d in real if not (d / "SKILL.md").is_file())
 
     missing = sorted(present - listed)
     phantom = sorted(listed - present - set(broken))
+    for name in dangling:
+        print(f"битий симлінк: .claude/skills/{name} — ціль не існує, навичку не завантажить")
     for name in broken:
         print(f"тека без SKILL.md: .claude/skills/{name}/ — не навичка; додай SKILL.md або прибери теку")
     for name in missing:
@@ -85,7 +89,7 @@ def main(argv: list[str]) -> int:
             print(f"не лабораторна навичка: `{name}` — симлінк melania, її облік у MANIFEST, не в цьому індексі")
         else:
             print(f"привид в індексі: `{name}` є в skills/README.md, але теки .claude/skills/{name}/ нема")
-    if broken or missing or phantom:
+    if dangling or broken or missing or phantom:
         return 1
     print(f"індекс навичок збігається з диском: {len(present)} лабораторних навичок")
     return 0
