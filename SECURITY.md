@@ -16,7 +16,9 @@
 ## Автоматичні перевірки
 - **pre-commit** (локально): гігієна + `detect-private-key` + `gitleaks`. Запуск: `bash scripts/setup.sh`.
 - **CI** (`.github/workflows/`): `security.yml` (gitleaks, Trivy, Semgrep), `dependencies.yml`
-  (dependency-review), `code-quality.yml` (pre-commit, actionlint).
+  (дії закріплені повним SHA — `scripts/check-action-pinning.sh`; dependency-review прибрано,
+  причина — у шапці воркфлоу), `code-quality.yml` (pre-commit, actionlint, тести автоматизацій,
+  `maintain.py verify`).
 - **Dependabot** — оновлення залежностей. **CODEOWNERS** — рев'ю змін власником.
 - Швидка локальна перевірка: `bash scripts/security-check.sh`.
   Вердикт має **три** стани: ПРОЙДЕНО · ВПАЛО · **НЕ ГАНЯВСЯ** (коди виходу `0`/`1`/`3`).
