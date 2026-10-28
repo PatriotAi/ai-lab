@@ -1625,6 +1625,34 @@ check "S5.1 інваріанти класифікатора тримаються
 mut=$(cd "$REPO" && python3 tests/mutation-classify.py >/dev/null 2>&1; echo $?)
 check "S5.2 усі мутанти класифікатора спіймані" "0" "$mut"
 
+# S5.2b Порівняння версій на корпусі реальних дій (`scripts/compare-classifiers.py`).
+# Сам інструмент перевіряється на зламаному й чистому: однакові версії — 0 змін,
+# версія з вимкненим розбором видалення гілки — зміна помічена, порожній корпус —
+# помилка (а не «змін немає»). Корпус збирається тут: дії — конкатенацією.
+cc=$(mktemp -d "$TMPROOT/cc-XXXXXX")
+mkdir -p "$cc/old" "$cc/new" && cp -r "$REPO/security" "$cc/old/" && cp -r "$REPO/security" "$cc/new/"
+python3 - "$cc" <<'PY'
+import json, pathlib, sys
+cc = pathlib.Path(sys.argv[1])
+p = cc / "old/security/spine/classify.py"
+s = p.read_text(encoding="utf-8")
+anchor = 'rule.get("match_git_push_delete") and _git_push_deletes(command)'
+assert s.count(anchor) == 1
+p.write_text(s.replace(anchor, 'rule.get("match_git_push_delete") and False'), encoding="utf-8")
+acts = [("Bash", {"command": "git status"}), ("Read", {"file_path": "README.md"}),
+        ("Bash", {"command": "git push origin --" + "delete feature"})]
+rec = {"message": {"content": [{"type": "tool_use", "name": t, "input": i} for t, i in acts]}}
+(cc / "t.jsonl").write_text(json.dumps(rec) + "\n", encoding="utf-8")
+(cc / "empty.jsonl").write_text("{}\n", encoding="utf-8")
+PY
+cmp_same=$(cd "$REPO" && python3 scripts/compare-classifiers.py "$cc/new" "$cc/new" "$cc/t.jsonl" >/dev/null 2>&1; echo $?)
+check "S5.2b однакові версії класифікатора: 0 змін рівня" "0" "$cmp_same"
+cmp_out=$(cd "$REPO" && python3 scripts/compare-classifiers.py "$cc/old" "$cc/new" "$cc/t.jsonl" 2>&1); cmp_rc=$?
+check "S5.2b вимкнений розбір помічено: код 1 і рівно 1 зміна R2 → R4" "1|1" \
+  "$cmp_rc|$(grep -c 'R2 → R4' <<<"$cmp_out")"
+cmp_empty=$(cd "$REPO" && python3 scripts/compare-classifiers.py "$cc/new" "$cc/new" "$cc/empty.jsonl" >/dev/null 2>&1; echo $?)
+check "S5.2b порожній корпус — помилка, не «змін немає»" "2" "$cmp_empty"
+
 fz=$(cd "$REPO" && python3 tests/fuzz-scan-input.py --cases 150 >/dev/null 2>&1; echo $?)
 check "S5.3 розбір недовіреного входу не падає" "0" "$fz"
 
@@ -1696,6 +1724,22 @@ check "самооголошених хуків-сиріт немає" "0" "$orph
 # тихо не працювати. Сам стенд доведено 11 мутантами (0 вижило) — 2026-09-29.
 pw=$(cd "$REPO" && python3 tests/probe-wiring.py >/dev/null 2>&1; echo $?)
 check "хуки середовища: 18/18 випадків стенду (tests/probe-wiring.py)" "0" "$pw"
+
+# Твердження README про підключеність (W-16): проза не має казати «підключено»
+# там, де реєстрації немає (інциденти g5-consolidate і g5-retrieve). Стенд
+# доводять мутанти — у репо, а не в тимчасовій теці сесії (CLAUDE.md §11).
+rw=$(cd "$REPO" && python3 tests/probe-readme-wiring.py >/dev/null 2>&1; echo $?)
+check "твердження README: стенд (tests/probe-readme-wiring.py)" "0" "$rw"
+rwm=$(cd "$REPO" && python3 tests/mutation-readme-wiring.py >/dev/null 2>&1; echo $?)
+check "твердження README: усі мутанти стенда спіймані (tests/mutation-readme-wiring.py)" "0" "$rwm"
+claims=$(cd "$REPO" && python3 - <<'PY' 2>/dev/null
+import importlib.util, pathlib
+spec = importlib.util.spec_from_file_location('sd', 'scripts/security-drift.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(sum(1 for r in m.check_readme_claims(pathlib.Path('.')) if r[0] == m.DRIFT))
+PY
+)
+check "README автоматизацій не кажуть неправди про підключеність (W-16)" "0" "$claims"
 
 echo ""
 echo "════════ 19. Цілісність тексту: маркери конфлікту злиття ════════"
