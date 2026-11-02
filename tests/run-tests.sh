@@ -2635,6 +2635,19 @@ check "ci-state: збій одного репо названо, решта пр�
 rc=$($CS --owner o --json "$RHT/cs2.json" '../etc' >/dev/null 2>&1; echo $?)
 check "ci-state: некоректна назва репо → код 2" "2" "$rc"
 
+# run.sh — уся механіка робочого прогону одним викликом (без мережі: MON_NO_CLONE + заглушка gh)
+RUN="bash $REPO/automations/repo-monitor/run.sh"; MD="$RHT/mondir"; mkdir -p "$MD"
+for r in broken wf empty; do ln -sfn "$RHT/$r" "$MD/$r"; done
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro" "$PAGE" o broken wf empty 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"перший прогін"* && -s "$RHT/ro/repo-monitor.html" ]] \
+  && grep -q 'id="monitor-data">{"updated"' "$RHT/ro/repo-monitor.html" \
+  && ok "run.sh: скан → CI → сторінка одним викликом" || bad "run.sh: повний прогін" "код 0 + сторінка з даними" "код $rc · ${out:0:200}"
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro2" "$RHT/немає.html" o broken 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"Сторінку не прочитано"* ]] && ok "run.sh: сторінка не прочиталась → шаблон і це назване" \
+  || bad "run.sh: запасний шаблон" "код 0 + попередження" "код $rc · ${out:0:200}"
+rc=$(MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro3" "$PAGE" '../x' broken >/dev/null 2>&1; echo $?)
+check "run.sh: некоректний owner → код 2" "2" "$rc"
+
 echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
