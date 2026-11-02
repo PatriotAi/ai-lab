@@ -2473,6 +2473,70 @@ read -r am_total am_survived <<<"$acct_mut"
 check "канарки ловлять кожну з ${am_total:-?} поломок детектора (вижило)" "0" "${am_survived:-?}"
 
 echo ""
+echo "════════ 34. Монітор репозиторіїв: repo-health.py (2026-11-02) ════════"
+# Кожне правило RH01–RH13 — на зламаному репо (мусить спіймати) і чистому (мусить
+# мовчати); дельта, waivers, маскування секрету, свідомий виняток `!dist/`.
+# Фейкові секрети складаються під час прогону — літерал у цьому файлі спіймав би gitleaks.
+RH="python3 $REPO/scripts/repo-health.py"
+RHT="$TMPROOT/rh"; mkdir -p "$RHT"
+rh_init() { mkdir -p "$1"; git -C "$1" init -q -b main; git -C "$1" config user.email t@example.com
+  git -C "$1" config user.name T; git -C "$1" config commit.gpgsign false; }
+rh_commit() { git -C "$1" add -A -f; git -C "$1" commit -q --no-gpg-sign -m s; }
+TOK="gh""p_$(printf 'Ab1%.0s' {1..12})"
+mkdir -p "$RHT/canon/melania-skills-ecosystem"; echo '{"built_fingerprint":"aaaa"}' > "$RHT/canon/melania-skills-ecosystem/MANIFEST.json"
+# Зламаний A: без CI/.gitignore/README/LICENSE, .env у git, токен, node_modules, 2 lock-и, великий файл, копія канону
+B="$RHT/broken"; rh_init "$B"; mkdir -p "$B/src" "$B/tests" "$B/node_modules/x" "$B/melania-skills-ecosystem"
+echo "API=1" > "$B/.env"; echo "const t = '$TOK';" > "$B/src/a.js"; echo "t='$TOK'" > "$B/tests/fx.py"
+echo '{"scripts":{"build":"vite build"}}' > "$B/package.json"; echo '{}' > "$B/package-lock.json"; echo x > "$B/bun.lock"
+echo x > "$B/node_modules/x/i.js"; head -c 6000000 /dev/zero | tr '\0' 'a' > "$B/big.txt"
+echo '{"built_fingerprint":"bbbb"}' > "$B/melania-skills-ecosystem/MANIFEST.json"; rh_commit "$B"
+# Зламаний B: CI є, але дія за тегом
+W="$RHT/wf"; rh_init "$W"; mkdir -p "$W/.github/workflows"; printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n' > "$W/.github/workflows/ci.yml"
+echo r > "$W/README.md"; echo m > "$W/LICENSE"; printf '.env\n.env.*\n' > "$W/.gitignore"; rh_commit "$W"
+E="$RHT/empty"; rh_init "$E"; echo m > "$E/LICENSE"; rh_commit "$E"
+out=$($RH --canon "$RHT/canon" --json "$RHT/b.json" "$B" "$W" "$E" 2>&1); rc=$?
+check "repo-health: скан зламаних — код 0 (без --strict)" "0" "$rc"
+for want in "RH01:broken" "RH02:wf" "RH03:broken" "RH04:broken" "RH05:broken" "RH06:broken" "RH07:broken" \
+            "RH08:broken" "RH09:broken" "RH10:broken" "RH11:broken" "RH12:broken" "RH13:empty"; do
+  got=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));r,p=sys.argv[2].split(':');print(sum(1 for f in d['findings'] if f['rule']==r and f['repo']==p))" "$RHT/b.json" "$want")
+  [[ "${got:-0}" -ge 1 ]] && ok "repo-health ловить ${want%%:*} (${want##*:})" || bad "repo-health ловить ${want%%:*}" "≥1 знахідка" "${got:-0}"
+done
+sev=$(python3 -c "import json;d=json.load(open('$RHT/b.json'));print(sorted({f['severity'] for f in d['findings'] if f['rule']=='RH04'}))")
+check "repo-health: токен у src — high, у tests/ — info" "['high', 'info']" "$sev"
+[[ "$out" != *"$TOK"* && "$(cat "$RHT/b.json")" != *"$TOK"* ]] && ok "repo-health: секрет замасковано у звіті і JSON" \
+  || bad "repo-health: секрет замасковано" "без повного токена" "токен у виводі"
+rc=$($RH --strict --canon "$RHT/canon" "$B" >/dev/null 2>&1; echo $?)
+check "repo-health --strict: є high → код 1" "1" "$rc"
+# Чистий: усе на місці — мусить мовчати
+C="$RHT/clean"; rh_init "$C"; mkdir -p "$C/.github/workflows" "$C/dist"
+printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@%s # v7\n' "$(printf 'a%.0s' {1..40})" > "$C/.github/workflows/ci.yml"
+echo 'version: 2' > "$C/.github/dependabot.yml"; echo r > "$C/README.md"; echo m > "$C/LICENSE"
+printf '.env\n.env.*\n!.env.example\nnode_modules/\ndist/\n!dist/\n' > "$C/.gitignore"; echo 'K=' > "$C/.env.example"
+echo '{"scripts":{"lint":"eslint ."}}' > "$C/package.json"; echo '{}' > "$C/package-lock.json"; echo x > "$C/dist/app.html"; rh_commit "$C"
+out=$($RH --strict "$C" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"знахідок немає"* ]] && ok "repo-health: чистий репо (з винятком !dist/) — мовчить" \
+  || bad "repo-health: чистий репо мовчить" "код 0 · знахідок немає" "код $rc · ${out:0:300}"
+# Дельта: той самий стан → «Без змін»; виправили .env → ✅ зникло, нових 0
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/b.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"Без змін"* ]] && ok "repo-health --baseline: незмінний стан → «Без змін»" || bad "дельта без змін" "Без змін" "${out:0:200}"
+$RH --canon "$RHT/canon" --compact --json "$RHT/c.json" "$B" "$W" "$E" >/dev/null 2>&1
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/c.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"Без змін"* && "$(cat "$RHT/c.json")" != *"proposal"* ]] && ok "repo-health --compact: стисла база без пропозицій дає ту саму дельту" \
+  || bad "repo-health --compact" "Без змін + без proposal" "${out:0:200}"
+git -C "$B" rm -q --cached .env; rm "$B/.env"; rh_commit "$B"
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/b.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"нових: **0**"* && "$out" == *"✅ \`broken\` RH03"* ]] && ok "repo-health --baseline: виправлене → ✅ зникло, нових 0" \
+  || bad "дельта: виправлене зникло" "нових 0 + ✅ RH03" "${out:0:300}"
+# Waivers: свідомо прийняте не друкується, але назване числом
+wid=$(python3 -c "import json;d=json.load(open('$RHT/b.json'));print([f['id'] for f in d['findings'] if f['rule']=='RH13'][0])")
+echo "{\"$wid\": \"тест · 2026-11-02\"}" > "$RHT/w.json"
+out=$($RH --waivers "$RHT/w.json" "$E" 2>&1)
+[[ "$out" != *"RH13"* && "$out" == *"waivers): 1"* ]] && ok "repo-health --waivers: приховано й назване числом" \
+  || bad "repo-health --waivers" "без RH13 + лічильник 1" "${out:0:200}"
+rc=$($RH "$RHT/не-репо" >/dev/null 2>&1; echo $?)
+check "repo-health: не git-репозиторій → код 2" "2" "$rc"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then

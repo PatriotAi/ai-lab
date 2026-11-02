@@ -1,0 +1,64 @@
+# Перевірка при заливанні / Check on push — шаблон ai-lab: templates/ci/repo-check.yml
+# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) і,
+# якщо є package.json, встановлення + lint + build + test (лише ті скрипти, що є).
+# Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
+# Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
+# Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
+# sync: ai-lab templates/ci/repo-check.yml v1 (2026-11-02)
+name: Repo check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Один активний прогін на ref / one active run per ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: secrets (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read   # gitleaks-action на pull_request читає коміти PR через API
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  node:
+    name: node (lint · build · test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: detect stack
+        id: detect
+        run: |
+          if [ -f package.json ]; then echo "node=true" >> "$GITHUB_OUTPUT"; else echo "node=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.node == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version: lts/*
+      - name: install
+        if: steps.detect.outputs.node == 'true'
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: lint
+        if: steps.detect.outputs.node == 'true'
+        run: npm run lint --if-present
+      - name: build
+        if: steps.detect.outputs.node == 'true'
+        run: npm run build --if-present
+      - name: test
+        if: steps.detect.outputs.node == 'true'
+        run: npm test --if-present
