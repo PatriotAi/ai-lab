@@ -2536,6 +2536,65 @@ out=$($RH --waivers "$RHT/w.json" "$E" 2>&1)
 rc=$($RH "$RHT/не-репо" >/dev/null 2>&1; echo $?)
 check "repo-health: не git-репозиторій → код 2" "2" "$rc"
 
+# Сторінка-сховище стану (update-page.py): сесія завдання не має list_events (виміряно
+# тестовим прогоном 2026-11-02), тож база дельти живе в блоці monitor-data сторінки.
+UP="python3 $REPO/automations/repo-monitor/update-page.py"; PAGE="$REPO/automations/repo-monitor/page.html"
+mkj() { python3 - "$@" <<'PY'
+import json, sys
+out, spec = sys.argv[1], sys.argv[2]
+f = lambda i, t="t": {"id": i, "repo": "r", "rule": "RH01", "severity": "medium", "path": "", "title": t, "proposal": "p"}
+specs = {
+  "h1": {"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f("id1"), f("id2")]},
+  "h2": {"repos": ["r"], "heads": {"r": {"sha": "bbb"}}, "findings": [f("id1"), f("id3", "</script ><SCRIPT/x>alert(1)</script>")]},
+  "ci_green": {"repos": {"r": {"workflows": {"CI": {"conclusion": "success", "sha": "bbb"}}, "prs": []}}},
+  "ci_red": {"repos": {"r": {"workflows": {"CI": {"conclusion": "failure", "sha": "bbb"}}, "prs": [{"number": 7, "title": "x", "idle_days": 30}]}}},
+}
+json.dump(specs[spec], open(out, "w"))
+PY
+}
+mkj "$RHT/h1.json" h1; mkj "$RHT/h2.json" h2; mkj "$RHT/cig.json" ci_green; mkj "$RHT/cir.json" ci_red
+echo '<p>не сторінка</p>' > "$RHT/bad.html"
+rc=$($UP --page "$RHT/bad.html" --health "$RHT/h1.json" --out "$RHT/x.html" >/dev/null 2>&1; echo $?)
+[[ "$rc" == 2 && ! -e "$RHT/x.html" ]] && ok "update-page: чужа сторінка → код 2, нічого не записано" || bad "update-page: чужа сторінка" "код 2, без файла" "код $rc"
+out=$($UP --page "$PAGE" --health "$RHT/h1.json" --out "$RHT/p1.html" 2>&1)
+[[ "$out" == *"перший прогін"* ]] && ok "update-page: перший прогін — база збережена" || bad "update-page: перший прогін" "перший прогін" "${out:0:160}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h1.json" --out "$RHT/p1b.html" 2>&1)
+[[ "$out" == *"без змін"* ]] && ok "update-page: той самий стан → «без змін» (база прочиталась зі сторінки)" || bad "update-page: без змін" "без змін" "${out:0:160}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --out "$RHT/p2.html" 2>&1)
+[[ "$out" == *"🆕"*"[id3]"* && "$out" == *"✅"* && "$out" == *"не перевірено — у репо немає CI"* ]] \
+  && ok "update-page: нова знахідка, виправлене і заливання без CI названо" || bad "update-page: дельта" "🆕 id3 + ✅ + без CI" "${out:0:300}"
+# HTML закриває <script> уже на «</script» + пробіл або «/» — рахуємо саме такий префікс, без регістру
+n_close=$(grep -oi '</script' "$RHT/p2.html" | wc -l | tr -d ' '); n_tpl=$(grep -oi '</script' "$PAGE" | wc -l | tr -d ' ')
+check "update-page: дані з репо не закривають <script> (ін'єкція екранована)" "$n_tpl" "$n_close"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --out "$RHT/p3.html" 2>&1)
+[[ "$out" == *"bbb: CI зелений"* ]] && ok "update-page: заливання з зеленим CI на цьому коміті" || bad "update-page: зелений CI" "CI зелений" "${out:0:300}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cir.json" --out "$RHT/p4.html" 2>&1)
+[[ "$out" == *"❌ \`r\` червоний CI"* && "$out" == *"CI: CI — failure"* ]] && ok "update-page: червоний CI і вердикт заливання" || bad "update-page: червоний CI" "❌ + failure" "${out:0:300}"
+
+# ci-state.py: справжній gh замінено заглушкою — мережі в тесті немає
+CS="python3 $REPO/automations/repo-monitor/ci-state.py"; GHS="$RHT/ghbin"; mkdir -p "$GHS"
+cat > "$GHS/gh" <<'SH'
+#!/usr/bin/env bash
+p="${@: -1}"
+case "$p" in
+  repos/o/bad*) echo "HTTP 404: Not Found" >&2; exit 1 ;;
+  repos/o/good) echo '{"default_branch":"dev"}' ;;
+  repos/o/good/actions/runs*) echo '{"workflow_runs":[{"name":"github_actions in /. - Update #1","event":"dynamic","conclusion":"success"},{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
+  repos/o/good/pulls*) echo '[{"number":5,"title":"Оновлення\u001b[31m","draft":false,"user":{"login":"x"},"updated_at":"2020-01-01T00:00:00Z"}]' ;;
+  *) echo "unexpected $p" >&2; exit 1 ;;
+esac
+SH
+chmod +x "$GHS/gh"
+out=$(PATH="$GHS:$PATH" $CS --owner o --json "$RHT/cs.json" good bad 2>&1); rc=$?
+cs=$(python3 -c "
+import json;d=json.load(open('$RHT/cs.json'))['repos'];g=d['good']
+print(int('error' in d['bad']), g['default_branch'], sorted(g['workflows']), g['workflows']['CI']['conclusion'], g['prs'][0]['idle_days']>1000, '\x1b' in g['prs'][0]['title'])" 2>&1)
+check "ci-state: збій одного репо названо, решта прочитана; Dependabot-прогони пропущено; новіший прогін; керівні символи вичищено" \
+  "1 dev ['CI'] failure True False" "$cs"
+[[ "$rc" == 0 && "$out" == *"без даних: bad"* ]] && ok "ci-state: fail-open із назвою репо без даних" || bad "ci-state: fail-open" "код 0 + без даних: bad" "код $rc · ${out:0:160}"
+rc=$($CS --owner o --json "$RHT/cs2.json" '../etc' >/dev/null 2>&1; echo $?)
+check "ci-state: некоректна назва репо → код 2" "2" "$rc"
+
 echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"

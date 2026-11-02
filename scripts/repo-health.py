@@ -30,7 +30,7 @@
 РЕЖИМИ.
   repo-health.py PATH [PATH ...]      скан переданих репозиторіїв
   repo-health.py --root DIR           скан усіх git-репо першого рівня в DIR
-  --json FILE                         записати знахідки JSON (база для наступної дельти)
+  --json FILE                         записати знахідки JSON (база для наступної дельти) + HEAD кожного репо
   --compact                           JSON лише з полями для дельти (id/repo/rule/severity/title),
                                       без відступів — щоб базу можна було нести в тексті звіту
   --baseline FILE                     показати лише 🆕 нові та ✅ зниклі відносно бази
@@ -363,8 +363,11 @@ def main() -> int:
 
     canon = Path(a.canon) if a.canon and Path(a.canon).is_dir() else None
     findings: list[dict] = []
+    heads: dict[str, dict] = {}
     for r in repos:
         findings.extend(Scan(r, canon).run())
+        sha, _, date = git(r, "log", "-1", "--format=%h %cI").strip().partition(" ")
+        heads[r.name] = {"sha": clean(sha, 12), "date": clean(date, 40)}
 
     waived = 0
     if a.waivers:
@@ -386,7 +389,7 @@ def main() -> int:
     if a.json:
         keep = ("id", "repo", "rule", "severity", "title")
         rows = [{k: f[k] for k in keep} for f in findings] if a.compact else findings
-        Path(a.json).write_text(json.dumps({"repos": [r.name for r in repos], "findings": rows},
+        Path(a.json).write_text(json.dumps({"repos": [r.name for r in repos], "heads": heads, "waived": waived, "findings": rows},
                                            ensure_ascii=False, indent=None if a.compact else 1),
                                 encoding="utf-8")
     print(render(findings, [r.name for r in repos], baseline))
