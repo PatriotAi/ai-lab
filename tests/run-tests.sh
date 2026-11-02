@@ -2593,6 +2593,24 @@ out=$($UP --page "$RHT/q1.html" --health "$RHT/r_only.json" --forget s --out "$R
 [[ "$out" != *"Не проскановано"* && "$out" != *"- ✅"* && "$(grep -c '"s1"' "$RHT/q3.html")" == 0 ]] \
   && ok "update-page --forget: репо прибрано зі стану без «✅ виправлено»" || bad "update-page --forget" "без s і без ✅" "${out:0:200}"
 
+# Моделі за ролями (models.json ↔ датований знімок моделей): чисте мовчить, кожна поломка ловиться
+CM="python3 $REPO/automations/repo-monitor/check-models.py"
+rc=$($CM >/dev/null 2>&1; echo $?); check "check-models: models.json узгоджено зі знімком" "0" "$rc"
+python3 -c '
+import json, sys
+s = sys.argv[1]; c = json.load(open(sys.argv[2]))
+def mut(name, fn):
+    m = json.loads(json.dumps(c)); fn(m); json.dump(m, open(f"{s}/{name}.json", "w"))
+mut("mm_gone", lambda m: m["roles"]["worker"].update(model="claude-sonnet-4-0"))
+mut("mm_order", lambda m: m["roles"]["diagnosis"].update(model="claude-haiku-5-5", agent="haiku"))
+mut("mm_agent", lambda m: m["roles"]["home"].update(agent="opus"))
+mut("mm_class", lambda m: m["roles"]["worker"].update({"class": "вигаданий клас"}))
+' "$RHT" "$REPO/automations/repo-monitor/models.json"
+for k in gone order agent class; do
+  rc=$($CM "$RHT/mm_$k.json" --root "$REPO" >/dev/null 2>&1; echo $?)
+  check "check-models ловить поломку: $k" "1" "$rc"
+done
+
 # ci-state.py: справжній gh замінено заглушкою — мережі в тесті немає
 CS="python3 $REPO/automations/repo-monitor/ci-state.py"; GHS="$RHT/ghbin"; mkdir -p "$GHS"
 cat > "$GHS/gh" <<'SH'
