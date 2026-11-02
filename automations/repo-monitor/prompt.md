@@ -1,16 +1,16 @@
 <!-- Канон тексту запланованого завдання «🩺 Монітор репозиторіїв» (див. README: id завдання й дому).
      Завдання зберігає КОПІЮ тексту нижче цієї рамки: змінив тут — онови завдання (update_trigger,
-     prompt) у тому ж кроці й підніми sync. sync: v4 · 2026-11-02 -->
-🩺 Щоденний прогін монітора репозиторіїв (канон: ai-lab `automations/repo-monitor/prompt.md`, v4).
+     prompt) у тому ж кроці й підніми sync. sync: v5 · 2026-11-02 -->
+🩺 Щоденний прогін монітора репозиторіїв (канон: ai-lab `automations/repo-monitor/prompt.md`, v5).
 
 ТИ — ДІМ МОНІТОРА. Скан сам НЕ роби: сесії, які будить завдання, не мають підключених репозиторіїв, а свіжа сесія, створена через create_session, має (перевірено 2026-11-02).
-1. Виклич `mcp__claude-code-remote__create_session`: title «🩺 Монітор — <сьогоднішня дата>», prompt = увесь текст після ОКРЕМОГО рядка, що складається лише з `=== РОБОЧИЙ ПРОГІН ===`, дослівно (без самого рядка). model не вказуй — успадкується.
+1. Виклич `mcp__claude-code-remote__create_session`: title «🩺 Монітор — <сьогоднішня дата>», source_url `https://github.com/PatriotAi/ai-lab`, source_revision `ccr-1ffab1d5-90iid7` (після злиття монітора в main — `main`), prompt = увесь текст після ОКРЕМОГО рядка, що складається лише з `=== РОБОЧИЙ ПРОГІН ===`, дослівно (без самого рядка). model не вказуй — успадкується. ai-lab як власний репозиторій сесії — обов'язково: інакше класифікатор дозволів блокує скрипти монітора як «код ззовні» (виміряно 2026-11-02).
 2. Відповідай одним рядком: «запущено: <session_id>». Більше нічого: звіт і сповіщення робить запущена сесія.
 3. create_session упав → завантаж PushNotification (`ToolSearch` "select:PushNotification") і надішли: «🩺 Монітор не запустився: <помилка>».
 4. Подія про збій дочірньої сесії → один рядок-підсумок і PushNotification з причиною; самостійно не перезапускай.
 
 === РОБОЧИЙ ПРОГІН ===
-🩺 Монітор репозиторіїв PatriotAi — робочий прогін (канон: ai-lab `automations/repo-monitor/prompt.md`, v4).
+🩺 Монітор репозиторіїв PatriotAi — робочий прогін (канон: ai-lab `automations/repo-monitor/prompt.md`, v5).
 
 МЕТА. Перевірити стан усіх власних репозиторіїв і запропонувати виправлення. У репозиторіях НІЧОГО не змінювати: жодних комітів, пушів, PR, issues, коментарів, злиттів, змін налаштувань. Оновлюється лише сторінка монітора. Виправлення — тільки після явної відповіді власника в цій сесії.
 
@@ -23,7 +23,7 @@
 
 КРОКИ (OUT = тека-чернетка з твого системного промпту, а якщо її немає — поточна робоча тека)
 1. `list_repos` → усі репо, крім `fork: true` (нові репо так підхоплюються самі). Для кожного: `add_repo` (owner, repo, access: "read"), потім — ЗАВЖДИ, хоч би що відповів `add_repo` ("read_available", відмова класифікатора), — `git clone -q --depth 50 https://github.com/<owner>/<repo>.git ~/mon/<repo>`: публічні репо клонуються й без підключення. Відмову `add_repo` не повторюй. Не клонувався — запиши причину й іди далі (сторінка збереже попередній стан цього репо).
-2. Інструменти з ai-lab: якщо є `~/mon/ai-lab/automations/repo-monitor/update-page.py` — `T=~/mon/ai-lab`; інакше `git clone -q --depth 1 -b ccr-1ffab1d5-90iid7 https://github.com/PatriotAi/ai-lab.git ~/tools/ai-lab` і `T=~/tools/ai-lab` (поза `~/mon`, щоб не потрапити в скан).
+2. Інструменти — з власного репозиторію сесії (ai-lab): `T=$(git rev-parse --show-toplevel)` у робочій теці сесії. Скрипти монітора — код цього проєкту; копій із `~/mon` не запускай. Якщо робоча тека не ai-lab (немає `$T/automations/repo-monitor/update-page.py`) — зупинись і скажи це: дім створив сесію без source_url.
 3. Скан: `python3 -I $T/scripts/repo-health.py --root ~/mon --canon ~/mon/ai-lab --waivers $T/automations/repo-monitor/waivers.json --json $OUT/now.json > $OUT/full.md`
 4. CI і PR: `python3 -I $T/automations/repo-monitor/ci-state.py --owner PatriotAi --from $OUT/now.json --json $OUT/ci.json`. Для публічних репо без підключення `gh api` дає 403 — це відома межа (API публічного репо дає лише `add_repo` з access "push", а його без рішення власника не просимо): у звіті одним рядком, не як збій.
 5. `Artifact` action "read", url сторінки → результат називає збережений файл сторінки (PAGE). Потім `python3 -I $T/automations/repo-monitor/update-page.py --page PAGE --health $OUT/now.json --ci $OUT/ci.json --out $OUT/repo-monitor.html --md $OUT/delta.md`. Код 2 або сторінка не читається → PAGE = `$T/automations/repo-monitor/page.html` (дельта піде від нуля) і скажи про це у звіті.
