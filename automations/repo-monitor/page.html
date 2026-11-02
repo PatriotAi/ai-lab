@@ -177,7 +177,7 @@ a { color: var(--accent); }
   var items = [];
   if (data.first_run) items.push(["Перший прогін", "Базу збережено. Далі тут буде лише те, що змінилось між прогонами."]);
   (delta.repos_new || []).forEach(function (r) { items.push(["Новий репозиторій: " + r, "Підхоплено автоматично, уже в скані."]); });
-  (delta.repos_gone || []).forEach(function (r) { items.push(["Репозиторій зник зі списку: " + r, "Видалено, архівовано або став форком."]); });
+  (delta.unscanned || []).forEach(function (r) { items.push(["Не проскановано цього разу: " + r, "Показано попередній стан. Якщо репо видалено чи архівовано, скажіть прибрати його."]); });
   (delta.pushes || []).forEach(function (p) { items.push(["Нове заливання в " + p.repo + ": " + p.from + " → " + p.to, p.verdict]); });
   Object.keys(delta.red_new || {}).forEach(function (r) { items.push(["Червоний CI в " + r, delta.red_new[r].join(", ")]); });
   findings.filter(function (f) { return isNew[f.id]; }).forEach(function (f) {
@@ -202,7 +202,8 @@ a { color: var(--accent); }
     var st = (data.ci || {})[repo] || {}; var h = (data.heads || {})[repo] || {};
     var tr = el("tr");
     tr.appendChild(el("td", null, repo));
-    tr.appendChild(el("td", "mono", (h.sha || "—") + (st.default_branch ? " · " + st.default_branch : "")));
+    var staleRepo = (data.stale_repos || []).indexOf(repo) >= 0;
+    tr.appendChild(el("td", "mono", (h.sha || "—") + (st.default_branch ? " · " + st.default_branch : "") + (staleRepo ? " · попередній стан" : "")));
     var td = el("td"); var box = el("div", "checks");
     if (st.error) box.appendChild(el("span", "pill s-info", "не прочитано"));
     else {

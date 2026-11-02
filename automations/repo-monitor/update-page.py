@@ -10,11 +10,12 @@
 ЧОМУ ТАК. Сесія запланованого завдання — свіжа щоразу й не має `list_events`, тож
 попередній звіт їй недоступний (виміряно 2026-11-02). Artifact read/publish вона має.
 
-ДЕЛЬТА. 🆕 нові знахідки (з пропозицією) · ✅ виправлені · нові/зниклі репо ·
+ДЕЛЬТА. 🆕 нові знахідки (з пропозицією) · ✅ виправлені · нові репо · непроскановані репо
+(їхній попередній стан переноситься, а не стирається) ·
 нові заливання (HEAD змінився) з вердиктом CI на цьому коміті · червоний CI ·
 PR без руху > 14 днів. Нічого нового → один рядок «без змін».
 
-  update-page.py --page PAGE --health NOW.json [--ci CI.json] --out OUT [--md DELTA.md]
+  update-page.py --page PAGE --health NOW.json [--ci CI.json] --out OUT [--md DELTA.md] [--forget REPO]
 Код виходу: 0 — сторінку записано; 2 — сторінку/вхід не прочитано (сторінку НЕ записано).
 """
 from __future__ import annotations
@@ -63,6 +64,8 @@ def main() -> int:
     ap.add_argument("--ci")
     ap.add_argument("--out", required=True)
     ap.add_argument("--md")
+    ap.add_argument("--forget", action="append", default=[],
+                    help="прибрати репо зі стану сторінки (видалене/архівоване) — лише за словом власника")
     a = ap.parse_args()
 
     try:
@@ -79,6 +82,11 @@ def main() -> int:
     except json.JSONDecodeError:
         prev = {}
         print("увага: попередні дані зіпсовані — дельта від нуля", file=sys.stderr)
+    for r in a.forget:  # власник сказав прибрати: стан репо зникає без «✅ виправлено»
+        prev["repos"] = [x for x in prev.get("repos", []) if x != r]
+        prev["findings"] = [f for f in prev.get("findings", []) if f.get("repo") != r]
+        for key in ("heads", "ci", "red"):
+            (prev.get(key) or {}).pop(r, None)
     try:
         health = load(a.health, "скан")
         ci = load(a.ci, "CI-стан") if a.ci else {}
@@ -89,18 +97,29 @@ def main() -> int:
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     first = not prev.get("findings") and not prev.get("repos")
     findings = health.get("findings", [])
+    repos, prev_repos = health.get("repos", []), prev.get("repos", [])
+    repos_new = [r for r in repos if prev_repos and r not in prev_repos]
+    # Репо, якого немає в цьому скані, — це збій скану (не клонувався, відмова доступу), а не
+    # «репо зникло»: його попередній стан переноситься з позначкою, а знахідки НЕ стають
+    # «виправленими». Інцидент 2026-11-02: ai-lab не клонувався, і без цього сторінка записала б,
+    # що він зник разом з історією CI і PR (робочий прогін вчасно відмовився публікувати).
+    unscanned = [r for r in prev_repos if r not in repos]
+    findings = findings + [f for f in prev.get("findings", []) if f["repo"] in unscanned]
+    repos = repos + unscanned
     old_ids = {f["id"] for f in prev.get("findings", [])}
     new_ids = {f["id"] for f in findings}
     added = [f for f in findings if f["id"] not in old_ids]
     gone = [f for f in prev.get("findings", []) if f["id"] not in new_ids]
-    repos, prev_repos = health.get("repos", []), prev.get("repos", [])
-    repos_new = [r for r in repos if prev_repos and r not in prev_repos]
-    repos_gone = [r for r in prev_repos if r not in repos]
     no_ci = {f["repo"] for f in findings if f["rule"] == "RH01"}
 
-    heads, prev_heads = health.get("heads", {}), prev.get("heads", {})
+    heads, prev_heads = dict(health.get("heads", {})), prev.get("heads", {})
+    for r in unscanned:
+        if r in prev_heads:
+            heads[r] = prev_heads[r]
     pushes = []
     for repo, h in heads.items():
+        if repo in unscanned:
+            continue
         old = (prev_heads.get(repo) or {}).get("sha")
         if not old or old == h.get("sha"):
             continue
@@ -123,14 +142,18 @@ def main() -> int:
              for r, st in (ci.get("repos") or {}).items() for p in (st.get("prs") or [])
              if (p.get("idle_days") or 0) > STALE_DAYS]
     ci_errors = {r: st["error"] for r, st in (ci.get("repos") or {}).items() if "error" in st}
+    ci_repos = dict(ci.get("repos") or {})
+    for r in unscanned:  # CI для непросканованого репо — теж попередній, з позначкою
+        if r in (prev.get("ci") or {}):
+            ci_repos[r] = prev["ci"][r]
 
     counts = {s: sum(1 for f in findings if f["severity"] == s) for s in SEV}
     history = (prev.get("history") or [])[-(MAX_HISTORY - 1):] + [{
         "at": now, **counts, "new": len(added), "gone": len(gone), "red": sum(len(v) for v in red.values())}]
     data = {"updated": now, "first_run": first, "repos": repos, "heads": heads, "findings": findings,
-            "waived": health.get("waived", 0), "ci": ci.get("repos", {}), "red": red,
+            "waived": health.get("waived", 0), "ci": ci_repos, "red": red, "stale_repos": unscanned,
             "delta": {"new": [f["id"] for f in added] if not first else [], "gone": gone,
-                      "repos_new": repos_new, "repos_gone": repos_gone, "pushes": pushes,
+                      "repos_new": repos_new, "unscanned": unscanned, "pushes": pushes,
                       "red_new": red_new, "stale": stale, "ci_errors": ci_errors},
             "history": history}
     Path(a.out).write_text(BLOCK_RE.sub(lambda mm: mm.group(1) + embed(data) + mm.group(3), page, count=1),
@@ -139,7 +162,7 @@ def main() -> int:
     # --- markdown-дельта для звіту прогону ---
     total = " ".join(f"{ICON[s]}{counts[s]}" for s in SEV if counts[s])
     head = f"🩺 {len(repos)} репо · знахідок: {total or '0'}"
-    changed = (not first) and (added or gone or repos_new or repos_gone or pushes or red_new)
+    changed = (not first) and (added or gone or repos_new or unscanned or pushes or red_new)
     lines = []
     if first:
         lines.append(f"{head} · перший прогін: база збережена на сторінці, далі — лише дельта.")
@@ -147,8 +170,11 @@ def main() -> int:
         lines.append(f"{head} · без змін.")
     else:
         lines.append(f"{head} · 🆕 {len(added)} · ✅ {len(gone)}")
-    if repos_new or repos_gone:
-        lines.append(f"- Репозиторії: нові {', '.join(repos_new) or '—'}; зникли {', '.join(repos_gone) or '—'}")
+    if repos_new:
+        lines.append(f"- Нові репозиторії (підхоплено автоматично): {', '.join(repos_new)}")
+    if unscanned:
+        lines.append(f"- ⚠️ Не проскановано цього разу: {', '.join(unscanned)} — на сторінці їхній попередній "
+                     "стан; якщо репо видалено чи архівовано, це триматиметься, доки не скажете прибрати")
     for p in pushes:
         lines.append(f"- ⬆️ `{p['repo']}` нове заливання {p['from']}→{p['to']}: {p['verdict']}")
     for r, v in sorted(red_new.items()):

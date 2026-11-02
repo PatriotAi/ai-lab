@@ -2571,6 +2571,28 @@ out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --o
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cir.json" --out "$RHT/p4.html" 2>&1)
 [[ "$out" == *"❌ \`r\` червоний CI"* && "$out" == *"CI: CI — failure"* ]] && ok "update-page: червоний CI і вердикт заливання" || bad "update-page: червоний CI" "❌ + failure" "${out:0:300}"
 
+# Інцидент 2026-11-02: репо не клонувалося → не «зникло». Попередній стан переноситься з позначкою,
+# його знахідки НЕ стають «✅ виправленими»; прибрати репо можна лише явним --forget.
+python3 -c '
+import json, sys, pathlib
+d = pathlib.Path(sys.argv[1])
+f = lambda i, repo: {"id": i, "repo": repo, "rule": "RH08", "severity": "low", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r", "s"], "heads": {"r": {"sha": "a"}, "s": {"sha": "b"}}, "findings": [f("r1", "r"), f("s1", "s")]}, open(d / "rs.json", "w"))
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "a"}}, "findings": [f("r1", "r")]}, open(d / "r_only.json", "w"))
+' "$RHT"
+$UP --page "$PAGE" --health "$RHT/rs.json" --out "$RHT/q1.html" >/dev/null 2>&1
+out=$($UP --page "$RHT/q1.html" --health "$RHT/r_only.json" --out "$RHT/q2.html" 2>&1)
+kept=$(python3 -c '
+import re, json, sys
+t = open(sys.argv[1]).read(); m = re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S); d = json.loads(m.group(1))
+print("s" in d["repos"], any(f["id"] == "s1" for f in d["findings"]), d["stale_repos"])' "$RHT/q2.html" 2>&1)
+[[ "$out" == *"Не проскановано цього разу: s"* && "$out" != *"- ✅"* && "$kept" == "True True ['s']" ]] \
+  && ok "update-page: непросканований репо зберігає стан і не дає хибного «✅ виправлено» (інцидент 2026-11-02)" \
+  || bad "update-page: непросканований репо" "попередження + стан збережено + без ✅" "$kept · ${out:0:200}"
+out=$($UP --page "$RHT/q1.html" --health "$RHT/r_only.json" --forget s --out "$RHT/q3.html" 2>&1)
+[[ "$out" != *"Не проскановано"* && "$out" != *"- ✅"* && "$(grep -c '"s1"' "$RHT/q3.html")" == 0 ]] \
+  && ok "update-page --forget: репо прибрано зі стану без «✅ виправлено»" || bad "update-page --forget" "без s і без ✅" "${out:0:200}"
+
 # ci-state.py: справжній gh замінено заглушкою — мережі в тесті немає
 CS="python3 $REPO/automations/repo-monitor/ci-state.py"; GHS="$RHT/ghbin"; mkdir -p "$GHS"
 cat > "$GHS/gh" <<'SH'
