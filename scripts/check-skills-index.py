@@ -32,17 +32,25 @@ from pathlib import Path
 HEADING = re.compile(r"^##\s+Активні навички\s*$")
 NEXT_HEADING = re.compile(r"^##\s")
 ITEM = re.compile(r"^[-*+]\s*`([^`]+)`")
-FENCE = re.compile(r"^\s*(```|~~~)")
+# Блок коду за CommonMark: до 3 пробілів відступу, ≥ 3 однакові символи; закриває лише
+# такий самий символ не меншої довжини без тексту після. Інших конструкцій Markdown
+# (HTML-блоки, відступні блоки коду) скрипт свідомо не розбирає: індекс — простий список.
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
 def indexed(text: str) -> set[str] | None:
     names: set[str] = set()
-    inside = in_fence = False
+    inside = False
+    fence: str | None = None
     for line in text.splitlines():
-        if FENCE.match(line):
-            in_fence = not in_fence
+        if m := FENCE.match(line):
+            run, rest = m.group(1), m.group(2)
+            if fence is None:
+                fence = run
+            elif run[0] == fence[0] and len(run) >= len(fence) and not rest.strip():
+                fence = None
             continue
-        if in_fence:
+        if fence is not None:
             continue
         if HEADING.match(line):
             inside = True
