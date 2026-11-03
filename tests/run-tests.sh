@@ -2513,6 +2513,23 @@ printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@%s # v7\n' "$(pr
 echo 'version: 2' > "$C/.github/dependabot.yml"; echo r > "$C/README.md"; echo m > "$C/LICENSE"
 printf '.env\n.env.*\n!.env.example\nnode_modules/\ndist/\n!dist/\n' > "$C/.gitignore"; echo 'K=' > "$C/.env.example"
 echo '{"scripts":{"lint":"eslint ."}}' > "$C/package.json"; echo '{}' > "$C/package-lock.json"; echo x > "$C/dist/app.html"; rh_commit "$C"
+# RH12 (втрати копіювання): канон-git із посиланням і свідомо збереженим dist/; копія без них — 2 знахідки,
+# цілісна копія — жодної (інцидент 2026-11-02: Sophie-TMS, червоний CI через втрачені посилання й dist/)
+K="$RHT/canon2"; rh_init "$K"; mkdir -p "$K/melania-skills-ecosystem/skills/s" "$K/plugins/p/skills" "$K/plugins/p/.cp" "$K/app/dist"
+echo '{"built_fingerprint":"ff"}' > "$K/melania-skills-ecosystem/MANIFEST.json"; echo s > "$K/melania-skills-ecosystem/skills/s/SKILL.md"
+ln -s ../../../melania-skills-ecosystem/skills/s "$K/plugins/p/skills/s"; echo '{}' > "$K/plugins/p/.cp/plugin.json"
+printf 'dist/\n!app/dist/\n' > "$K/.gitignore"; echo b > "$K/app/build.mjs"; echo h > "$K/app/dist/app.html"; rh_commit "$K"
+for v in lossy whole; do
+  Y="$RHT/copy-$v"; rh_init "$Y"; mkdir -p "$Y/melania-skills-ecosystem" "$Y/plugins/p/.cp" "$Y/app"
+  cp "$K/melania-skills-ecosystem/MANIFEST.json" "$Y/melania-skills-ecosystem/"; cp "$K/.gitignore" "$Y/"
+  echo '{}' > "$Y/plugins/p/.cp/plugin.json"; echo b > "$Y/app/build.mjs"
+  if [[ $v == whole ]]; then mkdir -p "$Y/plugins/p/skills" "$Y/app/dist"; ln -s ../../../x "$Y/plugins/p/skills/s"; echo h > "$Y/app/dist/app.html"; fi
+  rh_commit "$Y"
+done
+n_lossy=$($RH --canon "$K" --json "$RHT/k1.json" "$RHT/copy-lossy" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k1.json'))['findings'] if f['rule']=='RH12'))")
+n_whole=$($RH --canon "$K" --json "$RHT/k2.json" "$RHT/copy-whole" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k2.json'))['findings'] if f['rule']=='RH12'))")
+check "repo-health RH12: копія без посилань і dist/ — 2 знахідки" "2" "$n_lossy"
+check "repo-health RH12: цілісна копія — мовчить" "0" "$n_whole"
 out=$($RH --strict "$C" 2>&1); rc=$?
 [[ "$rc" == 0 && "$out" == *"знахідок немає"* ]] && ok "repo-health: чистий репо (з винятком !dist/) — мовчить" \
   || bad "repo-health: чистий репо мовчить" "код 0 · знахідок немає" "код $rc · ${out:0:300}"

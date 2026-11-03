@@ -24,7 +24,8 @@
   RH09 є маніфест залежностей, немає Dependabot              low
   RH10 великий файл (> 5 МБ) у git                           low
   RH11 package.json без lint/test — нема чим перевіряти      info
-  RH12 копія канону розійшлася з каноном (MANIFEST)          medium
+  RH12 копія канону розійшлася з каноном (MANIFEST) або      medium
+       втратила посилання / свідомо збережені артефакти
   RH13 порожній репозиторій (нема що моніторити)             info
 
 РЕЖИМИ.
@@ -277,6 +278,38 @@ class Scan:
                      f"(fingerprint {clean(mine, 20)} ≠ {clean(theirs, 20)})",
                      "синхронізувати з ai-lab main або позначити копію штампом синхронізації/строком "
                      "життя (правило «Цеглина»)", rel)
+        self.canon_copy_losses()
+
+    def canon_copy_losses(self) -> None:
+        """Копіювання (архів, вивантаження з іншого сервісу) губить символьні посилання і свідомо
+        збережені артефакти збірки (`!шлях/` у .gitignore), а відбиток MANIFEST при цьому збігається.
+        Інцидент 2026-11-02: Sophie-TMS — червоний CI, бо бракувало plugins/*/skills і dist/.
+        Рахуємо лише втрати там, де батьківська тека копії існує, — розвиток копії шумом не стає."""
+        canon_files = git(self.canon, "ls-files", "-s", "-z").split("\0")
+        links = [ln.split("\t", 1)[1] for ln in canon_files if ln.startswith("120000 ") and "\t" in ln]
+        dirs = {"/".join(f.split("/")[:i]) for f in self.files for i in range(1, f.count("/") + 1)}
+        lost_links = [p for p in links if p.rsplit("/", 1)[0].rsplit("/", 1)[0] in dirs and p not in self.fileset]
+        if lost_links:
+            self.add("RH12", "medium", f"копія ai-lab втратила {len(lost_links)} символьних посилань "
+                     f"(напр. {clean(lost_links[0], 80)})",
+                     "відновити з ai-lab (копіювання архівом/вивантаженням губить посилання) або прибрати "
+                     "копію лабораторії з репо; без них падають тести, що їх перевіряють",
+                     lost_links[0].split("/", 1)[0] + "/")
+        canon_gi = (self.canon / ".gitignore")
+        try:
+            negs = [ln[1:].strip().strip("/") + "/" for ln in canon_gi.read_text(encoding="utf-8").splitlines()
+                    if ln.startswith("!") and ln.strip().endswith("/")]
+        except OSError:
+            negs = []
+        canon_tracked = [f for f in (ln.split("\t", 1)[-1] for ln in canon_files) if f]
+        for neg in negs:
+            kept = [f for f in canon_tracked if f.startswith(neg)]
+            parent = neg.rstrip("/").rsplit("/", 1)[0]
+            if kept and parent in dirs and not any(f.startswith(neg) for f in self.files):
+                self.add("RH12", "medium", f"копія ai-lab без свідомо збережених артефактів {clean(neg, 60)} "
+                         f"({len(kept)} файл(ів) у каноні)",
+                         "відновити з ai-lab (у каноні вони під винятком `!` у .gitignore — це продукт, не "
+                         "сміття) або прибрати копію лабораторії з репо", neg)
 
     # --- допоміжне -----------------------------------------------------------
     def read(self, rel: str, limit: int | None = None) -> str | None:
