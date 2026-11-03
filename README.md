@@ -37,7 +37,7 @@
 
 ## Безпека та якість
 Жодних секретів у репо. CI: **gitleaks** (секрети), **Trivy** (вразливості/місконфіги),
-**Semgrep** (SAST), **dependency-review**; локально — **pre-commit**; залежності — **Dependabot**.
+**Semgrep** (SAST), закріплення дій повним SHA (`check-action-pinning.sh`); локально — **pre-commit**; залежності — **Dependabot**.
 Деталі — [`SECURITY.md`](SECURITY.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
 ## Melania Skills Ecosystem
@@ -95,7 +95,7 @@ MIT — див. [`LICENSE`](LICENSE).
 4. Create a skill (`/skill-new`), an experiment, or a project from the template.
 
 ### Security & quality
-No secrets in the repo. CI: **gitleaks**, **Trivy**, **Semgrep** (SAST), **dependency-review**;
+No secrets in the repo. CI: **gitleaks**, **Trivy**, **Semgrep** (SAST), actions pinned by full SHA (`check-action-pinning.sh`);
 locally — **pre-commit**; dependencies — **Dependabot**. See [`SECURITY.md`](SECURITY.md).
 
 ### Melania Skills Ecosystem
