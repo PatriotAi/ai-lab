@@ -71,7 +71,12 @@ def repo_state(owner: str, repo: str, now: datetime) -> dict:
                 "status": clean(r.get("status"), 20), "conclusion": clean(r.get("conclusion"), 20),
                 "sha": clean(r.get("head_sha"), 7), "at": clean(r.get("created_at"), 30),
                 "url": clean(r.get("html_url"), 200)}
-        pulls = gh(f"repos/{owner}/{repo}/pulls?state=open&per_page=50") or []
+        pulls: list = []
+        for page in range(1, 11):  # усі сторінки (до 1000 відкритих PR), а не лише першу
+            chunk = gh(f"repos/{owner}/{repo}/pulls?state=open&per_page=100&page={page}") or []
+            pulls += chunk
+            if len(chunk) < 100:
+                break
     except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired, OSError, AttributeError) as e:
         return {"error": clean(e, 200)}
     prs = [{"number": p.get("number"), "title": clean(p.get("title"), 100), "draft": bool(p.get("draft")),

@@ -2623,6 +2623,25 @@ import re, json, sys
 t = open(sys.argv[1]).read(); d = json.loads(re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S).group(1))
 print(d["red"].get("r"), d["ci_unknown"])' "$RHT/p6.html" 2>&1)
 check "update-page: непрочитаний CI зберігає попередній червоний стан і позначений невідомим" "['CI'] ['r']" "$got"
+# Новий прострочений PR — у дельті й не «без змін»; той самий, що вже був, не повторюється
+python3 -c '
+import json, sys
+json.dump({"repos": {"r": {"workflows": {"CI": {"conclusion": "failure", "sha": "bbb"}}, "prs": [
+  {"number": 7, "title": "x", "idle_days": 30}, {"number": 8, "title": "нова", "idle_days": 20}]}}}, open(sys.argv[1], "w"))' "$RHT/cir2.json"
+out=$($UP --page "$RHT/p4.html" --health "$RHT/h2.json" --ci "$RHT/cir2.json" --out "$RHT/p7.html" 2>&1)
+[[ "$out" == *"PR #8 без руху 20"* && "$out" != *"PR #7"* && "$out" != *"без змін"* ]] \
+  && ok "update-page: новий прострочений PR у дельті, старий не повторюється" || bad "update-page: прострочені PR" "#8 є, #7 немає, не «без змін»" "${out:0:300}"
+# Workflow є (RH01 мовчить), а прогонів на гілці ще немає — це «прогону немає», не «у репо немає CI»
+python3 -c '
+import json, sys
+f = {"id": "x1", "repo": "r", "rule": "RH08", "severity": "low", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f]}, open(sys.argv[1], "w"))
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "ccc"}}, "findings": [f]}, open(sys.argv[2], "w"))
+json.dump({"repos": {"r": {"workflows": {}, "prs": []}}}, open(sys.argv[3], "w"))' "$RHT/w1.json" "$RHT/w2.json" "$RHT/ciw.json"
+$UP --page "$PAGE" --health "$RHT/w1.json" --out "$RHT/w1.html" >/dev/null 2>&1
+out=$($UP --page "$RHT/w1.html" --health "$RHT/w2.json" --ci "$RHT/ciw.json" --out "$RHT/w2.html" 2>&1)
+[[ "$out" == *"ccc: прогону CI на цьому коміті немає"* ]] && ok "update-page: порожня історія прогонів ≠ «у репо немає CI»" \
+  || bad "update-page: порожня історія прогонів" "прогону CI на цьому коміті немає" "${out:0:300}"
 
 # Інцидент 2026-11-02: репо не клонувалося → не «зникло». Попередній стан переноситься з позначкою,
 # його знахідки НЕ стають «✅ виправленими»; прибрати репо можна лише явним --forget.
@@ -2677,6 +2696,10 @@ case "$p" in
   repos/o/good/actions/workflows/4/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"success","head_sha":"1111111"}]}' ;;
   repos/o/good/actions/workflows/1/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
   repos/o/good/pulls*) echo '[{"number":5,"title":"Оновлення\u001b[31m","draft":false,"user":{"login":"x"},"updated_at":"2020-01-01T00:00:00Z"}]' ;;
+  repos/o/many) echo '{"default_branch":"main"}' ;;
+  repos/o/many/actions/workflows\?*) echo '{"workflows":[]}' ;;
+  repos/o/many/pulls\?*\&page=1) python3 -c 'import json;print(json.dumps([{"number":i,"title":"t","updated_at":"2026-11-01T00:00:00Z"} for i in range(100)]))' ;;
+  repos/o/many/pulls\?*\&page=2) echo '[{"number":100,"title":"t","updated_at":"2026-11-01T00:00:00Z"}]' ;;
   *) echo "unexpected $p" >&2; exit 1 ;;
 esac
 SH
@@ -2688,6 +2711,8 @@ print(int('error' in d['bad']), g['default_branch'], sorted(g['workflows']), g['
 check "ci-state: збій одного репо названо, решта прочитана; Dependabot пропущено; однойменні workflow не затирають одне одного; новіший прогін; керівні символи вичищено" \
   "1 dev ['CI', 'CI (.github/workflows/ci2.yml)'] failure True False" "$cs"
 [[ "$rc" == 0 && "$out" == *"без даних: bad"* ]] && ok "ci-state: fail-open із назвою репо без даних" || bad "ci-state: fail-open" "код 0 + без даних: bad" "код $rc · ${out:0:160}"
+n_many=$(PATH="$GHS:$PATH" $CS --owner o --json "$RHT/cs3.json" many >/dev/null 2>&1; python3 -c "import json;print(len(json.load(open('$RHT/cs3.json'))['repos']['many']['prs']))" 2>&1)
+check "ci-state: відкриті PR читаються з усіх сторінок (101 > 100 на сторінці)" "101" "$n_many"
 rc=$($CS --owner o --json "$RHT/cs2.json" '../etc' >/dev/null 2>&1; echo $?)
 check "ci-state: некоректна назва репо → код 2" "2" "$rc"
 

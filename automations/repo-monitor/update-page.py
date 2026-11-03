@@ -13,7 +13,7 @@
 ДЕЛЬТА. 🆕 нові знахідки (з пропозицією) · ✅ виправлені · нові репо · непроскановані репо
 (їхній попередній стан переноситься, а не стирається) ·
 нові заливання (HEAD змінився) з вердиктом CI на цьому коміті · червоний CI ·
-PR без руху > 14 днів. Нічого нового → один рядок «без змін».
+нові PR без руху > 14 днів. Нічого нового → один рядок «без змін».
 
   update-page.py --page PAGE --health NOW.json [--ci CI.json] --out OUT [--md DELTA.md] [--forget REPO]
 Код виходу: 0 — сторінку записано; 2 — сторінку/вхід не прочитано (сторінку НЕ записано).
@@ -133,7 +133,7 @@ def main() -> int:
             verdict = "CI: " + ", ".join(f"{n} — {v}" for n, v in sorted(on_sha.items()))
         elif "error" in st:  # стан не прочитано — це не те саме, що «CI немає»
             verdict = "CI-стан не прочитано — вердикт невідомий"
-        elif repo in no_ci or not wf:
+        elif repo in no_ci:  # відсутність CI каже статична RH01, а не порожній список прогонів
             verdict = "не перевірено — у репо немає CI"
         else:
             verdict = "прогону CI на цьому коміті немає"
@@ -150,6 +150,9 @@ def main() -> int:
     stale = [{"repo": r, "number": p.get("number"), "title": p.get("title"), "idle_days": p.get("idle_days")}
              for r, st in (ci.get("repos") or {}).items() for p in (st.get("prs") or [])
              if (p.get("idle_days") or 0) > STALE_DAYS]
+    # Нові прострочені PR (ще не було в попередньому прогоні) — у дельту й сповіщення; ті самі щодня не повторюємо
+    prev_stale = {(s.get("repo"), s.get("number")) for s in (prev.get("delta") or {}).get("stale", [])}
+    stale_new = [s for s in stale if (s["repo"], s["number"]) not in prev_stale]
     ci_errors = {r: st["error"] for r, st in (ci.get("repos") or {}).items() if "error" in st}
     ci_repos = dict(ci.get("repos") or {})
     for r in unscanned:  # CI для непросканованого репо — теж попередній, з позначкою
@@ -172,7 +175,7 @@ def main() -> int:
     # --- markdown-дельта для звіту прогону ---
     total = " ".join(f"{ICON[s]}{counts[s]}" for s in SEV if counts[s])
     head = f"🩺 {len(repos)} репо · знахідок: {total or '0'}"
-    changed = (not first) and (added or gone or repos_new or unscanned or pushes or red_new)
+    changed = (not first) and (added or gone or repos_new or unscanned or pushes or red_new or stale_new)
     lines = []
     if first:
         lines.append(f"{head} · перший прогін: база збережена на сторінці, далі — лише дельта.")
@@ -193,6 +196,8 @@ def main() -> int:
         where = f" `{f['path']}`" if f.get("path") else ""
         lines.append(f"- 🆕 {ICON[f['severity']]} `{f['repo']}` **{f['rule']}** {f['title']}{where}\n"
                      f"  → {f.get('proposal', '')}  `[{f['id']}]`")
+    for s in stale_new if not first else []:
+        lines.append(f"- 💤 `{s['repo']}` PR #{s['number']} без руху {s['idle_days']} дн.: {s.get('title') or ''}")
     for f in gone if not first else []:
         lines.append(f"- ✅ `{f['repo']}` {f['rule']} — {f['title']}")
     if ci_errors:
