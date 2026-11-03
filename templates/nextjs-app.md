@@ -118,6 +118,13 @@ const server = spawn("npx", ["next", "start", "-p", String(PORT)], {
 // … наприкінці:
 try { process.kill(-server.pid, "SIGTERM"); } catch { server.kill(); }
 ```
+- Рецепт вище — для POSIX (Linux CI, macOS). У Windows `spawn("npx")` без `shell: true` не
+  запускає `npx.cmd`, а від'ємний PID у `process.kill` не підтримується [C] (документація
+  Node.js, розділ про запуск `.bat`/`.cmd`). Кросплатформно — запускати Node напряму, без
+  обгортки: `spawn(process.execPath, [path.join("node_modules", "next", "dist", "bin", "next"),
+  "start", "-p", String(PORT)])`; тоді `server.kill()` зупиняє сам сервер, бо `next start`
+  працює в тому ж процесі: `next-server` має PID запущеного Node, після `kill()` порт вільний
+  і сиріт нема (перевірено на Linux із Next.js 16.4.3) [C].
 - Перевірка (на зламаному стані теж): зайнятий порт → падіння з поясненням; без `.next` →
   падіння за секунди; чистий прогін → код 0 і жодного `next-server` після.
   Обережно з `pkill -f next-server` у тій самій оболонці: шаблон збігається з власним
