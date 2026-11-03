@@ -79,9 +79,13 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
 const memory = new Map<string, string>(); // значення, яке не вдалося записати або прочитати назад
+function localStore(): Storage | null {
+  try { return window.localStorage; } catch { return null; }
+}
 function subscribe(l: () => void) {
   // Запис іншої вкладки вдався — її значення (воно є в події) заміняє нашу незбережену копію.
   const onStorage = (e: StorageEvent) => {
+    if (e.storageArea !== localStore()) return; // події sessionStorage (напр. з iframe) — не наші
     if (e.key === null) memory.clear();
     else if (memory.has(e.key)) {
       if (e.newValue === null) memory.delete(e.key);
@@ -109,7 +113,8 @@ export function useLocalStorage(key: string, fallback: string): [string, (v: str
 }
 ```
 - Перевірка (браузер): вибір переживає перезавантаження; видно в іншій вкладці без
-  перезавантаження — і тоді, коли в цій вкладці значення лежало в пам'яті після збою; вибір
+  перезавантаження — і тоді, коли в цій вкладці значення лежало в пам'яті після збою; очищення
+  `sessionStorage` в iframe того самого домену вибору не скидає; вибір
   не губиться, коли `localStorage` недоступний повністю, коли падає лише запис і коли падає
   лише читання.
 
