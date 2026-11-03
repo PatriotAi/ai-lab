@@ -1,11 +1,12 @@
 # Перевірка при заливанні / Check on push — шаблон ai-lab: templates/ci/repo-check.yml
-# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks);
+# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) у всіх комітах
+# діапазону заливання, включно з тими, що прийшли злиттям; повну історію — ручний запуск (workflow_dispatch);
 # якщо є package.json — встановлення + lint + build + test (лише ті скрипти, що є);
 # якщо є tests/*canary*.py або tests/test_*.py — кожен запускається python3 (офлайн-канарки).
 # Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v2 (2026-11-03)
+# sync: ai-lab templates/ci/repo-check.yml v3 (2026-11-03)
 name: Repo check
 
 on:
@@ -36,6 +37,27 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Дія на push/PR сканує лише `--no-merges --first-parent base^..head` (перевірено за її кодом
+      # на закріпленому SHA): коміт, що прийшов злиттям іншої гілки, вона пропускає. Тому тут —
+      # той самий gitleaks (дія кладе його в PATH) по ВСІХ комітах діапазону, включно з такими.
+      - name: gitleaks — усі коміти діапазону (і ті, що прийшли злиттям)
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="origin/$BASE_REF..HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..HEAD"
+          else
+            range="origin/$DEFAULT_BRANCH..HEAD"
+          fi
+          echo "діапазон: $range ($(git rev-list --count "$range") комітів)"
+          gitleaks detect --redact --no-banner --log-opts="$range"
 
   node:
     name: node (lint · build · test)
