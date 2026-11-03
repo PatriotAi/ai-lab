@@ -55,7 +55,7 @@ from pathlib import Path
 SEV_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 SEV_ICON = {"high": "🔴", "medium": "🟠", "low": "🟡", "info": "⚪"}
 LARGE_BYTES = 5 * 1024 * 1024
-SCAN_MAX_BYTES = 1024 * 1024
+SCAN_MAX_BYTES = LARGE_BYTES  # більші файли — RH10 називає неперевірену частину
 
 SECRET_PATTERNS = [
     ("GitHub token", re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b"), "high"),
@@ -218,20 +218,21 @@ class Scan:
                      "додати `.gradle/`, `build/`, `local.properties` у .gitignore")
 
     def rule_build_artifacts(self) -> None:
+        # Свідомий виняток власника в кореневому .gitignore: `!тека/` звільняє всю теку (напр.
+        # dist/ мобільного агента — це сам продукт), `!шлях/файл` — лише цей файл, не теку.
+        negs = [ln[1:].strip() for ln in (self.read(".gitignore") or "").splitlines() if ln.startswith("!")]
+        allowed_dirs = [n.strip("/") + "/" for n in negs if n.endswith("/")]
+        allowed_files = {n.lstrip("/") for n in negs if not n.endswith("/")}
         counts: dict[str, int] = {}
         for f in self.files:
+            if f in allowed_files or any(f.startswith(d) for d in allowed_dirs):
+                continue
             for d in BUILD_DIRS:
                 if f.startswith(d) or f"/{d}" in f:
                     top = f[: f.index(d) + len(d)]
                     counts[top] = counts.get(top, 0) + 1
                     break
-        # Свідомий виняток власника: `!шлях/` у кореневому .gitignore (напр. dist/ мобільного
-        # агента — це сам продукт). Такий каталог не знахідка.
-        allowed = [ln[1:].strip().strip("/") + "/" for ln in (self.read(".gitignore") or "").splitlines()
-                   if ln.startswith("!")]
         for top, n in sorted(counts.items()):
-            if any(top.startswith(a) or a.startswith(top) for a in allowed):
-                continue
             self.add("RH06", "medium", f"у git лежить {n} файл(ів) артефактів/кешу в {top}",
                      f"git rm -r --cached {top} + рядок у .gitignore; кеші роздувають репо "
                      "й дають шумні коміти", top)
@@ -264,7 +265,8 @@ class Scan:
                 continue
             if size > LARGE_BYTES:
                 self.add("RH10", "low", f"великий файл {size // (1024 * 1024)} МБ",
-                         "винести в Releases/Git LFS або прибрати з git", f)
+                         "винести в Releases/Git LFS або прибрати з git; секрети (RH04) в ньому "
+                         f"перевірено лише в перших {LARGE_BYTES // (1024 * 1024)} МБ", f)
 
     def rule_scripts(self) -> None:
         if not self.has("package.json"):

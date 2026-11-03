@@ -52,19 +52,25 @@ def repo_state(owner: str, repo: str, now: datetime) -> dict:
     try:
         meta = gh(f"repos/{owner}/{repo}")
         branch = meta.get("default_branch") or "main"
-        runs = gh(f"repos/{owner}/{repo}/actions/runs?branch={branch}&per_page=30").get("workflow_runs") or []
+        workflows = gh(f"repos/{owner}/{repo}/actions/workflows?per_page=100").get("workflows") or []
+        latest: dict[str, dict] = {}
+        # Останній прогін — окремо для КОЖНОГО workflow: одна сторінка всіх прогонів гілки
+        # може бути зайнята частим workflow, і стан рідшого (напр. червоного) зник би зі звіту.
+        for w in workflows:
+            if w.get("state") != "active" or str(w.get("path", "")).startswith("dynamic/"):
+                continue  # вимкнені й динамічні (Dependabot) — не перевірки коду
+            runs = gh(f"repos/{owner}/{repo}/actions/workflows/{w.get('id')}/runs"
+                      f"?branch={branch}&per_page=5").get("workflow_runs") or []
+            r = next((x for x in runs if x.get("event") != "dynamic"), None)
+            if r is None:
+                continue
+            latest[clean(w.get("name") or r.get("name"), 60)] = {
+                "status": clean(r.get("status"), 20), "conclusion": clean(r.get("conclusion"), 20),
+                "sha": clean(r.get("head_sha"), 7), "at": clean(r.get("created_at"), 30),
+                "url": clean(r.get("html_url"), 200)}
         pulls = gh(f"repos/{owner}/{repo}/pulls?state=open&per_page=50") or []
-    except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired, OSError) as e:
+    except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired, OSError, AttributeError) as e:
         return {"error": clean(e, 200)}
-    latest: dict[str, dict] = {}
-    for r in runs:  # GitHub віддає новіші першими — лишаємо перший прогін кожного workflow
-        name = clean(r.get("name"), 60)
-        # Прогони Dependabot (event=dynamic) мають нову назву щоразу — це не перевірки коду
-        if r.get("event") == "dynamic" or name in latest:
-            continue
-        latest[name] = {"status": clean(r.get("status"), 20), "conclusion": clean(r.get("conclusion"), 20),
-                        "sha": clean(r.get("head_sha"), 7), "at": clean(r.get("created_at"), 30),
-                        "url": clean(r.get("html_url"), 200)}
     prs = [{"number": p.get("number"), "title": clean(p.get("title"), 100), "draft": bool(p.get("draft")),
             "author": clean((p.get("user") or {}).get("login"), 40),
             "idle_days": age_days(p.get("updated_at", ""), now)} for p in pulls]

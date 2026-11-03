@@ -2540,6 +2540,11 @@ n_old=$($RH --canon "$RHT/canon" --json "$RHT/t2.json" "$RHT/tpl-v2" >/dev/null 
 n_new=$($RH --canon "$RHT/canon" --json "$RHT/t3.json" "$RHT/tpl-v3" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/t3.json'))['findings'] if f['rule']=='RH14'))")
 check "repo-health RH14: застаріла копія шаблону CI — знахідка" "1" "$n_old"
 check "repo-health RH14: актуальна копія — мовчить" "0" "$n_new"
+# RH06: виняток на ОДИН файл (`!dist/app.html`) не звільняє всю теку — сусідній артефакт ловиться
+F1="$RHT/fileneg"; rh_init "$F1"; mkdir -p "$F1/dist"; printf 'dist/\n!dist/app.html\n' > "$F1/.gitignore"
+echo a > "$F1/dist/app.html"; echo c > "$F1/dist/cache.js"; rh_commit "$F1"
+n_rh06=$($RH --json "$RHT/fn.json" "$F1" >/dev/null 2>&1; python3 -c "import json;print([f['title'] for f in json.load(open('$RHT/fn.json'))['findings'] if f['rule']=='RH06'])")
+check "repo-health RH06: виняток на файл не звільняє теку (ловить dist/cache.js)" "['у git лежить 1 файл(ів) артефактів/кешу в dist/']" "$n_rh06"
 out=$($RH --strict "$C" 2>&1); rc=$?
 [[ "$rc" == 0 && "$out" == *"знахідок немає"* ]] && ok "repo-health: чистий репо (з винятком !dist/) — мовчить" \
   || bad "repo-health: чистий репо мовчить" "код 0 · знахідок немає" "код $rc · ${out:0:300}"
@@ -2595,6 +2600,10 @@ n_close=$(grep -oi '</script' "$RHT/p2.html" | wc -l | tr -d ' '); n_tpl=$(grep 
 check "update-page: дані з репо не закривають <script> (ін'єкція екранована)" "$n_tpl" "$n_close"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --out "$RHT/p3.html" 2>&1)
 [[ "$out" == *"bbb: CI зелений"* ]] && ok "update-page: заливання з зеленим CI на цьому коміті" || bad "update-page: зелений CI" "CI зелений" "${out:0:300}"
+echo '{"repos":{"r":{"error":"HTTP 403"}}}' > "$RHT/cie.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --out "$RHT/p5.html" 2>&1)
+[[ "$out" == *"bbb: CI-стан не прочитано — вердикт невідомий"* ]] && ok "update-page: непрочитаний CI — «невідомо», а не «немає CI»" \
+  || bad "update-page: непрочитаний CI" "вердикт невідомий" "${out:0:300}"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cir.json" --out "$RHT/p4.html" 2>&1)
 [[ "$out" == *"❌ \`r\` червоний CI"* && "$out" == *"CI: CI — failure"* ]] && ok "update-page: червоний CI і вердикт заливання" || bad "update-page: червоний CI" "❌ + failure" "${out:0:300}"
 
@@ -2632,8 +2641,9 @@ mut("mm_gone", lambda m: m["roles"]["worker"].update(model="claude-sonnet-4-0"))
 mut("mm_order", lambda m: m["roles"]["diagnosis"].update(model="claude-haiku-5-5", agent="haiku"))
 mut("mm_agent", lambda m: m["roles"]["home"].update(agent="opus"))
 mut("mm_class", lambda m: m["roles"]["worker"].update({"class": "вигаданий клас"}))
+mut("mm_classrow", lambda m: m["roles"]["worker"].update(model="claude-haiku-5-5", agent="haiku"))
 ' "$RHT" "$REPO/automations/repo-monitor/models.json"
-for k in gone order agent class; do
+for k in gone order agent class classrow; do
   rc=$($CM "$RHT/mm_$k.json" --root "$REPO" >/dev/null 2>&1; echo $?)
   check "check-models ловить поломку: $k" "1" "$rc"
 done
@@ -2646,7 +2656,8 @@ p="${@: -1}"
 case "$p" in
   repos/o/bad*) echo "HTTP 404: Not Found" >&2; exit 1 ;;
   repos/o/good) echo '{"default_branch":"dev"}' ;;
-  repos/o/good/actions/runs*) echo '{"workflow_runs":[{"name":"github_actions in /. - Update #1","event":"dynamic","conclusion":"success"},{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
+  repos/o/good/actions/workflows\?*) echo '{"workflows":[{"id":1,"name":"CI","path":".github/workflows/ci.yml","state":"active"},{"id":2,"name":"Dependabot Updates","path":"dynamic/dependabot/dependabot-updates","state":"active"},{"id":3,"name":"Old","path":".github/workflows/old.yml","state":"disabled_manually"}]}' ;;
+  repos/o/good/actions/workflows/1/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
   repos/o/good/pulls*) echo '[{"number":5,"title":"Оновлення\u001b[31m","draft":false,"user":{"login":"x"},"updated_at":"2020-01-01T00:00:00Z"}]' ;;
   *) echo "unexpected $p" >&2; exit 1 ;;
 esac
@@ -2674,6 +2685,12 @@ out=$(PATH="$GHS:$PATH" MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro2" "$RHT/не�
   || bad "run.sh: запасний шаблон" "код 0 + попередження" "код $rc · ${out:0:200}"
 rc=$(MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro3" "$PAGE" '../x' broken >/dev/null 2>&1; echo $?)
 check "run.sh: некоректний owner → код 2" "2" "$rc"
+# Наявний клон (тека переживає прогони) мусить оновитись до свіжого origin, а не сканувати старий HEAD
+OR="$RHT/origin-x"; rh_init "$OR"; echo 1 > "$OR/f"; rh_commit "$OR"
+MD2="$RHT/mondir2"; mkdir -p "$MD2"; git clone -q "$OR" "$MD2/x"; echo 2 > "$OR/f"; rh_commit "$OR"
+PATH="$GHS:$PATH" MON_DIR="$MD2" $RUN "$RHT/ro4" "$PAGE" o x >/dev/null 2>&1
+got=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['heads']['x']['sha'])" "$RHT/ro4/now.json" 2>&1)
+check "run.sh: наявний клон оновлено до свіжого origin" "$(git -C "$OR" rev-parse --short HEAD)" "$got"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"

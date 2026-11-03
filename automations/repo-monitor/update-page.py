@@ -123,13 +123,16 @@ def main() -> int:
         old = (prev_heads.get(repo) or {}).get("sha")
         if not old or old == h.get("sha"):
             continue
-        wf = ((ci.get("repos") or {}).get(repo) or {}).get("workflows") or {}
+        st = (ci.get("repos") or {}).get(repo) or {}
+        wf = st.get("workflows") or {}
         on_sha = {n: (w.get("conclusion") or w.get("status")) for n, w in wf.items() if w.get("sha") == h.get("sha")}
         # Фактичний прогін на цьому коміті — прямий доказ, тож він важить більше за статичну RH01
         if on_sha and all(v == "success" for v in on_sha.values()):
             verdict = "CI зелений"
         elif on_sha:
             verdict = "CI: " + ", ".join(f"{n} — {v}" for n, v in sorted(on_sha.items()))
+        elif "error" in st:  # стан не прочитано — це не те саме, що «CI немає»
+            verdict = "CI-стан не прочитано — вердикт невідомий"
         elif repo in no_ci or not wf:
             verdict = "не перевірено — у репо немає CI"
         else:

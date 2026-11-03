@@ -21,7 +21,14 @@ name_ok() { [[ "$1" =~ ^[A-Za-z0-9._-]{1,100}$ ]]; }
 name_ok "$OWNER" || { echo "помилка: некоректний owner" >&2; exit 2; }
 for r in "$@"; do
   name_ok "$r" || { echo "пропущено некоректну назву репо" >> "$OUT/clone-errors.txt"; continue; }
-  [[ -d "$MON/$r/.git" || "${MON_NO_CLONE:-0}" == 1 ]] && continue
+  [[ "${MON_NO_CLONE:-0}" == 1 ]] && continue
+  if [[ -d "$MON/$r/.git" ]]; then
+    # Клон уже є (тека переживає прогони) — довести до свіжого стану origin, інакше скан
+    # прочитає застарілий HEAD і не побачить ні нових заливань, ні виправлень.
+    { git -C "$MON/$r" fetch -q --depth 50 origin HEAD && git -C "$MON/$r" reset -q --hard FETCH_HEAD; } \
+      2>> "$OUT/clone-errors.txt" || echo "не оновився: $r (скан — за попереднім станом)" >> "$OUT/clone-errors.txt"
+    continue
+  fi
   git clone -q --depth 50 "https://github.com/$OWNER/$r.git" "$MON/$r" 2>> "$OUT/clone-errors.txt" \
     || echo "не клонувався: $r" >> "$OUT/clone-errors.txt"
 done

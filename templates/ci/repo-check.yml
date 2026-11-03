@@ -2,11 +2,11 @@
 # Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) у всіх комітах
 # діапазону заливання, включно з тими, що прийшли злиттям; повну історію — ручний запуск (workflow_dispatch);
 # якщо є package.json — встановлення + lint + build + test (лише ті скрипти, що є);
-# якщо є tests/*canary*.py або tests/test_*.py — кожен запускається python3 (офлайн-канарки).
+# tests/*canary*.py — запускаються python3 напряму (офлайн-канарки); tests/test_*.py — через pytest.
 # Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v3 (2026-11-03)
+# sync: ai-lab templates/ci/repo-check.yml v4 (2026-11-03)
 name: Repo check
 
 on:
@@ -94,8 +94,13 @@ jobs:
       - name: run python canaries and tests
         run: |
           shopt -s nullglob
-          files=(tests/*canary*.py tests/test_*.py)
-          if [ ${#files[@]} -eq 0 ]; then echo "python-тестів немає — пропущено"; exit 0; fi
+          canaries=(tests/*canary*.py); tests=(tests/test_*.py)
+          if [ ${#canaries[@]} -eq 0 ] && [ ${#tests[@]} -eq 0 ]; then echo "python-тестів немає — пропущено"; exit 0; fi
           rc=0
-          for f in "${files[@]}"; do echo "::group::$f"; python3 "$f" || rc=1; echo "::endgroup::"; done
+          # Канарки — самостійні скрипти: запускаються напряму, код виходу і є вердикт
+          for f in "${canaries[@]}"; do echo "::group::$f"; python3 "$f" || rc=1; echo "::endgroup::"; done
+          # test_*.py — тести pytest: прямий запуск лише імпортує файл і ніколи не падає
+          if [ ${#tests[@]} -gt 0 ]; then
+            python3 -m pip install --quiet "pytest==8.3.4" && python3 -m pytest -q "${tests[@]}" || rc=1
+          fi
           exit $rc
