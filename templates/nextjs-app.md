@@ -78,8 +78,17 @@ import { useCallback, useSyncExternalStore } from "react";
 const listeners = new Set<() => void>();
 const memory = new Map<string, string>(); // значення, яке не вдалося записати або прочитати назад
 function subscribe(l: () => void) {
-  listeners.add(l); window.addEventListener("storage", l);
-  return () => { listeners.delete(l); window.removeEventListener("storage", l); };
+  // Запис іншої вкладки вдався — її значення (воно є в події) заміняє нашу незбережену копію.
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === null) memory.clear();
+    else if (memory.has(e.key)) {
+      if (e.newValue === null) memory.delete(e.key);
+      else memory.set(e.key, e.newValue);
+    }
+    l();
+  };
+  listeners.add(l); window.addEventListener("storage", onStorage);
+  return () => { listeners.delete(l); window.removeEventListener("storage", onStorage); };
 }
 function read(key: string) {
   const unsaved = memory.get(key);
@@ -98,8 +107,9 @@ export function useLocalStorage(key: string, fallback: string): [string, (v: str
 }
 ```
 - Перевірка (браузер): вибір переживає перезавантаження; видно в іншій вкладці без
-  перезавантаження; вибір не губиться, коли `localStorage` недоступний повністю, коли падає
-  лише запис і коли падає лише читання.
+  перезавантаження — і тоді, коли в цій вкладці значення лежало в пам'яті після збою; вибір
+  не губиться, коли `localStorage` недоступний повністю, коли падає лише запис і коли падає
+  лише читання.
 
 ## 7. Smoke-тест
 - [ ] Піднімає **production**-сервер (`next start`) на окремому порту й ганяє контракт API.
