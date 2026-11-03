@@ -2575,6 +2575,11 @@ echo "{\"$wid\": \"тест · 2026-11-02\"}" > "$RHT/w.json"
 out=$($RH --waivers "$RHT/w.json" "$E" 2>&1)
 [[ "$out" != *"RH13"* && "$out" == *"waivers): 1"* ]] && ok "repo-health --waivers: приховано й назване числом" \
   || bad "repo-health --waivers" "без RH13 + лічильник 1" "${out:0:200}"
+# Валідний JSON-не-об'єкт у MANIFEST копії не валить увесь скан (рев'ю Codex ai-lab#108)
+MF="$RHT/badmanifest"; rh_init "$MF"; mkdir -p "$MF/melania-skills-ecosystem"; echo '[]' > "$MF/melania-skills-ecosystem/MANIFEST.json"; rh_commit "$MF"
+rc=$($RH --canon "$RHT/canon" --json "$RHT/mf.json" "$MF" >/dev/null 2>&1; echo $?)
+n12=$(python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/mf.json'))['findings'] if f['rule']=='RH12'))" 2>&1)
+check "repo-health: MANIFEST «[]» — код 0 і RH12 (розійшлася), без падіння" "0 1" "$rc $n12"
 rc=$($RH "$RHT/не-репо" >/dev/null 2>&1; echo $?)
 check "repo-health: не git-репозиторій → код 2" "2" "$rc"
 
@@ -2623,6 +2628,14 @@ import re, json, sys
 t = open(sys.argv[1]).read(); d = json.loads(re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S).group(1))
 print(d["red"].get("r"), d["ci_unknown"])' "$RHT/p6.html" 2>&1)
 check "update-page: непрочитаний CI зберігає попередній червоний стан і позначений невідомим" "['CI'] ['r']" "$got"
+# Свідомо прийнята знахідка (waivers) — «🤝 прийнято», а не «✅ виправлено» (рев'ю Codex ai-lab#108)
+python3 -c '
+import json, sys
+f = lambda i: {"id": i, "repo": "r", "rule": "RH01", "severity": "medium", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f("id1")], "waived": 1, "waived_ids": ["id2"]}, open(sys.argv[1], "w"))' "$RHT/hw.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/hw.json" --out "$RHT/pw.html" 2>&1)
+[[ "$out" == *"🤝"*"свідомо прийнято"* && "$out" != *"- ✅"* ]] && ok "update-page: waiver — «прийнято», не «виправлено»" \
+  || bad "update-page: waiver" "🤝 без ✅" "${out:0:300}"
 # Новий прострочений PR — у дельті й не «без змін»; той самий, що вже був, не повторюється
 python3 -c '
 import json, sys

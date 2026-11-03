@@ -290,10 +290,13 @@ class Scan:
         canon_manifest = self.canon / rel
         if self.repo.resolve() == self.canon.resolve() or not canon_manifest.is_file():
             return
+        def fingerprint(text: str):  # валідний JSON, але не об'єкт ([] чи null) — не падіння всього скану
+            d = json.loads(text)
+            return d.get("built_fingerprint") if isinstance(d, dict) else None
         try:
-            mine = json.loads(self.read(rel) or "{}").get("built_fingerprint")
-            theirs = json.loads(canon_manifest.read_text(encoding="utf-8")).get("built_fingerprint")
-        except json.JSONDecodeError:
+            mine = fingerprint(self.read(rel) or "{}")
+            theirs = fingerprint(canon_manifest.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
             return
         if mine != theirs:
             self.add("RH12", "medium", f"копія melania-екосистеми розійшлася з каноном "
@@ -431,7 +434,7 @@ def main() -> int:
         sha, _, date = git(r, "log", "-1", "--format=%h %cI").strip().partition(" ")
         heads[r.name] = {"sha": clean(sha, 12), "date": clean(date, 40)}
 
-    waived = 0
+    waived, waived_ids = 0, []
     if a.waivers:
         try:
             waivers = json.loads(Path(a.waivers).read_text(encoding="utf-8"))
@@ -440,6 +443,7 @@ def main() -> int:
             return 2
         kept = [f for f in findings if f["id"] not in waivers]
         waived = len(findings) - len(kept)
+        waived_ids = sorted({f["id"] for f in findings if f["id"] in waivers})  # сторінці: «прийнято», не «виправлено»
         findings = kept
 
     baseline = None
@@ -451,7 +455,8 @@ def main() -> int:
     if a.json:
         keep = ("id", "repo", "rule", "severity", "title")
         rows = [{k: f[k] for k in keep} for f in findings] if a.compact else findings
-        Path(a.json).write_text(json.dumps({"repos": [r.name for r in repos], "heads": heads, "waived": waived, "findings": rows},
+        Path(a.json).write_text(json.dumps({"repos": [r.name for r in repos], "heads": heads, "waived": waived,
+                                           "waived_ids": waived_ids, "findings": rows},
                                            ensure_ascii=False, indent=None if a.compact else 1),
                                 encoding="utf-8")
     print(render(findings, [r.name for r in repos], baseline))

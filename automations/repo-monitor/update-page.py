@@ -109,7 +109,10 @@ def main() -> int:
     old_ids = {f["id"] for f in prev.get("findings", [])}
     new_ids = {f["id"] for f in findings}
     added = [f for f in findings if f["id"] not in old_ids]
-    gone = [f for f in prev.get("findings", []) if f["id"] not in new_ids]
+    # Знахідка, яку власник свідомо прийняв (waivers.json), зникає зі скану, але вона НЕ виправлена
+    waived_ids = set(health.get("waived_ids") or [])
+    accepted = [f for f in prev.get("findings", []) if f["id"] not in new_ids and f["id"] in waived_ids]
+    gone = [f for f in prev.get("findings", []) if f["id"] not in new_ids and f["id"] not in waived_ids]
     no_ci = {f["repo"] for f in findings if f["rule"] == "RH01"}
 
     heads, prev_heads = dict(health.get("heads", {})), prev.get("heads", {})
@@ -175,7 +178,7 @@ def main() -> int:
     # --- markdown-дельта для звіту прогону ---
     total = " ".join(f"{ICON[s]}{counts[s]}" for s in SEV if counts[s])
     head = f"🩺 {len(repos)} репо · знахідок: {total or '0'}"
-    changed = (not first) and (added or gone or repos_new or unscanned or pushes or red_new or stale_new)
+    changed = (not first) and (added or gone or accepted or repos_new or unscanned or pushes or red_new or stale_new)
     lines = []
     if first:
         lines.append(f"{head} · перший прогін: база збережена на сторінці, далі — лише дельта.")
@@ -200,6 +203,8 @@ def main() -> int:
         lines.append(f"- 💤 `{s['repo']}` PR #{s['number']} без руху {s['idle_days']} дн.: {s.get('title') or ''}")
     for f in gone if not first else []:
         lines.append(f"- ✅ `{f['repo']}` {f['rule']} — {f['title']}")
+    for f in accepted if not first else []:
+        lines.append(f"- 🤝 `{f['repo']}` {f['rule']} — {f['title']}: свідомо прийнято (waivers), не виправлено")
     if ci_errors:
         lines.append(f"- ⚠️ CI-стан не прочитано: {', '.join(sorted(ci_errors))} (див. сторінку)")
     md = "\n".join(lines) + "\n"
