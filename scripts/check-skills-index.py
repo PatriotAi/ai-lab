@@ -16,7 +16,8 @@
   - навичка є на диску, але не в індексі;
   - пункт є в індексі, але лабораторної теки нема (або це симлінк melania);
   - тека в `.claude/skills/` без `SKILL.md` — це не навичка, а поломка;
-  - битий симлінк у `.claude/skills/` — Claude Code таку навичку не завантажить.
+  - битий симлінк у `.claude/skills/` або симлінк на теку без `SKILL.md` — Claude Code
+    таку навичку не завантажить.
 
 Запуск:
     python3 scripts/check-skills-index.py [корінь]
@@ -72,6 +73,10 @@ def main(argv: list[str]) -> int:
 
     linked = {d.name for d in entries if d.is_symlink()}
     dangling = sorted(d.name for d in entries if d.is_symlink() and not d.exists())
+    hollow = sorted(
+        d.name for d in entries
+        if d.is_symlink() and d.exists() and not (d / "SKILL.md").is_file()
+    )
     real = [d for d in entries if d.is_dir() and not d.is_symlink()]
     present = {d.name for d in real if (d / "SKILL.md").is_file()}
     broken = sorted(d.name for d in real if not (d / "SKILL.md").is_file())
@@ -80,6 +85,8 @@ def main(argv: list[str]) -> int:
     phantom = sorted(listed - present - set(broken))
     for name in dangling:
         print(f"битий симлінк: .claude/skills/{name} — ціль не існує, навичку не завантажить")
+    for name in hollow:
+        print(f"симлінк без SKILL.md: .claude/skills/{name} — ціль не навичка, її не завантажить")
     for name in broken:
         print(f"тека без SKILL.md: .claude/skills/{name}/ — не навичка; додай SKILL.md або прибери теку")
     for name in missing:
@@ -89,7 +96,7 @@ def main(argv: list[str]) -> int:
             print(f"не лабораторна навичка: `{name}` — симлінк melania, її облік у MANIFEST, не в цьому індексі")
         else:
             print(f"привид в індексі: `{name}` є в skills/README.md, але теки .claude/skills/{name}/ нема")
-    if dangling or broken or missing or phantom:
+    if dangling or hollow or broken or missing or phantom:
         return 1
     print(f"індекс навичок збігається з диском: {len(present)} лабораторних навичок")
     return 0
