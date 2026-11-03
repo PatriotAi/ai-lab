@@ -1,0 +1,306 @@
+<title>Монітор репозиторіїв</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Шаблон: ai-lab automations/repo-monitor/page.html. Дані — у блоці monitor-data нижче;
+   їх оновлює update-page.py щоранку. Макет: зведення → що змінилось → CI → знахідки → історія. */
+:root {
+  --bg: #f4f6f9; --panel: #ffffff; --fg: #18202d; --muted: #5a6577; --line: #dde2ea;
+  --accent: #2c5bc9; --accent-soft: #e6edfb;
+  --high: #b8322a; --medium: #b06a0c; --low: #8a7a00; --info: #6b7280; --ok: #2a7a3d;
+  --high-soft: #fbe9e7; --medium-soft: #fbf0df; --low-soft: #f6f2d6; --info-soft: #eef0f3; --ok-soft: #e4f3e7;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e131b; --panel: #151c27; --fg: #e4e8ef; --muted: #98a2b3; --line: #263041;
+  --accent: #7ea3ff; --accent-soft: #1b2740;
+  --high: #ff7d70; --medium: #f0a54a; --low: #e0cd52; --info: #9aa3b2; --ok: #63c47f;
+  --high-soft: #3a1c1a; --medium-soft: #3a2a14; --low-soft: #34301a; --info-soft: #1e2532; --ok-soft: #17301f;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e131b; --panel: #151c27; --fg: #e4e8ef; --muted: #98a2b3; --line: #263041;
+  --accent: #7ea3ff; --accent-soft: #1b2740;
+  --high: #ff7d70; --medium: #f0a54a; --low: #e0cd52; --info: #9aa3b2; --ok: #63c47f;
+  --high-soft: #3a1c1a; --medium-soft: #3a2a14; --low-soft: #34301a; --info-soft: #1e2532; --ok-soft: #17301f;
+  color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+h1, h2 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; letter-spacing: 0.01em; }
+h2 { font-size: 19px; display: flex; align-items: baseline; gap: 10px; }
+h2 small { font-family: var(--font-body); font-weight: 400; font-size: 13px; color: var(--muted); }
+.meta { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
+.mono, code { font-family: var(--font-mono); font-size: 0.88em; }
+header { display: grid; gap: 14px; }
+.tally { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; border: 1px solid transparent; }
+.pill b { font-weight: 600; }
+a.pill { text-decoration: none; }
+a.pill:hover { border-color: currentColor; }
+.s-high { background: var(--high-soft); color: var(--high); }
+.s-medium { background: var(--medium-soft); color: var(--medium); }
+.s-low { background: var(--low-soft); color: var(--low); }
+.s-info { background: var(--info-soft); color: var(--info); }
+.s-ok { background: var(--ok-soft); color: var(--ok); }
+section { display: grid; gap: 12px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.delta { list-style: none; margin: 0; padding: 4px 0; }
+.delta li { padding: 10px 16px; border-top: 1px solid var(--line); display: grid; gap: 2px; }
+.delta li:first-child { border-top: 0; }
+.delta .why { color: var(--muted); font-size: 14px; }
+.quiet { padding: 14px 16px; color: var(--muted); }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; border-top: 0; }
+td.num { font-variant-numeric: tabular-nums; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.repo-block { display: grid; gap: 0; }
+.repo-block > summary { list-style: none; cursor: pointer; padding: 12px 16px; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 8px 12px; font-weight: 600; }
+.repo-block > summary::-webkit-details-marker { display: none; }
+.repo-block > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+.repo-block[open] > summary::before { transform: rotate(90deg); }
+.repo-block > summary:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.finding { display: grid; grid-template-columns: 4px 1fr; gap: 0 12px; padding: 10px 16px 12px; border-top: 1px solid var(--line); }
+.finding .stripe { border-radius: 2px; }
+.finding .body { display: grid; gap: 4px; min-width: 0; }
+.finding .title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.rule { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.path { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.proposal { font-size: 14px; }
+.proposal::before { content: "→ "; color: var(--accent); }
+.idchip { justify-self: start; font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: transparent;
+  border: 1px dashed var(--line); border-radius: 6px; padding: 1px 8px; cursor: pointer; }
+.idchip:hover { color: var(--accent); border-color: var(--accent); }
+.new-badge { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; }
+.chart { padding: 12px 16px; }
+.chart svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--muted); padding: 0 16px 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; max-width: 70ch; }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 560px) { h1 { font-size: 25px; } th:nth-child(2), td:nth-child(2) { display: none; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <div>
+      <h1>Монітор репозиторіїв</h1>
+      <p class="meta" id="meta">Ще не було жодного прогону. Перший щоденний прогін заповнить сторінку.</p>
+    </div>
+    <div class="tally" id="tally"></div>
+  </header>
+
+  <section aria-labelledby="h-delta">
+    <h2 id="h-delta">Що змінилось <small id="delta-sub"></small></h2>
+    <div class="panel" id="delta"><p class="quiet">Тут з'являться нові знахідки, виправлене, нові заливання і червоний CI.</p></div>
+  </section>
+
+  <section aria-labelledby="h-ci">
+    <h2 id="h-ci">CI і заливання <small>гілка за замовчуванням</small></h2>
+    <div class="panel table-scroll">
+      <table>
+        <thead><tr><th>Репозиторій</th><th>HEAD</th><th>Перевірки</th><th>Відкриті PR</th></tr></thead>
+        <tbody id="ci-body"><tr><td colspan="4" class="quiet">Даних ще немає.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-find">
+    <h2 id="h-find">Знахідки й пропозиції <small id="find-sub"></small></h2>
+    <div id="findings" class="panel"><p class="quiet">Даних ще немає.</p></div>
+  </section>
+
+  <section aria-labelledby="h-hist">
+    <h2 id="h-hist">Історія <small>відкриті знахідки за прогонами</small></h2>
+    <div class="panel">
+      <div class="chart" id="chart"><p class="quiet">Графік з'явиться після першого прогону.</p></div>
+      <div class="legend"><span><i style="background:var(--high)"></i>висока</span><span><i style="background:var(--medium)"></i>середня</span><span><i style="background:var(--low)"></i>низька</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Щоб виправити знахідку, відкрийте сесію ранкового прогону й напишіть «виправ» та її код, наприклад <code>виправ 3db6c193d1</code>. Без вашої відповіді прогін нічого не змінює.</span>
+    <span>Знахідку, яку ви свідомо приймаєте, додайте за кодом у <code>automations/repo-monitor/waivers.json</code> в ai-lab: вона зникне зі сторінки. <span id="waived"></span></span>
+  </footer>
+</main>
+
+<script type="application/json" id="monitor-data">{}</script>
+<script>
+(function () {
+  "use strict";
+  var data = {};
+  try { data = JSON.parse(document.getElementById("monitor-data").textContent || "{}"); } catch (e) { data = {}; }
+  if (!data.updated) return;
+
+  var SEV = ["high", "medium", "low", "info"];
+  var SEV_UA = { high: "висока", medium: "середня", low: "низька", info: "інфо" };
+  var RULE_UA = { RH01: "немає CI", RH02: "дія без SHA", RH03: ".env у git", RH04: "секрет", RH05: ".gitignore",
+    RH06: "артефакти в git", RH07: "lock-файли", RH08: "README/LICENSE", RH09: "Dependabot", RH10: "великий файл",
+    RH11: "немає lint/test", RH12: "копія ai-lab", RH13: "порожній репо", RH14: "шаблон CI застарів" };
+  var RED = { failure: 1, cancelled: 1, timed_out: 1, startup_failure: 1, action_required: 1 };
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function fmt(iso) {
+    try { return new Date(iso).toLocaleString("uk-UA", { timeZone: "Europe/Berlin", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }); }
+    catch (e) { return iso; }
+  }
+  var findings = data.findings || [];
+  var delta = data.delta || {};
+  var isNew = {}; (delta.new || []).forEach(function (id) { isNew[id] = true; });
+
+  // Зведення
+  document.getElementById("meta").textContent = "Оновлено " + fmt(data.updated) + " за Берліном · " +
+    (data.repos || []).length + " репозиторіїв · щодня о 07:17";
+  var tally = document.getElementById("tally");
+  SEV.forEach(function (s) {
+    var n = findings.filter(function (f) { return f.severity === s; }).length;
+    if (!n) return;
+    var p = el("span", "pill s-" + s); p.appendChild(el("b", null, String(n))); p.appendChild(document.createTextNode(SEV_UA[s])); tally.appendChild(p);
+  });
+  var redCount = 0; Object.keys(data.red || {}).forEach(function (r) { redCount += data.red[r].length; });
+  var rp = el("span", "pill " + (redCount ? "s-high" : "s-ok"));
+  rp.appendChild(el("b", null, String(redCount))); rp.appendChild(document.createTextNode(redCount ? "червоний CI" : "червоного CI немає"));
+  // CI, якого не прочитано, — невідомий: «немає червоного» без цього було б неправдою
+  var unknown = data.ci_unknown || [];
+  if (unknown.length) {
+    rp.className = "pill " + (redCount ? "s-high" : "s-medium");
+    rp.lastChild.textContent = (redCount ? "червоний CI" : "червоного CI не видно") + " · не прочитано: " + unknown.join(", ");
+  }
+  tally.appendChild(rp);
+
+  // Що змінилось
+  var items = [];
+  if (data.first_run) items.push(["Перший прогін", "Базу збережено. Далі тут буде лише те, що змінилось між прогонами."]);
+  (delta.repos_new || []).forEach(function (r) { items.push(["Новий репозиторій: " + r, "Підхоплено автоматично, уже в скані."]); });
+  (delta.unscanned || []).forEach(function (r) { items.push(["Не проскановано цього разу: " + r, "Показано попередній стан. Якщо репо видалено чи архівовано, скажіть прибрати його."]); });
+  (delta.pushes || []).forEach(function (p) { items.push(["Нове заливання в " + p.repo + ": " + p.from + " → " + p.to, p.verdict]); });
+  Object.keys(delta.red_new || {}).forEach(function (r) { items.push(["Червоний CI в " + r, delta.red_new[r].join(", ")]); });
+  findings.filter(function (f) { return isNew[f.id]; }).forEach(function (f) {
+    items.push(["Нова знахідка в " + f.repo + ": " + f.title, f.proposal || ""]);
+  });
+  (delta.gone || []).forEach(function (f) { items.push(["Виправлено в " + f.repo + ": " + f.title, (RULE_UA[f.rule] || f.rule) + " більше не спрацьовує."]); });
+  (delta.stale || []).forEach(function (p) { items.push(["PR #" + p.number + " у " + p.repo + " без руху " + p.idle_days + " дн.", p.title]); });
+  Object.keys(delta.ci_errors || {}).forEach(function (r) { items.push(["Стан CI не прочитано: " + r, delta.ci_errors[r]]); });
+  var dbox = document.getElementById("delta"); dbox.textContent = "";
+  if (!items.length) { dbox.appendChild(el("p", "quiet", "Без змін з попереднього прогону.")); }
+  else {
+    var ul = el("ul", "delta");
+    items.forEach(function (it) { var li = el("li"); li.appendChild(el("span", null, it[0])); if (it[1]) li.appendChild(el("span", "why", it[1])); ul.appendChild(li); });
+    dbox.appendChild(ul);
+  }
+  document.getElementById("delta-sub").textContent = items.length ? items.length + " подій" : "";
+
+  // CI і заливання
+  var tb = document.getElementById("ci-body"); tb.textContent = "";
+  var noCi = {}; findings.forEach(function (f) { if (f.rule === "RH01") noCi[f.repo] = true; });
+  (data.repos || []).forEach(function (repo) {
+    var st = (data.ci || {})[repo] || {}; var h = (data.heads || {})[repo] || {};
+    var tr = el("tr");
+    tr.appendChild(el("td", null, repo));
+    var staleRepo = (data.stale_repos || []).indexOf(repo) >= 0;
+    tr.appendChild(el("td", "mono", (h.sha || "—") + (st.default_branch ? " · " + st.default_branch : "") + (staleRepo ? " · попередній стан" : "")));
+    var td = el("td"); var box = el("div", "checks");
+    if (st.error) box.appendChild(el("span", "pill s-info", "не прочитано"));
+    else {
+      var wf = st.workflows || {}; var names = Object.keys(wf);
+      if (!names.length) box.appendChild(el("span", "pill " + (noCi[repo] ? "s-medium" : "s-info"), noCi[repo] ? "немає CI" : "прогонів немає"));
+      names.forEach(function (n) {
+        var w = wf[n]; var c = w.conclusion || w.status || "?";
+        var cls = RED[c] ? "s-high" : (c === "success" ? "s-ok" : "s-info");
+        var a = el("a", "pill " + cls, n + ": " + c); if (/^https:\/\/github\.com\//.test(w.url || "")) { a.href = w.url; a.target = "_blank"; a.rel = "noopener"; }
+        box.appendChild(a);
+      });
+    }
+    td.appendChild(box); tr.appendChild(td);
+    var prs = st.prs || [];
+    var stale = prs.filter(function (p) { return p.idle_days > 14; }).length;
+    tr.appendChild(el("td", "num", prs.length ? prs.length + (stale ? " · " + stale + " без руху" : "") : "—"));
+    tb.appendChild(tr);
+  });
+
+  // Знахідки й пропозиції
+  var fbox = document.getElementById("findings"); fbox.textContent = "";
+  document.getElementById("find-sub").textContent = findings.length + " відкритих";
+  if (!findings.length) fbox.appendChild(el("p", "quiet", "Знахідок немає."));
+  var order = function (a, b) { return SEV.indexOf(a.severity) - SEV.indexOf(b.severity) || a.rule.localeCompare(b.rule); };
+  (data.repos || []).forEach(function (repo) {
+    var list = findings.filter(function (f) { return f.repo === repo; }).sort(order);
+    if (!list.length) return;
+    var d = el("details", "repo-block"); if (list.some(function (f) { return f.severity === "high" || isNew[f.id]; })) d.open = true;
+    var s = el("summary", null, repo);
+    SEV.forEach(function (sv) { var n = list.filter(function (f) { return f.severity === sv; }).length; if (n) s.appendChild(el("span", "pill s-" + sv, n + " " + SEV_UA[sv])); });
+    d.appendChild(s);
+    list.forEach(function (f) {
+      var row = el("div", "finding"); var stripe = el("span", "stripe"); stripe.style.background = "var(--" + f.severity + ")"; row.appendChild(stripe);
+      var b = el("div", "body"); var t = el("div", "title");
+      t.appendChild(el("span", "rule", f.rule + " · " + (RULE_UA[f.rule] || ""))); t.appendChild(el("span", null, f.title));
+      if (isNew[f.id]) t.appendChild(el("span", "new-badge", "нове"));
+      b.appendChild(t);
+      if (f.path) b.appendChild(el("span", "path", f.path));
+      if (f.proposal) b.appendChild(el("span", "proposal", f.proposal));
+      var chip = el("button", "idchip", f.id); chip.type = "button"; chip.title = "Скопіювати код знахідки";
+      chip.addEventListener("click", function () {
+        var done = function () { chip.textContent = "скопійовано"; setTimeout(function () { chip.textContent = f.id; }, 1200); };
+        try { navigator.clipboard.writeText(f.id).then(done, function () { selectText(chip); }); } catch (e) { selectText(chip); }
+      });
+      b.appendChild(chip); row.appendChild(b); d.appendChild(row);
+    });
+    fbox.appendChild(d);
+  });
+  function selectText(node) { var r = document.createRange(); r.selectNodeContents(node); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+  if (data.waived) document.getElementById("waived").textContent = "Свідомо прийнято зараз: " + data.waived + ".";
+
+  // Історія: складені стовпчики high/medium/low
+  var hist = (data.history || []).slice(-60);
+  var chart = document.getElementById("chart");
+  function draw() {
+    if (!hist.length) return;
+    chart.textContent = "";
+    var W = Math.max(280, chart.clientWidth - 32), H = 140, pad = { l: 28, r: 6, t: 8, b: 22 };
+    var max = 1; hist.forEach(function (h) { max = Math.max(max, (h.high || 0) + (h.medium || 0) + (h.low || 0)); });
+    var step = Math.pow(10, Math.floor(Math.log10(max))); var top = Math.ceil(max / step) * step;
+    var ns = "http://www.w3.org/2000/svg"; var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Відкриті знахідки за останні " + hist.length + " прогонів");
+    var y = function (v) { return pad.t + (H - pad.t - pad.b) * (1 - v / top); };
+    [0, top / 2, top].forEach(function (v) {
+      var ln = document.createElementNS(ns, "line"); ln.setAttribute("x1", pad.l); ln.setAttribute("x2", W - pad.r);
+      ln.setAttribute("y1", y(v)); ln.setAttribute("y2", y(v)); ln.setAttribute("stroke", "var(--line)"); svg.appendChild(ln);
+      var tx = document.createElementNS(ns, "text"); tx.setAttribute("x", pad.l - 6); tx.setAttribute("y", y(v) + 4);
+      tx.setAttribute("text-anchor", "end"); tx.setAttribute("font-size", "11"); tx.setAttribute("fill", "var(--muted)"); tx.textContent = String(Math.round(v)); svg.appendChild(tx);
+    });
+    var slot = (W - pad.l - pad.r) / Math.max(hist.length, 1); var bw = Math.max(3, Math.min(22, slot * 0.7));
+    hist.forEach(function (h, i) {
+      var x = pad.l + slot * i + (slot - bw) / 2, acc = 0;
+      ["high", "medium", "low"].forEach(function (s) {
+        var v = h[s] || 0; if (!v) return;
+        var r = document.createElementNS(ns, "rect"); r.setAttribute("x", x); r.setAttribute("width", bw);
+        r.setAttribute("y", y(acc + v)); r.setAttribute("height", Math.max(0, y(acc) - y(acc + v)));
+        r.setAttribute("fill", "var(--" + s + ")"); r.setAttribute("rx", 1.5);
+        var tt = document.createElementNS(ns, "title"); tt.textContent = fmt(h.at) + ": " + SEV_UA[s] + " " + v; r.appendChild(tt);
+        svg.appendChild(r); acc += v;
+      });
+    });
+    [0, hist.length - 1].forEach(function (i, k) {
+      if (k && i === 0) return;
+      var tx = document.createElementNS(ns, "text"); tx.setAttribute("x", k ? W - pad.r : pad.l); tx.setAttribute("y", H - 6);
+      tx.setAttribute("text-anchor", k ? "end" : "start"); tx.setAttribute("font-size", "11"); tx.setAttribute("fill", "var(--muted)");
+      tx.textContent = fmt(hist[i].at); svg.appendChild(tx);
+    });
+    chart.appendChild(svg);
+  }
+  draw();
+  var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(draw, 150); });
+})();
+</script>

@@ -1,0 +1,117 @@
+# Перевірка при заливанні / Check on push — шаблон ai-lab: templates/ci/repo-check.yml
+# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) у всіх комітах
+# діапазону заливання, включно з тими, що прийшли злиттям, і з дифами самих злиттів (розв'язання
+# конфліктів); повну історію — ручний запуск (workflow_dispatch);
+# якщо є КОРЕНЕВИЙ package.json — встановлення + lint + build + test (лише ті скрипти, що є);
+# монорепо з package.json лише у вкладених теках — розширити крок detect під свої теки.
+# tests/*canary*.py — запускаються python3 напряму (офлайн-канарки); tests/test_*.py — через pytest.
+# Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
+# Репо ОРГАНІЗАЦІЇ: gitleaks-action вимагає секрет GITLEAKS_LICENSE; для облікового запису
+# користувача (як PatriotAi) — не потрібен.
+# Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
+# Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
+# sync: ai-lab templates/ci/repo-check.yml v6 (2026-11-03)
+name: Repo check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Свідомо БЕЗ `concurrency`: у групі GitHub тримає лише один очікуваний прогін і витісняє його
+# новішим (навіть із cancel-in-progress: false), а кожен push сканує лише свій діапазон — коміти
+# витісненого прогону лишились би неперевіреними; скасований прогін PR після force-push так само
+# губить прибрані коміти. Тож кожен прогін доходить до кінця (знахідки Codex 2026-11-03).
+# Межа: push із `[skip ci]` workflow не запускає зовсім — його коміти закриває лише повний скан
+# (ручний запуск або розклад).
+
+jobs:
+  secrets:
+    name: secrets (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read   # gitleaks-action на pull_request читає коміти PR через API
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Дія на push/PR сканує лише `--no-merges --first-parent base^..head` (перевірено за її кодом
+      # на закріпленому SHA): коміт, що прийшов злиттям іншої гілки, вона пропускає, а `git log -p`
+      # без `--diff-merges` не показує дифу самого злиття. Тому тут — той самий gitleaks (дія кладе
+      # його в PATH) по ВСІХ комітах діапазону плюс дифи злиттів. Запускається й тоді, коли дія вже
+      # впала (`!cancelled()`), щоб звіт був повним; job лишається червоним.
+      - name: gitleaks — усі коміти діапазону і дифи злиттів
+        if: ${{ !cancelled() }}
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="origin/$BASE_REF..HEAD"
+          elif [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..HEAD"
+          elif [ "$EVENT" = "push" ] && [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            range="origin/$DEFAULT_BRANCH..HEAD"   # нова гілка: її коміти поверх гілки за замовчуванням
+          else
+            range="--all"   # ручний запуск; перше заливання гілки за замовчуванням; force-push без попереднього коміту
+          fi
+          echo "діапазон: $range ($(git rev-list --count "$range") комітів)"
+          gitleaks detect --redact --no-banner --log-opts="--diff-merges=first-parent $range"
+
+  node:
+    name: node (lint · build · test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: detect stack
+        id: detect
+        run: |
+          if [ -f package.json ]; then echo "node=true" >> "$GITHUB_OUTPUT"; else echo "node=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.node == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version: lts/*
+      - name: install
+        if: steps.detect.outputs.node == 'true'
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: lint
+        if: steps.detect.outputs.node == 'true'
+        run: npm run lint --if-present
+      - name: build
+        if: steps.detect.outputs.node == 'true'
+        run: npm run build --if-present
+      - name: test
+        if: steps.detect.outputs.node == 'true'
+        run: npm test --if-present
+
+  python:
+    name: python (canaries · tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: run python canaries and tests
+        run: |
+          shopt -s nullglob
+          canaries=(tests/*canary*.py); tests=(tests/test_*.py)
+          if [ ${#canaries[@]} -eq 0 ] && [ ${#tests[@]} -eq 0 ]; then echo "python-тестів немає — пропущено"; exit 0; fi
+          rc=0
+          # Канарки — самостійні скрипти: запускаються напряму, код виходу і є вердикт
+          for f in "${canaries[@]}"; do echo "::group::$f"; python3 "$f" || rc=1; echo "::endgroup::"; done
+          # test_*.py — тести pytest: прямий запуск лише імпортує файл і ніколи не падає
+          if [ ${#tests[@]} -gt 0 ]; then
+            python3 -m pip install --quiet "pytest==8.3.4" && python3 -m pytest -q "${tests[@]}" || rc=1
+          fi
+          exit $rc

@@ -1,0 +1,14 @@
+{
+ "note": "Моделі за ролями монітора. Конкретика похідна від датованого знімка моделей лабораторії (закон не-старіння); змінився знімок — оновити тут і `checked`. Звіряє tests/run-tests.sh, секція 34.",
+ "snapshot": "melania-skills-ecosystem/skills/multi-provider-ai-orchestration/references/model-snapshot-2026-10.md",
+ "checked": "2026-11-02",
+ "class_order": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"],
+ "roles": {
+  "home": {"class": "швидкий дешевий", "model": "claude-haiku-5-5", "agent": "haiku", "effort": "low",
+           "why": "лише клонує канон і запускає робочу сесію; контекст постійної сесії читається щоранку — найдешевший клас"},
+  "worker": {"class": "дешевий reasoning", "model": "claude-sonnet-5-5", "agent": "sonnet", "effort": "medium",
+             "why": "багатокрокова механіка зі скриптами; на цьому класі виміряно 2 успішні прогони (2026-11-02)"},
+  "diagnosis": {"class": "сильний код-генератор", "model": "claude-opus-5-5", "agent": "opus", "effort": "high",
+                "why": "розбір логу червоного CI і пропозиція виправлення — рідко, але якість вирішальна; середній клас двічі дав хибний діагноз (2026-11-02)"}
+ }
+}
