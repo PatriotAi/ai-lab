@@ -171,6 +171,12 @@ a { color: var(--accent); }
   var redCount = 0; Object.keys(data.red || {}).forEach(function (r) { redCount += data.red[r].length; });
   var rp = el("span", "pill " + (redCount ? "s-high" : "s-ok"));
   rp.appendChild(el("b", null, String(redCount))); rp.appendChild(document.createTextNode(redCount ? "червоний CI" : "червоного CI немає"));
+  // CI, якого не прочитано, — невідомий: «немає червоного» без цього було б неправдою
+  var unknown = data.ci_unknown || [];
+  if (unknown.length) {
+    rp.className = "pill " + (redCount ? "s-high" : "s-medium");
+    rp.lastChild.textContent = (redCount ? "червоний CI" : "червоного CI не видно") + " · не прочитано: " + unknown.join(", ");
+  }
   tally.appendChild(rp);
 
   // Що змінилось

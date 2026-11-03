@@ -17,7 +17,7 @@
   RH02 дія GitHub не закріплена повним SHA                   medium
   RH03 у git відстежується .env                              high
   RH04 схоже на секрет у відстежуваному файлі               high | medium (Google API key) | info (фікстури/тести)
-  RH05 .gitignore відсутній або не покриває .env/залежності  low | medium (.env)
+  RH05 .gitignore відсутній або не покриває .env/.env.*/залежності  low | medium (.env, .env.*)
   RH06 у git лежать артефакти збірки/кеші                    medium
   RH07 кілька lock-файлів одного менеджера пакетів           low
   RH08 немає README / LICENSE                                low
@@ -210,6 +210,9 @@ class Scan:
         if not git_ignored(self.repo, ".env"):
             self.add("RH05", "medium", ".env не ігнорується — ключі легко закомітити випадково",
                      "додати рядки `.env` і `.env.*` та `!.env.example` у .gitignore")
+        elif not git_ignored(self.repo, ".env.local"):  # лише `.env` у .gitignore — `.env.local` тощо відкриті
+            self.add("RH05", "medium", ".env.* (напр. .env.local) не ігнорується — ключі легко закомітити випадково",
+                     "додати рядок `.env.*` та `!.env.example` у .gitignore")
         if self.has("package.json") and not git_ignored(self.repo, "node_modules/x"):
             self.add("RH05", "low", "node_modules не ігнорується", "додати `node_modules/` у .gitignore")
         if any(f.startswith(("build.gradle", "settings.gradle")) for f in self.files) \
@@ -324,11 +327,18 @@ class Scan:
         for neg in negs:
             kept = [f for f in canon_tracked if f.startswith(neg)]
             parent = neg.rstrip("/").rsplit("/", 1)[0]
-            if kept and parent in dirs and not any(f.startswith(neg) for f in self.files):
+            if not kept or parent not in dirs:
+                continue
+            missing = [f for f in kept if f not in self.fileset]
+            fix = ("відновити з ai-lab (у каноні вони під винятком `!` у .gitignore — це продукт, не "
+                   "сміття) або прибрати копію лабораторії з репо")
+            if len(missing) == len(kept):
                 self.add("RH12", "medium", f"копія ai-lab без свідомо збережених артефактів {clean(neg, 60)} "
-                         f"({len(kept)} файл(ів) у каноні)",
-                         "відновити з ai-lab (у каноні вони під винятком `!` у .gitignore — це продукт, не "
-                         "сміття) або прибрати копію лабораторії з репо", neg)
+                         f"({len(kept)} файл(ів) у каноні)", fix, neg)
+            elif missing:  # часткова втрата (напр. лишився .html, зник sw.js — офлайн-кеш зламано)
+                self.add("RH12", "medium", f"копія ai-lab втратила частину свідомо збережених артефактів "
+                         f"{clean(neg, 60)}: {len(missing)} з {len(kept)} (напр. {clean(missing[0], 80)})",
+                         fix, neg)
 
     # --- допоміжне -----------------------------------------------------------
     def read(self, rel: str, limit: int | None = None) -> str | None:

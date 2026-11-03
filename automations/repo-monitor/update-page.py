@@ -140,6 +140,12 @@ def main() -> int:
         pushes.append({"repo": repo, "from": old, "to": h.get("sha"), "verdict": verdict})
 
     red, prev_red = red_runs(ci), prev.get("red", {})
+    # CI, якого цього разу не прочитано (збій ci-state або репо не проскановано), — невідомий, не
+    # «зелений»: попередній червоний стан переноситься, а не зникає зі сторінки.
+    ci_unknown = set(unscanned) | {r for r, st in (ci.get("repos") or {}).items() if "error" in st}
+    for r in ci_unknown:
+        if r in prev_red and r not in red:
+            red[r] = prev_red[r]
     red_new = {r: v for r, v in red.items() if set(v) - set(prev_red.get(r, []))}
     stale = [{"repo": r, "number": p.get("number"), "title": p.get("title"), "idle_days": p.get("idle_days")}
              for r, st in (ci.get("repos") or {}).items() for p in (st.get("prs") or [])
@@ -155,6 +161,7 @@ def main() -> int:
         "at": now, **counts, "new": len(added), "gone": len(gone), "red": sum(len(v) for v in red.values())}]
     data = {"updated": now, "first_run": first, "repos": repos, "heads": heads, "findings": findings,
             "waived": health.get("waived", 0), "ci": ci_repos, "red": red, "stale_repos": unscanned,
+            "ci_unknown": sorted(ci_unknown),
             "delta": {"new": [f["id"] for f in added] if not first else [], "gone": gone,
                       "repos_new": repos_new, "unscanned": unscanned, "pushes": pushes,
                       "red_new": red_new, "stale": stale, "ci_errors": ci_errors},

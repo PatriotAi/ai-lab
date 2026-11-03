@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # run.sh — уся механіка робочого прогону монітора одним викликом (економія ходів моделі).
-# Єдина відповідальність: клон відсутніх репо → скан → CI/PR → оновлена сторінка + дельта.
+# Єдина відповідальність: клон/оновлення репо з переліку → скан свіжих → CI/PR → оновлена сторінка + дельта.
 # Нічого не змінює в репозиторіях і не публікує: публікацію робить сесія інструментом Artifact.
 #
 #   run.sh OUT PAGE OWNER REPO [REPO ...]
@@ -19,21 +19,35 @@ mkdir -p "$OUT" "$MON" || exit 2
 
 name_ok() { [[ "$1" =~ ^[A-Za-z0-9._-]{1,100}$ ]]; }
 name_ok "$OWNER" || { echo "помилка: некоректний owner" >&2; exit 2; }
+# Скануються ЛИШЕ репо з переданого переліку, і лише ті, що цього разу свіжі. Клон, що не оновився,
+# не сканується: сторінка покаже його попередній стан із позначкою «не проскановано», а не видасть
+# старе дерево за свіже. Репо, якого вже немає в переліку (видалене), теж не сканується, хоч його
+# тека лишилась у MON — на сторінці воно тримається з позначкою, доки власник не скаже прибрати.
+SCAN=()
 for r in "$@"; do
   name_ok "$r" || { echo "пропущено некоректну назву репо" >> "$OUT/clone-errors.txt"; continue; }
-  [[ "${MON_NO_CLONE:-0}" == 1 ]] && continue
-  if [[ -d "$MON/$r/.git" ]]; then
-    # Клон уже є (тека переживає прогони) — довести до свіжого стану origin, інакше скан
-    # прочитає застарілий HEAD і не побачить ні нових заливань, ні виправлень.
-    { git -C "$MON/$r" fetch -q --depth 50 origin HEAD && git -C "$MON/$r" reset -q --hard FETCH_HEAD; } \
-      2>> "$OUT/clone-errors.txt" || echo "не оновився: $r (скан — за попереднім станом)" >> "$OUT/clone-errors.txt"
+  if [[ "${MON_NO_CLONE:-0}" == 1 ]]; then
+    [[ -d "$MON/$r/.git" ]] && SCAN+=("$MON/$r")
     continue
   fi
-  git clone -q --depth 50 "https://github.com/$OWNER/$r.git" "$MON/$r" 2>> "$OUT/clone-errors.txt" \
-    || echo "не клонувався: $r" >> "$OUT/clone-errors.txt"
+  if [[ -d "$MON/$r/.git" ]]; then
+    if { git -C "$MON/$r" fetch -q --depth 50 origin HEAD && git -C "$MON/$r" reset -q --hard FETCH_HEAD; } \
+         2>> "$OUT/clone-errors.txt"; then
+      SCAN+=("$MON/$r")
+    else
+      echo "не оновився: $r (не проскановано — на сторінці попередній стан)" >> "$OUT/clone-errors.txt"
+    fi
+    continue
+  fi
+  if git clone -q --depth 50 "https://github.com/$OWNER/$r.git" "$MON/$r" 2>> "$OUT/clone-errors.txt"; then
+    SCAN+=("$MON/$r")
+  else
+    echo "не клонувався: $r" >> "$OUT/clone-errors.txt"
+  fi
 done
+[[ ${#SCAN[@]} -gt 0 ]] || { echo "помилка: жоден репозиторій не готовий до скану" >&2; cat "$OUT/clone-errors.txt" >&2; exit 2; }
 
-python3 -I "$T/scripts/repo-health.py" --root "$MON" --canon "$MON/ai-lab" \
+python3 -I "$T/scripts/repo-health.py" "${SCAN[@]}" --canon "$MON/ai-lab" \
   --waivers "$T/automations/repo-monitor/waivers.json" --json "$OUT/now.json" > "$OUT/full.md" \
   || { echo "помилка: скан (repo-health.py)" >&2; exit 2; }
 python3 -I "$T/automations/repo-monitor/ci-state.py" --owner "$OWNER" --from "$OUT/now.json" \

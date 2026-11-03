@@ -2518,18 +2518,28 @@ echo '{"scripts":{"lint":"eslint ."}}' > "$C/package.json"; echo '{}' > "$C/pack
 K="$RHT/canon2"; rh_init "$K"; mkdir -p "$K/melania-skills-ecosystem/skills/s" "$K/plugins/p/skills" "$K/plugins/p/.cp" "$K/app/dist"
 echo '{"built_fingerprint":"ff"}' > "$K/melania-skills-ecosystem/MANIFEST.json"; echo s > "$K/melania-skills-ecosystem/skills/s/SKILL.md"
 ln -s ../../../melania-skills-ecosystem/skills/s "$K/plugins/p/skills/s"; echo '{}' > "$K/plugins/p/.cp/plugin.json"
-printf 'dist/\n!app/dist/\n' > "$K/.gitignore"; echo b > "$K/app/build.mjs"; echo h > "$K/app/dist/app.html"; rh_commit "$K"
-for v in lossy whole; do
+printf 'dist/\n!app/dist/\n' > "$K/.gitignore"; echo b > "$K/app/build.mjs"; echo h > "$K/app/dist/app.html"
+echo w > "$K/app/dist/sw.js"; rh_commit "$K"
+for v in lossy whole partial; do
   Y="$RHT/copy-$v"; rh_init "$Y"; mkdir -p "$Y/melania-skills-ecosystem" "$Y/plugins/p/.cp" "$Y/app"
   cp "$K/melania-skills-ecosystem/MANIFEST.json" "$Y/melania-skills-ecosystem/"; cp "$K/.gitignore" "$Y/"
   echo '{}' > "$Y/plugins/p/.cp/plugin.json"; echo b > "$Y/app/build.mjs"
-  if [[ $v == whole ]]; then mkdir -p "$Y/plugins/p/skills" "$Y/app/dist"; ln -s ../../../x "$Y/plugins/p/skills/s"; echo h > "$Y/app/dist/app.html"; fi
+  if [[ $v != lossy ]]; then mkdir -p "$Y/plugins/p/skills" "$Y/app/dist"; ln -s ../../../x "$Y/plugins/p/skills/s"; echo h > "$Y/app/dist/app.html"; fi
+  [[ $v == whole ]] && echo w > "$Y/app/dist/sw.js"
   rh_commit "$Y"
 done
 n_lossy=$($RH --canon "$K" --json "$RHT/k1.json" "$RHT/copy-lossy" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k1.json'))['findings'] if f['rule']=='RH12'))")
 n_whole=$($RH --canon "$K" --json "$RHT/k2.json" "$RHT/copy-whole" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k2.json'))['findings'] if f['rule']=='RH12'))")
 check "repo-health RH12: копія без посилань і dist/ — 2 знахідки" "2" "$n_lossy"
 check "repo-health RH12: цілісна копія — мовчить" "0" "$n_whole"
+# Часткова втрата: .html лишився, sw.js зник (офлайн-кеш зламано) — теж знахідка (рев'ю Codex ai-lab#108)
+n_part=$($RH --canon "$K" --json "$RHT/k3.json" "$RHT/copy-partial" >/dev/null 2>&1; python3 -c "import json;print(['частину' in f['title'] and '1 з 2' in f['title'] for f in json.load(open('$RHT/k3.json'))['findings'] if f['rule']=='RH12'])")
+check "repo-health RH12: часткова втрата збережених артефактів (1 з 2) — одна знахідка" "[True]" "$n_part"
+# RH05: у .gitignore лише `.env` — `.env.local` відкритий; `.env.*` закриває (рев'ю Codex ai-lab#108)
+for v in only star; do G="$RHT/env-$v"; rh_init "$G"; echo r > "$G/README.md"
+  if [[ $v == only ]]; then printf '.env\n' > "$G/.gitignore"; else printf '.env\n.env.*\n' > "$G/.gitignore"; fi; rh_commit "$G"; done
+n_env=$(for v in only star; do $RH --json "$RHT/e-$v.json" "$RHT/env-$v" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/e-$v.json'))['findings'] if f['rule']=='RH05' and '.env.*' in f['title']))"; done | tr '\n' ' ')
+check "repo-health RH05: лише .env — ловить .env.*; із .env.* — мовчить" "1 0 " "$n_env"
 # RH14: копія шаблону CI з рядком sync старіша за шаблон канону — знахідка; актуальна — мовчить
 mkdir -p "$RHT/canon/templates/ci"; printf '# sync: ai-lab templates/ci/repo-check.yml v3 (x)\n' > "$RHT/canon/templates/ci/repo-check.yml"
 for v in 2 3; do
@@ -2606,6 +2616,13 @@ out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --o
   || bad "update-page: непрочитаний CI" "вердикт невідомий" "${out:0:300}"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cir.json" --out "$RHT/p4.html" 2>&1)
 [[ "$out" == *"❌ \`r\` червоний CI"* && "$out" == *"CI: CI — failure"* ]] && ok "update-page: червоний CI і вердикт заливання" || bad "update-page: червоний CI" "❌ + failure" "${out:0:300}"
+# Червоний CI, якого цього разу не прочитано, не стає «зеленим» (рев'ю Codex ai-lab#108)
+$UP --page "$RHT/p4.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --out "$RHT/p6.html" >/dev/null 2>&1
+got=$(python3 -c '
+import re, json, sys
+t = open(sys.argv[1]).read(); d = json.loads(re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S).group(1))
+print(d["red"].get("r"), d["ci_unknown"])' "$RHT/p6.html" 2>&1)
+check "update-page: непрочитаний CI зберігає попередній червоний стан і позначений невідомим" "['CI'] ['r']" "$got"
 
 # Інцидент 2026-11-02: репо не клонувалося → не «зникло». Попередній стан переноситься з позначкою,
 # його знахідки НЕ стають «✅ виправленими»; прибрати репо можна лише явним --forget.
@@ -2656,7 +2673,8 @@ p="${@: -1}"
 case "$p" in
   repos/o/bad*) echo "HTTP 404: Not Found" >&2; exit 1 ;;
   repos/o/good) echo '{"default_branch":"dev"}' ;;
-  repos/o/good/actions/workflows\?*) echo '{"workflows":[{"id":1,"name":"CI","path":".github/workflows/ci.yml","state":"active"},{"id":2,"name":"Dependabot Updates","path":"dynamic/dependabot/dependabot-updates","state":"active"},{"id":3,"name":"Old","path":".github/workflows/old.yml","state":"disabled_manually"}]}' ;;
+  repos/o/good/actions/workflows\?*) echo '{"workflows":[{"id":1,"name":"CI","path":".github/workflows/ci.yml","state":"active"},{"id":2,"name":"Dependabot Updates","path":"dynamic/dependabot/dependabot-updates","state":"active"},{"id":3,"name":"Old","path":".github/workflows/old.yml","state":"disabled_manually"},{"id":4,"name":"CI","path":".github/workflows/ci2.yml","state":"active"}]}' ;;
+  repos/o/good/actions/workflows/4/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"success","head_sha":"1111111"}]}' ;;
   repos/o/good/actions/workflows/1/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
   repos/o/good/pulls*) echo '[{"number":5,"title":"Оновлення\u001b[31m","draft":false,"user":{"login":"x"},"updated_at":"2020-01-01T00:00:00Z"}]' ;;
   *) echo "unexpected $p" >&2; exit 1 ;;
@@ -2667,8 +2685,8 @@ out=$(PATH="$GHS:$PATH" $CS --owner o --json "$RHT/cs.json" good bad 2>&1); rc=$
 cs=$(python3 -c "
 import json;d=json.load(open('$RHT/cs.json'))['repos'];g=d['good']
 print(int('error' in d['bad']), g['default_branch'], sorted(g['workflows']), g['workflows']['CI']['conclusion'], g['prs'][0]['idle_days']>1000, '\x1b' in g['prs'][0]['title'])" 2>&1)
-check "ci-state: збій одного репо названо, решта прочитана; Dependabot-прогони пропущено; новіший прогін; керівні символи вичищено" \
-  "1 dev ['CI'] failure True False" "$cs"
+check "ci-state: збій одного репо названо, решта прочитана; Dependabot пропущено; однойменні workflow не затирають одне одного; новіший прогін; керівні символи вичищено" \
+  "1 dev ['CI', 'CI (.github/workflows/ci2.yml)'] failure True False" "$cs"
 [[ "$rc" == 0 && "$out" == *"без даних: bad"* ]] && ok "ci-state: fail-open із назвою репо без даних" || bad "ci-state: fail-open" "код 0 + без даних: bad" "код $rc · ${out:0:160}"
 rc=$($CS --owner o --json "$RHT/cs2.json" '../etc' >/dev/null 2>&1; echo $?)
 check "ci-state: некоректна назва репо → код 2" "2" "$rc"
@@ -2691,6 +2709,12 @@ MD2="$RHT/mondir2"; mkdir -p "$MD2"; git clone -q "$OR" "$MD2/x"; echo 2 > "$OR/
 PATH="$GHS:$PATH" MON_DIR="$MD2" $RUN "$RHT/ro4" "$PAGE" o x >/dev/null 2>&1
 got=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['heads']['x']['sha'])" "$RHT/ro4/now.json" 2>&1)
 check "run.sh: наявний клон оновлено до свіжого origin" "$(git -C "$OR" rev-parse --short HEAD)" "$got"
+# Клон, що не оновився, не сканується як свіжий; тека репо поза переліком (видалене) — не сканується
+git clone -q "$OR" "$MD2/y"; git -C "$MD2/y" remote set-url origin "$RHT/немає-origin"; git clone -q "$OR" "$MD2/gone"
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD2" $RUN "$RHT/ro5" "$PAGE" o x y 2>&1)
+got=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['repos'])" "$RHT/ro5/now.json" 2>&1)
+[[ "$got" == "['x']" && "$out" == *"не оновився: y"* ]] && ok "run.sh: клон без оновлення і репо поза переліком не скануються" \
+  || bad "run.sh: лише свіжі репо з переліку" "['x'] + «не оновився: y»" "$got · ${out:0:200}"
 
 echo ""
 echo "════════ ПІДСУМОК ════════"

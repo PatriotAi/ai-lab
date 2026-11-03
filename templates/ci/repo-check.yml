@@ -1,12 +1,16 @@
 # Перевірка при заливанні / Check on push — шаблон ai-lab: templates/ci/repo-check.yml
 # Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) у всіх комітах
-# діапазону заливання, включно з тими, що прийшли злиттям; повну історію — ручний запуск (workflow_dispatch);
-# якщо є package.json — встановлення + lint + build + test (лише ті скрипти, що є);
+# діапазону заливання, включно з тими, що прийшли злиттям, і з дифами самих злиттів (розв'язання
+# конфліктів); повну історію — ручний запуск (workflow_dispatch);
+# якщо є КОРЕНЕВИЙ package.json — встановлення + lint + build + test (лише ті скрипти, що є);
+# монорепо з package.json лише у вкладених теках — розширити крок detect під свої теки.
 # tests/*canary*.py — запускаються python3 напряму (офлайн-канарки); tests/test_*.py — через pytest.
 # Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
+# Репо ОРГАНІЗАЦІЇ: gitleaks-action вимагає секрет GITLEAKS_LICENSE; для облікового запису
+# користувача (як PatriotAi) — не потрібен.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v4 (2026-11-03)
+# sync: ai-lab templates/ci/repo-check.yml v5 (2026-11-03)
 name: Repo check
 
 on:
@@ -17,10 +21,12 @@ on:
 permissions:
   contents: read
 
-# Один активний прогін на ref / one active run per ref
+# Один активний прогін на ref. Скасовуємо лише PR: новий прогін PR сканує ВСІ коміти PR.
+# Push і ручний запуск не скасовуються: наступний push сканує лише свій діапазон, і коміти
+# скасованого прогону лишились би неперевіреними.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   secrets:
@@ -38,26 +44,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Дія на push/PR сканує лише `--no-merges --first-parent base^..head` (перевірено за її кодом
-      # на закріпленому SHA): коміт, що прийшов злиттям іншої гілки, вона пропускає. Тому тут —
-      # той самий gitleaks (дія кладе його в PATH) по ВСІХ комітах діапазону, включно з такими.
-      - name: gitleaks — усі коміти діапазону (і ті, що прийшли злиттям)
-        if: github.event_name == 'push' || github.event_name == 'pull_request'
+      # на закріпленому SHA): коміт, що прийшов злиттям іншої гілки, вона пропускає, а `git log -p`
+      # без `--diff-merges` не показує дифу самого злиття. Тому тут — той самий gitleaks (дія кладе
+      # його в PATH) по ВСІХ комітах діапазону плюс дифи злиттів. Запускається й тоді, коли дія вже
+      # впала (`!cancelled()`), щоб звіт був повним; job лишається червоним.
+      - name: gitleaks — усі коміти діапазону і дифи злиттів
+        if: ${{ !cancelled() }}
         env:
           EVENT: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
           BEFORE: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           if [ "$EVENT" = "pull_request" ]; then
             range="origin/$BASE_REF..HEAD"
-          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+          elif [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
                && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             range="$BEFORE..HEAD"
+          elif [ "$EVENT" = "push" ] && [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            range="origin/$DEFAULT_BRANCH..HEAD"   # нова гілка: її коміти поверх гілки за замовчуванням
           else
-            range="origin/$DEFAULT_BRANCH..HEAD"
+            range="--all"   # ручний запуск; перше заливання гілки за замовчуванням; force-push без попереднього коміту
           fi
           echo "діапазон: $range ($(git rev-list --count "$range") комітів)"
-          gitleaks detect --redact --no-banner --log-opts="$range"
+          gitleaks detect --redact --no-banner --log-opts="--diff-merges=first-parent $range"
 
   node:
     name: node (lint · build · test)

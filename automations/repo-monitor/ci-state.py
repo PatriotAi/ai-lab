@@ -64,7 +64,10 @@ def repo_state(owner: str, repo: str, now: datetime) -> dict:
             r = next((x for x in runs if x.get("event") != "dynamic"), None)
             if r is None:
                 continue
-            latest[clean(w.get("name") or r.get("name"), 60)] = {
+            key = clean(w.get("name") or r.get("name"), 60)
+            if key in latest:  # два workflow з однаковою назвою — інакше один затер би інший
+                key = clean(f"{key} ({w.get('path', '')})", 160)
+            latest[key] = {
                 "status": clean(r.get("status"), 20), "conclusion": clean(r.get("conclusion"), 20),
                 "sha": clean(r.get("head_sha"), 7), "at": clean(r.get("created_at"), 30),
                 "url": clean(r.get("html_url"), 200)}
