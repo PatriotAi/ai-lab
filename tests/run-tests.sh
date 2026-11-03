@@ -2540,6 +2540,11 @@ for v in only star; do G="$RHT/env-$v"; rh_init "$G"; echo r > "$G/README.md"
   if [[ $v == only ]]; then printf '.env\n' > "$G/.gitignore"; else printf '.env\n.env.*\n' > "$G/.gitignore"; fi; rh_commit "$G"; done
 n_env=$(for v in only star; do $RH --json "$RHT/e-$v.json" "$RHT/env-$v" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/e-$v.json'))['findings'] if f['rule']=='RH05' and '.env.*' in f['title']))"; done | tr '\n' ' ')
 check "repo-health RH05: лише .env — ловить .env.*; із .env.* — мовчить" "1 0 " "$n_env"
+# RH05: `.env` під захистом лише глобального excludesFile чи .git/info/exclude цього клону — не захист (рев'ю Codex ai-lab#108)
+GX="$RHT/env-ext"; rh_init "$GX"; echo r > "$GX/README.md"; printf 'node_modules/\n' > "$GX/.gitignore"; rh_commit "$GX"
+printf '.env\n.env.*\n' > "$GX/.git/info/exclude"; printf '.env\n.env.*\n' > "$RHT/gex"; printf '[core]\n\texcludesFile = %s\n' "$RHT/gex" > "$RHT/gconf"
+n_ext=$(GIT_CONFIG_GLOBAL="$RHT/gconf" $RH --json "$RHT/e-ext.json" "$GX" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/e-ext.json'))['findings'] if f['rule']=='RH05' and f['title'].startswith('.env не')))")
+check "repo-health RH05: глобальні/локальні exclude-правила не рахуються захистом репо" "1" "$n_ext"
 # RH14: копія шаблону CI з рядком sync старіша за шаблон канону — знахідка; актуальна — мовчить
 mkdir -p "$RHT/canon/templates/ci"; printf '# sync: ai-lab templates/ci/repo-check.yml v3 (x)\n' > "$RHT/canon/templates/ci/repo-check.yml"
 for v in 2 3; do

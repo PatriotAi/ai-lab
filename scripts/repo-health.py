@@ -94,8 +94,12 @@ def git(repo: Path, *args: str) -> str:
 
 
 def git_ignored(repo: Path, path: str) -> bool:
-    return subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", "--no-index", path],
-                          capture_output=True).returncode == 0
+    """Чи ігнорує шлях саме .gitignore РЕПОЗИТОРІЮ. Глобальний `core.excludesFile` і `.git/info/exclude`
+    є лише в цьому клоні — іншим клонам і контриб'юторам вони захисту не дають, тож не рахуються."""
+    res = subprocess.run(["git", "-c", "core.excludesFile=/dev/null", "-C", str(repo), "check-ignore", "-v",
+                          "--no-index", path], capture_output=True, text=True)
+    source = res.stdout.split(":", 1)[0]
+    return res.returncode == 0 and source != ".git/info/exclude"
 
 
 def is_test_path(path: str) -> bool:
