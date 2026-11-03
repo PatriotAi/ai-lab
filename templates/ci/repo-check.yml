@@ -10,7 +10,7 @@
 # користувача (як PatriotAi) — не потрібен.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v5 (2026-11-03)
+# sync: ai-lab templates/ci/repo-check.yml v6 (2026-11-03)
 name: Repo check
 
 on:
@@ -21,12 +21,12 @@ on:
 permissions:
   contents: read
 
-# Один активний прогін на ref. Скасовуємо лише PR: новий прогін PR сканує ВСІ коміти PR.
-# Push і ручний запуск не скасовуються: наступний push сканує лише свій діапазон, і коміти
-# скасованого прогону лишились би неперевіреними.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# Свідомо БЕЗ `concurrency`: у групі GitHub тримає лише один очікуваний прогін і витісняє його
+# новішим (навіть із cancel-in-progress: false), а кожен push сканує лише свій діапазон — коміти
+# витісненого прогону лишились би неперевіреними; скасований прогін PR після force-push так само
+# губить прибрані коміти. Тож кожен прогін доходить до кінця (знахідки Codex 2026-11-03).
+# Межа: push із `[skip ci]` workflow не запускає зовсім — його коміти закриває лише повний скан
+# (ручний запуск або розклад).
 
 jobs:
   secrets:
