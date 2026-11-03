@@ -2522,6 +2522,304 @@ read -r am_total am_survived <<<"$acct_mut"
 check "канарки ловлять кожну з ${am_total:-?} поломок детектора (вижило)" "0" "${am_survived:-?}"
 
 echo ""
+echo "════════ 34. Монітор репозиторіїв: repo-health.py (2026-11-02) ════════"
+# Кожне правило RH01–RH13 — на зламаному репо (мусить спіймати) і чистому (мусить
+# мовчати); дельта, waivers, маскування секрету, свідомий виняток `!dist/`.
+# Фейкові секрети складаються під час прогону — літерал у цьому файлі спіймав би gitleaks.
+RH="python3 $REPO/scripts/repo-health.py"
+RHT="$TMPROOT/rh"; mkdir -p "$RHT"
+rh_init() { mkdir -p "$1"; git -C "$1" init -q -b main; git -C "$1" config user.email t@example.com
+  git -C "$1" config user.name T; git -C "$1" config commit.gpgsign false; }
+rh_commit() { git -C "$1" add -A -f; git -C "$1" commit -q --no-gpg-sign -m s; }
+TOK="gh""p_$(printf 'Ab1%.0s' {1..12})"
+mkdir -p "$RHT/canon/melania-skills-ecosystem"; echo '{"built_fingerprint":"aaaa"}' > "$RHT/canon/melania-skills-ecosystem/MANIFEST.json"
+# Зламаний A: без CI/.gitignore/README/LICENSE, .env у git, токен, node_modules, 2 lock-и, великий файл, копія канону
+B="$RHT/broken"; rh_init "$B"; mkdir -p "$B/src" "$B/tests" "$B/node_modules/x" "$B/melania-skills-ecosystem"
+echo "API=1" > "$B/.env"; echo "const t = '$TOK';" > "$B/src/a.js"; echo "t='$TOK'" > "$B/tests/fx.py"
+echo '{"scripts":{"build":"vite build"}}' > "$B/package.json"; echo '{}' > "$B/package-lock.json"; echo x > "$B/bun.lock"
+echo x > "$B/node_modules/x/i.js"; head -c 6000000 /dev/zero | tr '\0' 'a' > "$B/big.txt"
+echo '{"built_fingerprint":"bbbb"}' > "$B/melania-skills-ecosystem/MANIFEST.json"; rh_commit "$B"
+# Зламаний B: CI є, але дія за тегом
+W="$RHT/wf"; rh_init "$W"; mkdir -p "$W/.github/workflows"; printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n' > "$W/.github/workflows/ci.yml"
+echo r > "$W/README.md"; echo m > "$W/LICENSE"; printf '.env\n.env.*\n' > "$W/.gitignore"; rh_commit "$W"
+E="$RHT/empty"; rh_init "$E"; echo m > "$E/LICENSE"; rh_commit "$E"
+out=$($RH --canon "$RHT/canon" --json "$RHT/b.json" "$B" "$W" "$E" 2>&1); rc=$?
+check "repo-health: скан зламаних — код 0 (без --strict)" "0" "$rc"
+for want in "RH01:broken" "RH02:wf" "RH03:broken" "RH04:broken" "RH05:broken" "RH06:broken" "RH07:broken" \
+            "RH08:broken" "RH09:broken" "RH10:broken" "RH11:broken" "RH12:broken" "RH13:empty"; do
+  got=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));r,p=sys.argv[2].split(':');print(sum(1 for f in d['findings'] if f['rule']==r and f['repo']==p))" "$RHT/b.json" "$want")
+  [[ "${got:-0}" -ge 1 ]] && ok "repo-health ловить ${want%%:*} (${want##*:})" || bad "repo-health ловить ${want%%:*}" "≥1 знахідка" "${got:-0}"
+done
+sev=$(python3 -c "import json;d=json.load(open('$RHT/b.json'));print(sorted({f['severity'] for f in d['findings'] if f['rule']=='RH04'}))")
+check "repo-health: токен у src — high, у tests/ — info" "['high', 'info']" "$sev"
+[[ "$out" != *"$TOK"* && "$(cat "$RHT/b.json")" != *"$TOK"* ]] && ok "repo-health: секрет замасковано у звіті і JSON" \
+  || bad "repo-health: секрет замасковано" "без повного токена" "токен у виводі"
+rc=$($RH --strict --canon "$RHT/canon" "$B" >/dev/null 2>&1; echo $?)
+check "repo-health --strict: є high → код 1" "1" "$rc"
+# Чистий: усе на місці — мусить мовчати
+C="$RHT/clean"; rh_init "$C"; mkdir -p "$C/.github/workflows" "$C/dist"
+printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@%s # v7\n' "$(printf 'a%.0s' {1..40})" > "$C/.github/workflows/ci.yml"
+echo 'version: 2' > "$C/.github/dependabot.yml"; echo r > "$C/README.md"; echo m > "$C/LICENSE"
+printf '.env\n.env.*\n!.env.example\nnode_modules/\ndist/\n!dist/\n' > "$C/.gitignore"; echo 'K=' > "$C/.env.example"
+echo '{"scripts":{"lint":"eslint ."}}' > "$C/package.json"; echo '{}' > "$C/package-lock.json"; echo x > "$C/dist/app.html"; rh_commit "$C"
+# RH12 (втрати копіювання): канон-git із посиланням і свідомо збереженим dist/; копія без них — 2 знахідки,
+# цілісна копія — жодної (інцидент 2026-11-02: Sophie-TMS, червоний CI через втрачені посилання й dist/)
+K="$RHT/canon2"; rh_init "$K"; mkdir -p "$K/melania-skills-ecosystem/skills/s" "$K/plugins/p/skills" "$K/plugins/p/.cp" "$K/app/dist"
+echo '{"built_fingerprint":"ff"}' > "$K/melania-skills-ecosystem/MANIFEST.json"; echo s > "$K/melania-skills-ecosystem/skills/s/SKILL.md"
+ln -s ../../../melania-skills-ecosystem/skills/s "$K/plugins/p/skills/s"; echo '{}' > "$K/plugins/p/.cp/plugin.json"
+printf 'dist/\n!app/dist/\n' > "$K/.gitignore"; echo b > "$K/app/build.mjs"; echo h > "$K/app/dist/app.html"
+echo w > "$K/app/dist/sw.js"; rh_commit "$K"
+for v in lossy whole partial; do
+  Y="$RHT/copy-$v"; rh_init "$Y"; mkdir -p "$Y/melania-skills-ecosystem" "$Y/plugins/p/.cp" "$Y/app"
+  cp "$K/melania-skills-ecosystem/MANIFEST.json" "$Y/melania-skills-ecosystem/"; cp "$K/.gitignore" "$Y/"
+  echo '{}' > "$Y/plugins/p/.cp/plugin.json"; echo b > "$Y/app/build.mjs"
+  if [[ $v != lossy ]]; then mkdir -p "$Y/plugins/p/skills" "$Y/app/dist"; ln -s ../../../x "$Y/plugins/p/skills/s"; echo h > "$Y/app/dist/app.html"; fi
+  [[ $v == whole ]] && echo w > "$Y/app/dist/sw.js"
+  rh_commit "$Y"
+done
+n_lossy=$($RH --canon "$K" --json "$RHT/k1.json" "$RHT/copy-lossy" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k1.json'))['findings'] if f['rule']=='RH12'))")
+n_whole=$($RH --canon "$K" --json "$RHT/k2.json" "$RHT/copy-whole" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k2.json'))['findings'] if f['rule']=='RH12'))")
+check "repo-health RH12: копія без посилань і dist/ — 2 знахідки" "2" "$n_lossy"
+check "repo-health RH12: цілісна копія — мовчить" "0" "$n_whole"
+# Часткова втрата: .html лишився, sw.js зник (офлайн-кеш зламано) — теж знахідка (рев'ю Codex ai-lab#108)
+n_part=$($RH --canon "$K" --json "$RHT/k3.json" "$RHT/copy-partial" >/dev/null 2>&1; python3 -c "import json;print(['частину' in f['title'] and '1 з 2' in f['title'] for f in json.load(open('$RHT/k3.json'))['findings'] if f['rule']=='RH12'])")
+check "repo-health RH12: часткова втрата збережених артефактів (1 з 2) — одна знахідка" "[True]" "$n_part"
+# RH05: у .gitignore лише `.env` — `.env.local` відкритий; `.env.*` закриває (рев'ю Codex ai-lab#108)
+for v in only star; do G="$RHT/env-$v"; rh_init "$G"; echo r > "$G/README.md"
+  if [[ $v == only ]]; then printf '.env\n' > "$G/.gitignore"; else printf '.env\n.env.*\n' > "$G/.gitignore"; fi; rh_commit "$G"; done
+n_env=$(for v in only star; do $RH --json "$RHT/e-$v.json" "$RHT/env-$v" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/e-$v.json'))['findings'] if f['rule']=='RH05' and '.env.*' in f['title']))"; done | tr '\n' ' ')
+check "repo-health RH05: лише .env — ловить .env.*; із .env.* — мовчить" "1 0 " "$n_env"
+# RH05: `.env` під захистом лише глобального excludesFile чи .git/info/exclude цього клону — не захист (рев'ю Codex ai-lab#108)
+GX="$RHT/env-ext"; rh_init "$GX"; echo r > "$GX/README.md"; printf 'node_modules/\n' > "$GX/.gitignore"; rh_commit "$GX"
+printf '.env\n.env.*\n' > "$GX/.git/info/exclude"; printf '.env\n.env.*\n' > "$RHT/gex"; printf '[core]\n\texcludesFile = %s\n' "$RHT/gex" > "$RHT/gconf"
+n_ext=$(GIT_CONFIG_GLOBAL="$RHT/gconf" $RH --json "$RHT/e-ext.json" "$GX" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/e-ext.json'))['findings'] if f['rule']=='RH05' and f['title'].startswith('.env не')))")
+check "repo-health RH05: глобальні/локальні exclude-правила не рахуються захистом репо" "1" "$n_ext"
+# RH14: копія шаблону CI з рядком sync старіша за шаблон канону — знахідка; актуальна — мовчить
+mkdir -p "$RHT/canon/templates/ci"; printf '# sync: ai-lab templates/ci/repo-check.yml v3 (x)\n' > "$RHT/canon/templates/ci/repo-check.yml"
+for v in 2 3; do
+  Z="$RHT/tpl-v$v"; rh_init "$Z"; mkdir -p "$Z/.github/workflows"
+  printf '# sync: ai-lab templates/ci/repo-check.yml v%s (x)\njobs: {}\n' "$v" > "$Z/.github/workflows/repo-check.yml"; rh_commit "$Z"
+done
+n_old=$($RH --canon "$RHT/canon" --json "$RHT/t2.json" "$RHT/tpl-v2" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/t2.json'))['findings'] if f['rule']=='RH14'))")
+n_new=$($RH --canon "$RHT/canon" --json "$RHT/t3.json" "$RHT/tpl-v3" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/t3.json'))['findings'] if f['rule']=='RH14'))")
+check "repo-health RH14: застаріла копія шаблону CI — знахідка" "1" "$n_old"
+check "repo-health RH14: актуальна копія — мовчить" "0" "$n_new"
+# RH06: виняток на ОДИН файл (`!dist/app.html`) не звільняє всю теку — сусідній артефакт ловиться
+F1="$RHT/fileneg"; rh_init "$F1"; mkdir -p "$F1/dist"; printf 'dist/\n!dist/app.html\n' > "$F1/.gitignore"
+echo a > "$F1/dist/app.html"; echo c > "$F1/dist/cache.js"; rh_commit "$F1"
+n_rh06=$($RH --json "$RHT/fn.json" "$F1" >/dev/null 2>&1; python3 -c "import json;print([f['title'] for f in json.load(open('$RHT/fn.json'))['findings'] if f['rule']=='RH06'])")
+check "repo-health RH06: виняток на файл не звільняє теку (ловить dist/cache.js)" "['у git лежить 1 файл(ів) артефактів/кешу в dist/']" "$n_rh06"
+out=$($RH --strict "$C" 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"знахідок немає"* ]] && ok "repo-health: чистий репо (з винятком !dist/) — мовчить" \
+  || bad "repo-health: чистий репо мовчить" "код 0 · знахідок немає" "код $rc · ${out:0:300}"
+# Дельта: той самий стан → «Без змін»; виправили .env → ✅ зникло, нових 0
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/b.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"Без змін"* ]] && ok "repo-health --baseline: незмінний стан → «Без змін»" || bad "дельта без змін" "Без змін" "${out:0:200}"
+$RH --canon "$RHT/canon" --compact --json "$RHT/c.json" "$B" "$W" "$E" >/dev/null 2>&1
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/c.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"Без змін"* && "$(cat "$RHT/c.json")" != *"proposal"* ]] && ok "repo-health --compact: стисла база без пропозицій дає ту саму дельту" \
+  || bad "repo-health --compact" "Без змін + без proposal" "${out:0:200}"
+git -C "$B" rm -q --cached .env; rm "$B/.env"; rh_commit "$B"
+out=$($RH --canon "$RHT/canon" --baseline "$RHT/b.json" "$B" "$W" "$E" 2>&1)
+[[ "$out" == *"нових: **0**"* && "$out" == *"✅ \`broken\` RH03"* ]] && ok "repo-health --baseline: виправлене → ✅ зникло, нових 0" \
+  || bad "дельта: виправлене зникло" "нових 0 + ✅ RH03" "${out:0:300}"
+# Waivers: свідомо прийняте не друкується, але назване числом
+wid=$(python3 -c "import json;d=json.load(open('$RHT/b.json'));print([f['id'] for f in d['findings'] if f['rule']=='RH13'][0])")
+echo "{\"$wid\": \"тест · 2026-11-02\"}" > "$RHT/w.json"
+out=$($RH --waivers "$RHT/w.json" "$E" 2>&1)
+[[ "$out" != *"RH13"* && "$out" == *"waivers): 1"* ]] && ok "repo-health --waivers: приховано й назване числом" \
+  || bad "repo-health --waivers" "без RH13 + лічильник 1" "${out:0:200}"
+# Валідний JSON-не-об'єкт у MANIFEST копії не валить увесь скан (рев'ю Codex ai-lab#108)
+MF="$RHT/badmanifest"; rh_init "$MF"; mkdir -p "$MF/melania-skills-ecosystem"; echo '[]' > "$MF/melania-skills-ecosystem/MANIFEST.json"; rh_commit "$MF"
+rc=$($RH --canon "$RHT/canon" --json "$RHT/mf.json" "$MF" >/dev/null 2>&1; echo $?)
+n12=$(python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/mf.json'))['findings'] if f['rule']=='RH12'))" 2>&1)
+check "repo-health: MANIFEST «[]» — код 0 і RH12 (розійшлася), без падіння" "0 1" "$rc $n12"
+rc=$($RH "$RHT/не-репо" >/dev/null 2>&1; echo $?)
+check "repo-health: не git-репозиторій → код 2" "2" "$rc"
+
+# Сторінка-сховище стану (update-page.py): сесія завдання не має list_events (виміряно
+# тестовим прогоном 2026-11-02), тож база дельти живе в блоці monitor-data сторінки.
+UP="python3 $REPO/automations/repo-monitor/update-page.py"; PAGE="$REPO/automations/repo-monitor/page.html"
+mkj() { python3 - "$@" <<'PY'
+import json, sys
+out, spec = sys.argv[1], sys.argv[2]
+f = lambda i, t="t": {"id": i, "repo": "r", "rule": "RH01", "severity": "medium", "path": "", "title": t, "proposal": "p"}
+specs = {
+  "h1": {"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f("id1"), f("id2")]},
+  "h2": {"repos": ["r"], "heads": {"r": {"sha": "bbb"}}, "findings": [f("id1"), f("id3", "</script ><SCRIPT/x>alert(1)</script>")]},
+  "ci_green": {"repos": {"r": {"workflows": {"CI": {"conclusion": "success", "sha": "bbb"}}, "prs": []}}},
+  "ci_red": {"repos": {"r": {"workflows": {"CI": {"conclusion": "failure", "sha": "bbb"}}, "prs": [{"number": 7, "title": "x", "idle_days": 30}]}}},
+}
+json.dump(specs[spec], open(out, "w"))
+PY
+}
+mkj "$RHT/h1.json" h1; mkj "$RHT/h2.json" h2; mkj "$RHT/cig.json" ci_green; mkj "$RHT/cir.json" ci_red
+echo '<p>не сторінка</p>' > "$RHT/bad.html"
+rc=$($UP --page "$RHT/bad.html" --health "$RHT/h1.json" --out "$RHT/x.html" >/dev/null 2>&1; echo $?)
+[[ "$rc" == 2 && ! -e "$RHT/x.html" ]] && ok "update-page: чужа сторінка → код 2, нічого не записано" || bad "update-page: чужа сторінка" "код 2, без файла" "код $rc"
+out=$($UP --page "$PAGE" --health "$RHT/h1.json" --out "$RHT/p1.html" 2>&1)
+[[ "$out" == *"перший прогін"* ]] && ok "update-page: перший прогін — база збережена" || bad "update-page: перший прогін" "перший прогін" "${out:0:160}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h1.json" --out "$RHT/p1b.html" 2>&1)
+[[ "$out" == *"без змін"* ]] && ok "update-page: той самий стан → «без змін» (база прочиталась зі сторінки)" || bad "update-page: без змін" "без змін" "${out:0:160}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --out "$RHT/p2.html" 2>&1)
+[[ "$out" == *"🆕"*"[id3]"* && "$out" == *"✅"* && "$out" == *"не перевірено — у репо немає CI"* ]] \
+  && ok "update-page: нова знахідка, виправлене і заливання без CI названо" || bad "update-page: дельта" "🆕 id3 + ✅ + без CI" "${out:0:300}"
+# HTML закриває <script> уже на «</script» + пробіл або «/» — рахуємо саме такий префікс, без регістру
+n_close=$(grep -oi '</script' "$RHT/p2.html" | wc -l | tr -d ' '); n_tpl=$(grep -oi '</script' "$PAGE" | wc -l | tr -d ' ')
+check "update-page: дані з репо не закривають <script> (ін'єкція екранована)" "$n_tpl" "$n_close"
+# Markdown-ін'єкція через назву файла/знахідки в delta.md (рев'ю Codex ai-lab#108): бектик не закриває
+# code span, а «[текст](посилання)» поза ним стає буквальним
+python3 -c '
+import json, sys
+f = {"id": "inj1", "repo": "r", "rule": "RH03", "severity": "high", "path": "a`[x](https://e.example)`b",
+     "title": "файл [натисни](https://evil.example) відстежується", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f]}, open(sys.argv[1], "w"))' "$RHT/hinj.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/hinj.json" --out "$RHT/pinj.html" 2>&1)
+[[ "$out" == *"🆕"* && "$out" != *"](https://evil.example)"* && "$out" != *"a\`["* && "$out" == *"aˋ"* ]] \
+  && ok "update-page: Markdown із назв файлів/знахідок не стає посиланням у delta.md" \
+  || bad "update-page: Markdown-ін'єкція" "без активного посилання й бектика в шляху" "${out:0:300}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --out "$RHT/p3.html" 2>&1)
+[[ "$out" == *"bbb: CI зелений"* ]] && ok "update-page: заливання з зеленим CI на цьому коміті" || bad "update-page: зелений CI" "CI зелений" "${out:0:300}"
+echo '{"repos":{"r":{"error":"HTTP 403"}}}' > "$RHT/cie.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --out "$RHT/p5.html" 2>&1)
+[[ "$out" == *"bbb: CI-стан не прочитано — вердикт невідомий"* ]] && ok "update-page: непрочитаний CI — «невідомо», а не «немає CI»" \
+  || bad "update-page: непрочитаний CI" "вердикт невідомий" "${out:0:300}"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cir.json" --out "$RHT/p4.html" 2>&1)
+[[ "$out" == *"❌ \`r\` червоний CI"* && "$out" == *"CI: CI — failure"* ]] && ok "update-page: червоний CI і вердикт заливання" || bad "update-page: червоний CI" "❌ + failure" "${out:0:300}"
+# Червоний CI, якого цього разу не прочитано, не стає «зеленим» (рев'ю Codex ai-lab#108)
+$UP --page "$RHT/p4.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --out "$RHT/p6.html" >/dev/null 2>&1
+got=$(python3 -c '
+import re, json, sys
+t = open(sys.argv[1]).read(); d = json.loads(re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S).group(1))
+print(d["red"].get("r"), d["ci_unknown"])' "$RHT/p6.html" 2>&1)
+check "update-page: непрочитаний CI зберігає попередній червоний стан і позначений невідомим" "['CI'] ['r']" "$got"
+# Свідомо прийнята знахідка (waivers) — «🤝 прийнято», а не «✅ виправлено» (рев'ю Codex ai-lab#108)
+python3 -c '
+import json, sys
+f = lambda i: {"id": i, "repo": "r", "rule": "RH01", "severity": "medium", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f("id1")], "waived": 1, "waived_ids": ["id2"]}, open(sys.argv[1], "w"))' "$RHT/hw.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/hw.json" --out "$RHT/pw.html" 2>&1)
+[[ "$out" == *"🤝"*"свідомо прийнято"* && "$out" != *"- ✅"* ]] && ok "update-page: waiver — «прийнято», не «виправлено»" \
+  || bad "update-page: waiver" "🤝 без ✅" "${out:0:300}"
+# Новий прострочений PR — у дельті й не «без змін»; той самий, що вже був, не повторюється
+python3 -c '
+import json, sys
+json.dump({"repos": {"r": {"workflows": {"CI": {"conclusion": "failure", "sha": "bbb"}}, "prs": [
+  {"number": 7, "title": "x", "idle_days": 30}, {"number": 8, "title": "нова", "idle_days": 20}]}}}, open(sys.argv[1], "w"))' "$RHT/cir2.json"
+out=$($UP --page "$RHT/p4.html" --health "$RHT/h2.json" --ci "$RHT/cir2.json" --out "$RHT/p7.html" 2>&1)
+[[ "$out" == *"PR #8 без руху 20"* && "$out" != *"PR #7"* && "$out" != *"без змін"* ]] \
+  && ok "update-page: новий прострочений PR у дельті, старий не повторюється" || bad "update-page: прострочені PR" "#8 є, #7 немає, не «без змін»" "${out:0:300}"
+# Workflow є (RH01 мовчить), а прогонів на гілці ще немає — це «прогону немає», не «у репо немає CI»
+python3 -c '
+import json, sys
+f = {"id": "x1", "repo": "r", "rule": "RH08", "severity": "low", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f]}, open(sys.argv[1], "w"))
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "ccc"}}, "findings": [f]}, open(sys.argv[2], "w"))
+json.dump({"repos": {"r": {"workflows": {}, "prs": []}}}, open(sys.argv[3], "w"))' "$RHT/w1.json" "$RHT/w2.json" "$RHT/ciw.json"
+$UP --page "$PAGE" --health "$RHT/w1.json" --out "$RHT/w1.html" >/dev/null 2>&1
+out=$($UP --page "$RHT/w1.html" --health "$RHT/w2.json" --ci "$RHT/ciw.json" --out "$RHT/w2.html" 2>&1)
+[[ "$out" == *"ccc: прогону CI на цьому коміті немає"* ]] && ok "update-page: порожня історія прогонів ≠ «у репо немає CI»" \
+  || bad "update-page: порожня історія прогонів" "прогону CI на цьому коміті немає" "${out:0:300}"
+
+# Інцидент 2026-11-02: репо не клонувалося → не «зникло». Попередній стан переноситься з позначкою,
+# його знахідки НЕ стають «✅ виправленими»; прибрати репо можна лише явним --forget.
+python3 -c '
+import json, sys, pathlib
+d = pathlib.Path(sys.argv[1])
+f = lambda i, repo: {"id": i, "repo": repo, "rule": "RH08", "severity": "low", "path": "", "title": "t", "proposal": "p"}
+json.dump({"repos": ["r", "s"], "heads": {"r": {"sha": "a"}, "s": {"sha": "b"}}, "findings": [f("r1", "r"), f("s1", "s")]}, open(d / "rs.json", "w"))
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "a"}}, "findings": [f("r1", "r")]}, open(d / "r_only.json", "w"))
+' "$RHT"
+$UP --page "$PAGE" --health "$RHT/rs.json" --out "$RHT/q1.html" >/dev/null 2>&1
+out=$($UP --page "$RHT/q1.html" --health "$RHT/r_only.json" --out "$RHT/q2.html" 2>&1)
+kept=$(python3 -c '
+import re, json, sys
+t = open(sys.argv[1]).read(); m = re.search(r"id=\"monitor-data\">(.*?)</script>", t, re.S); d = json.loads(m.group(1))
+print("s" in d["repos"], any(f["id"] == "s1" for f in d["findings"]), d["stale_repos"])' "$RHT/q2.html" 2>&1)
+[[ "$out" == *"Не проскановано цього разу: s"* && "$out" != *"- ✅"* && "$kept" == "True True ['s']" ]] \
+  && ok "update-page: непросканований репо зберігає стан і не дає хибного «✅ виправлено» (інцидент 2026-11-02)" \
+  || bad "update-page: непросканований репо" "попередження + стан збережено + без ✅" "$kept · ${out:0:200}"
+out=$($UP --page "$RHT/q1.html" --health "$RHT/r_only.json" --forget s --out "$RHT/q3.html" 2>&1)
+[[ "$out" != *"Не проскановано"* && "$out" != *"- ✅"* && "$(grep -c '"s1"' "$RHT/q3.html")" == 0 ]] \
+  && ok "update-page --forget: репо прибрано зі стану без «✅ виправлено»" || bad "update-page --forget" "без s і без ✅" "${out:0:200}"
+
+# Моделі за ролями (models.json ↔ датований знімок моделей): чисте мовчить, кожна поломка ловиться
+CM="python3 $REPO/automations/repo-monitor/check-models.py"
+rc=$($CM >/dev/null 2>&1; echo $?); check "check-models: models.json узгоджено зі знімком" "0" "$rc"
+python3 -c '
+import json, sys
+s = sys.argv[1]; c = json.load(open(sys.argv[2]))
+def mut(name, fn):
+    m = json.loads(json.dumps(c)); fn(m); json.dump(m, open(f"{s}/{name}.json", "w"))
+mut("mm_gone", lambda m: m["roles"]["worker"].update(model="claude-sonnet-4-0"))
+mut("mm_order", lambda m: m["roles"]["diagnosis"].update(model="claude-haiku-5-5", agent="haiku"))
+mut("mm_agent", lambda m: m["roles"]["home"].update(agent="opus"))
+mut("mm_class", lambda m: m["roles"]["worker"].update({"class": "вигаданий клас"}))
+mut("mm_classrow", lambda m: m["roles"]["worker"].update(model="claude-haiku-5-5", agent="haiku"))
+' "$RHT" "$REPO/automations/repo-monitor/models.json"
+for k in gone order agent class classrow; do
+  rc=$($CM "$RHT/mm_$k.json" --root "$REPO" >/dev/null 2>&1; echo $?)
+  check "check-models ловить поломку: $k" "1" "$rc"
+done
+
+# ci-state.py: справжній gh замінено заглушкою — мережі в тесті немає
+CS="python3 $REPO/automations/repo-monitor/ci-state.py"; GHS="$RHT/ghbin"; mkdir -p "$GHS"
+cat > "$GHS/gh" <<'SH'
+#!/usr/bin/env bash
+p="${@: -1}"
+case "$p" in
+  repos/o/bad*) echo "HTTP 404: Not Found" >&2; exit 1 ;;
+  repos/o/good) echo '{"default_branch":"dev"}' ;;
+  repos/o/good/actions/workflows\?*) echo '{"workflows":[{"id":1,"name":"CI","path":".github/workflows/ci.yml","state":"active"},{"id":2,"name":"Dependabot Updates","path":"dynamic/dependabot/dependabot-updates","state":"active"},{"id":3,"name":"Old","path":".github/workflows/old.yml","state":"disabled_manually"},{"id":4,"name":"CI","path":".github/workflows/ci2.yml","state":"active"}]}' ;;
+  repos/o/good/actions/workflows/4/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"success","head_sha":"1111111"}]}' ;;
+  repos/o/good/actions/workflows/1/runs*) echo '{"workflow_runs":[{"name":"CI","event":"push","conclusion":"failure","head_sha":"abcdef1234","created_at":"2026-11-01T00:00:00Z","html_url":"https://github.com/o/good/actions/runs/1"},{"name":"CI","event":"push","conclusion":"success","head_sha":"0000000"}]}' ;;
+  repos/o/good/pulls*) echo '[{"number":5,"title":"Оновлення\u001b[31m","draft":false,"user":{"login":"x"},"updated_at":"2020-01-01T00:00:00Z"}]' ;;
+  repos/o/many) echo '{"default_branch":"main"}' ;;
+  repos/o/many/actions/workflows\?*) echo '{"workflows":[]}' ;;
+  repos/o/many/pulls\?*\&page=1) python3 -c 'import json;print(json.dumps([{"number":i,"title":"t","updated_at":"2026-11-01T00:00:00Z"} for i in range(100)]))' ;;
+  repos/o/many/pulls\?*\&page=2) echo '[{"number":100,"title":"t","updated_at":"2026-11-01T00:00:00Z"}]' ;;
+  *) echo "unexpected $p" >&2; exit 1 ;;
+esac
+SH
+chmod +x "$GHS/gh"
+out=$(PATH="$GHS:$PATH" $CS --owner o --json "$RHT/cs.json" good bad 2>&1); rc=$?
+cs=$(python3 -c "
+import json;d=json.load(open('$RHT/cs.json'))['repos'];g=d['good']
+print(int('error' in d['bad']), g['default_branch'], sorted(g['workflows']), g['workflows']['CI']['conclusion'], g['prs'][0]['idle_days']>1000, '\x1b' in g['prs'][0]['title'])" 2>&1)
+check "ci-state: збій одного репо названо, решта прочитана; Dependabot пропущено; однойменні workflow не затирають одне одного; новіший прогін; керівні символи вичищено" \
+  "1 dev ['CI', 'CI (.github/workflows/ci2.yml)'] failure True False" "$cs"
+[[ "$rc" == 0 && "$out" == *"без даних: bad"* ]] && ok "ci-state: fail-open із назвою репо без даних" || bad "ci-state: fail-open" "код 0 + без даних: bad" "код $rc · ${out:0:160}"
+n_many=$(PATH="$GHS:$PATH" $CS --owner o --json "$RHT/cs3.json" many >/dev/null 2>&1; python3 -c "import json;print(len(json.load(open('$RHT/cs3.json'))['repos']['many']['prs']))" 2>&1)
+check "ci-state: відкриті PR читаються з усіх сторінок (101 > 100 на сторінці)" "101" "$n_many"
+rc=$($CS --owner o --json "$RHT/cs2.json" '../etc' >/dev/null 2>&1; echo $?)
+check "ci-state: некоректна назва репо → код 2" "2" "$rc"
+
+# run.sh — уся механіка робочого прогону одним викликом (без мережі: MON_NO_CLONE + заглушка gh)
+RUN="bash $REPO/automations/repo-monitor/run.sh"; MD="$RHT/mondir"; mkdir -p "$MD"
+for r in broken wf empty; do ln -sfn "$RHT/$r" "$MD/$r"; done
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro" "$PAGE" o broken wf empty 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"перший прогін"* && -s "$RHT/ro/repo-monitor.html" ]] \
+  && grep -q 'id="monitor-data">{"updated"' "$RHT/ro/repo-monitor.html" \
+  && ok "run.sh: скан → CI → сторінка одним викликом" || bad "run.sh: повний прогін" "код 0 + сторінка з даними" "код $rc · ${out:0:200}"
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro2" "$RHT/немає.html" o broken 2>&1); rc=$?
+[[ "$rc" == 0 && "$out" == *"Сторінку не прочитано"* ]] && ok "run.sh: сторінка не прочиталась → шаблон і це назване" \
+  || bad "run.sh: запасний шаблон" "код 0 + попередження" "код $rc · ${out:0:200}"
+rc=$(MON_DIR="$MD" MON_NO_CLONE=1 $RUN "$RHT/ro3" "$PAGE" '../x' broken >/dev/null 2>&1; echo $?)
+check "run.sh: некоректний owner → код 2" "2" "$rc"
+# Наявний клон (тека переживає прогони) мусить оновитись до свіжого origin, а не сканувати старий HEAD
+OR="$RHT/origin-x"; rh_init "$OR"; echo 1 > "$OR/f"; rh_commit "$OR"
+MD2="$RHT/mondir2"; mkdir -p "$MD2"; git clone -q "$OR" "$MD2/x"; echo 2 > "$OR/f"; rh_commit "$OR"
+PATH="$GHS:$PATH" MON_DIR="$MD2" $RUN "$RHT/ro4" "$PAGE" o x >/dev/null 2>&1
+got=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['heads']['x']['sha'])" "$RHT/ro4/now.json" 2>&1)
+check "run.sh: наявний клон оновлено до свіжого origin" "$(git -C "$OR" rev-parse --short HEAD)" "$got"
+# Клон, що не оновився, не сканується як свіжий; тека репо поза переліком (видалене) — не сканується
+git clone -q "$OR" "$MD2/y"; git -C "$MD2/y" remote set-url origin "$RHT/немає-origin"; git clone -q "$OR" "$MD2/gone"
+out=$(PATH="$GHS:$PATH" MON_DIR="$MD2" $RUN "$RHT/ro5" "$PAGE" o x y 2>&1)
+got=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['repos'])" "$RHT/ro5/now.json" 2>&1)
+[[ "$got" == "['x']" && "$out" == *"не оновився: y"* ]] && ok "run.sh: клон без оновлення і репо поза переліком не скануються" \
+  || bad "run.sh: лише свіжі репо з переліку" "['x'] + «не оновився: y»" "$got · ${out:0:200}"
+
+echo ""
 echo "════════ ПІДСУМОК ════════"
 printf "  пройдено: %d · впало: %d · НЕ ГАНЯЛОСЬ: %d\n" "$PASS" "$FAIL" "$SKIP"
 if (( SKIP > 0 )); then
