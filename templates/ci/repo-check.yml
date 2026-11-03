@@ -1,10 +1,11 @@
 # Перевірка при заливанні / Check on push — шаблон ai-lab: templates/ci/repo-check.yml
-# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks) і,
-# якщо є package.json, встановлення + lint + build + test (лише ті скрипти, що є).
+# Що робить / What: на КОЖЕН push (будь-яка гілка) і PR — скан секретів (gitleaks);
+# якщо є package.json — встановлення + lint + build + test (лише ті скрипти, що є);
+# якщо є tests/*canary*.py або tests/test_*.py — кожен запускається python3 (офлайн-канарки).
 # Дії закріплені повним SHA (CVE-2025-30066), права — лише читання.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v1 (2026-11-02)
+# sync: ai-lab templates/ci/repo-check.yml v2 (2026-11-03)
 name: Repo check
 
 on:
@@ -62,3 +63,17 @@ jobs:
       - name: test
         if: steps.detect.outputs.node == 'true'
         run: npm test --if-present
+
+  python:
+    name: python (canaries · tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: run python canaries and tests
+        run: |
+          shopt -s nullglob
+          files=(tests/*canary*.py tests/test_*.py)
+          if [ ${#files[@]} -eq 0 ]; then echo "python-тестів немає — пропущено"; exit 0; fi
+          rc=0
+          for f in "${files[@]}"; do echo "::group::$f"; python3 "$f" || rc=1; echo "::endgroup::"; done
+          exit $rc

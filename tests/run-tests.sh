@@ -2530,6 +2530,16 @@ n_lossy=$($RH --canon "$K" --json "$RHT/k1.json" "$RHT/copy-lossy" >/dev/null 2>
 n_whole=$($RH --canon "$K" --json "$RHT/k2.json" "$RHT/copy-whole" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/k2.json'))['findings'] if f['rule']=='RH12'))")
 check "repo-health RH12: копія без посилань і dist/ — 2 знахідки" "2" "$n_lossy"
 check "repo-health RH12: цілісна копія — мовчить" "0" "$n_whole"
+# RH14: копія шаблону CI з рядком sync старіша за шаблон канону — знахідка; актуальна — мовчить
+mkdir -p "$RHT/canon/templates/ci"; printf '# sync: ai-lab templates/ci/repo-check.yml v3 (x)\n' > "$RHT/canon/templates/ci/repo-check.yml"
+for v in 2 3; do
+  Z="$RHT/tpl-v$v"; rh_init "$Z"; mkdir -p "$Z/.github/workflows"
+  printf '# sync: ai-lab templates/ci/repo-check.yml v%s (x)\njobs: {}\n' "$v" > "$Z/.github/workflows/repo-check.yml"; rh_commit "$Z"
+done
+n_old=$($RH --canon "$RHT/canon" --json "$RHT/t2.json" "$RHT/tpl-v2" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/t2.json'))['findings'] if f['rule']=='RH14'))")
+n_new=$($RH --canon "$RHT/canon" --json "$RHT/t3.json" "$RHT/tpl-v3" >/dev/null 2>&1; python3 -c "import json;print(sum(1 for f in json.load(open('$RHT/t3.json'))['findings'] if f['rule']=='RH14'))")
+check "repo-health RH14: застаріла копія шаблону CI — знахідка" "1" "$n_old"
+check "repo-health RH14: актуальна копія — мовчить" "0" "$n_new"
 out=$($RH --strict "$C" 2>&1); rc=$?
 [[ "$rc" == 0 && "$out" == *"знахідок немає"* ]] && ok "repo-health: чистий репо (з винятком !dist/) — мовчить" \
   || bad "repo-health: чистий репо мовчить" "код 0 · знахідок немає" "код $rc · ${out:0:300}"

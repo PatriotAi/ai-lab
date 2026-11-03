@@ -27,6 +27,7 @@
   RH12 копія канону розійшлася з каноном (MANIFEST) або      medium
        втратила посилання / свідомо збережені артефакти
   RH13 порожній репозиторій (нема що моніторити)             info
+  RH14 копія шаблону CI ai-lab застаріла (рядок sync)         low
 
 РЕЖИМИ.
   repo-health.py PATH [PATH ...]      скан переданих репозиторіїв
@@ -72,6 +73,7 @@ BUILD_DIRS = ("node_modules/", ".gradle/", "build/", "dist/", ".next/", "__pycac
 LOCKS_NODE = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb")
 MANIFESTS = ("package.json", "build.gradle", "build.gradle.kts", "requirements.txt",
              "pyproject.toml", "go.mod", "Cargo.toml", "pom.xml")
+SYNC_RE = re.compile(r"#\s*sync:\s*ai-lab templates/ci/repo-check\.yml v(\d+)")
 USES_RE = re.compile(r"^\s*-?\s*uses:\s*['\"]?([^\s'\"#]+)", re.M)
 CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -156,6 +158,21 @@ class Scan:
                     self.add("RH02", "medium", f"дія {action}@{pin} закріплена тегом, не SHA",
                              "замінити на повний SHA коміта з коментарем-версією "
                              "(тег можна перепризначити — CVE-2025-30066)", wf)
+            self.template_sync(wf, text)
+
+    def template_sync(self, wf: str, text: str) -> None:
+        """Копія шаблону CI ai-lab несе рядок `# sync: ai-lab templates/ci/repo-check.yml vN`.
+        Шаблон оновили, а копію ні — копія перевіряє менше, ніж обіцяє монітор."""
+        m = SYNC_RE.search(text)
+        if not m or self.canon is None or self.repo.resolve() == self.canon.resolve():
+            return
+        try:
+            canon_m = SYNC_RE.search((self.canon / "templates/ci/repo-check.yml").read_text(encoding="utf-8"))
+        except OSError:
+            return
+        if canon_m and int(m.group(1)) < int(canon_m.group(1)):
+            self.add("RH14", "low", f"копія шаблону CI застаріла (v{m.group(1)} < v{canon_m.group(1)})",
+                     "оновити з ai-lab templates/ci/repo-check.yml (правити шаблон, копії — з нього)", wf)
 
     def rule_env_and_secrets(self) -> None:
         for f in self.files:
