@@ -2618,6 +2618,17 @@ out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --out "$RHT/p2.html" 2>&
 # HTML закриває <script> уже на «</script» + пробіл або «/» — рахуємо саме такий префікс, без регістру
 n_close=$(grep -oi '</script' "$RHT/p2.html" | wc -l | tr -d ' '); n_tpl=$(grep -oi '</script' "$PAGE" | wc -l | tr -d ' ')
 check "update-page: дані з репо не закривають <script> (ін'єкція екранована)" "$n_tpl" "$n_close"
+# Markdown-ін'єкція через назву файла/знахідки в delta.md (рев'ю Codex ai-lab#108): бектик не закриває
+# code span, а «[текст](посилання)» поза ним стає буквальним
+python3 -c '
+import json, sys
+f = {"id": "inj1", "repo": "r", "rule": "RH03", "severity": "high", "path": "a`[x](https://e.example)`b",
+     "title": "файл [натисни](https://evil.example) відстежується", "proposal": "p"}
+json.dump({"repos": ["r"], "heads": {"r": {"sha": "aaa"}}, "findings": [f]}, open(sys.argv[1], "w"))' "$RHT/hinj.json"
+out=$($UP --page "$RHT/p1.html" --health "$RHT/hinj.json" --out "$RHT/pinj.html" 2>&1)
+[[ "$out" == *"🆕"* && "$out" != *"](https://evil.example)"* && "$out" != *"a\`["* && "$out" == *"aˋ"* ]] \
+  && ok "update-page: Markdown із назв файлів/знахідок не стає посиланням у delta.md" \
+  || bad "update-page: Markdown-ін'єкція" "без активного посилання й бектика в шляху" "${out:0:300}"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --out "$RHT/p3.html" 2>&1)
 [[ "$out" == *"bbb: CI зелений"* ]] && ok "update-page: заливання з зеленим CI на цьому коміті" || bad "update-page: зелений CI" "CI зелений" "${out:0:300}"
 echo '{"repos":{"r":{"error":"HTTP 403"}}}' > "$RHT/cie.json"

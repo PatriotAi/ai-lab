@@ -41,6 +41,20 @@ def embed(data: dict) -> str:
     return text.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
 
+_MD = re.compile(r"([\\`*_\[\]()<>#!|~])")
+
+
+def esc_md(x) -> str:
+    """Зовнішній текст (назви файлів, PR, workflow) поза code span: розмітка Markdown стає буквальною —
+    назва файла з репо не підкладе у звіт посилання чи оманливий текст."""
+    return _MD.sub(r"\\\1", " ".join(str(x or "").split()))
+
+
+def esc_code(x) -> str:
+    """Те саме всередині `…`: екранування там не діє, тож бектик замінюємо, щоб він не закрив span."""
+    return " ".join(str(x or "").split()).replace("`", "ˋ")
+
+
 def load(path: str, what: str):
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -187,26 +201,26 @@ def main() -> int:
     else:
         lines.append(f"{head} · 🆕 {len(added)} · ✅ {len(gone)}")
     if repos_new:
-        lines.append(f"- Нові репозиторії (підхоплено автоматично): {', '.join(repos_new)}")
+        lines.append(f"- Нові репозиторії (підхоплено автоматично): {', '.join(esc_md(r) for r in repos_new)}")
     if unscanned:
-        lines.append(f"- ⚠️ Не проскановано цього разу: {', '.join(unscanned)} — на сторінці їхній попередній "
+        lines.append(f"- ⚠️ Не проскановано цього разу: {', '.join(esc_md(r) for r in unscanned)} — на сторінці їхній попередній "
                      "стан; якщо репо видалено чи архівовано, це триматиметься, доки не скажете прибрати")
     for p in pushes:
-        lines.append(f"- ⬆️ `{p['repo']}` нове заливання {p['from']}→{p['to']}: {p['verdict']}")
+        lines.append(f"- ⬆️ `{esc_code(p['repo'])}` нове заливання {esc_md(p['from'])}→{esc_md(p['to'])}: {esc_md(p['verdict'])}")
     for r, v in sorted(red_new.items()):
-        lines.append(f"- ❌ `{r}` червоний CI на гілці за замовчуванням: {', '.join(v)}")
+        lines.append(f"- ❌ `{esc_code(r)}` червоний CI на гілці за замовчуванням: {', '.join(esc_md(x) for x in v)}")
     for f in sorted(added if not first else [], key=lambda x: (SEV.index(x["severity"]), x["repo"])):
-        where = f" `{f['path']}`" if f.get("path") else ""
-        lines.append(f"- 🆕 {ICON[f['severity']]} `{f['repo']}` **{f['rule']}** {f['title']}{where}\n"
-                     f"  → {f.get('proposal', '')}  `[{f['id']}]`")
+        where = f" `{esc_code(f['path'])}`" if f.get("path") else ""
+        lines.append(f"- 🆕 {ICON.get(f['severity'], '•')} `{esc_code(f['repo'])}` **{esc_md(f['rule'])}** {esc_md(f['title'])}{where}\n"
+                     f"  → {esc_md(f.get('proposal'))}  `[{esc_code(f['id'])}]`")
     for s in stale_new if not first else []:
-        lines.append(f"- 💤 `{s['repo']}` PR #{s['number']} без руху {s['idle_days']} дн.: {s.get('title') or ''}")
+        lines.append(f"- 💤 `{esc_code(s['repo'])}` PR #{esc_md(s['number'])} без руху {esc_md(s['idle_days'])} дн.: {esc_md(s.get('title'))}")
     for f in gone if not first else []:
-        lines.append(f"- ✅ `{f['repo']}` {f['rule']} — {f['title']}")
+        lines.append(f"- ✅ `{esc_code(f['repo'])}` {esc_md(f['rule'])} — {esc_md(f['title'])}")
     for f in accepted if not first else []:
-        lines.append(f"- 🤝 `{f['repo']}` {f['rule']} — {f['title']}: свідомо прийнято (waivers), не виправлено")
+        lines.append(f"- 🤝 `{esc_code(f['repo'])}` {esc_md(f['rule'])} — {esc_md(f['title'])}: свідомо прийнято (waivers), не виправлено")
     if ci_errors:
-        lines.append(f"- ⚠️ CI-стан не прочитано: {', '.join(sorted(ci_errors))} (див. сторінку)")
+        lines.append(f"- ⚠️ CI-стан не прочитано: {', '.join(esc_md(r) for r in sorted(ci_errors))} (див. сторінку)")
     md = "\n".join(lines) + "\n"
     if a.md:
         Path(a.md).write_text(md, encoding="utf-8")
