@@ -78,7 +78,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.x"
+          # Не "3.x": колесо semgrep 1.183.0 заявляє лише cp310–cp314, а "3.x" з
+          # листопада 2026 дає 3.15 — на ньому semgrep-core падав (exit -11) і скан
+          # мовчки не відбувався (W-38). Підняти разом із версією semgrep.
+          python-version: "3.14"
       - run: pip install semgrep==1.183.0
       - name: Semgrep scan
         run: semgrep scan --config p/security-audit --config p/secrets --sarif --output semgrep.sarif
