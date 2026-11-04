@@ -1215,6 +1215,28 @@ pin_broken=$(cd "$PINDIR" && bash check.sh >/dev/null 2>&1; echo $?)
 check "канарка: рухомий тег ловиться" "1" "$pin_broken"
 cd "$REPO" || exit 1
 
+# W-39 (2026-11-03): хуки pre-commit — той самий ланцюг постачання. До цього
+# скрипт дивився лише у воркфлоу, тож `rev: v5.0.0` проходив мовчки.
+pc_case() { # pc_case <назва> <очікуваний-код> <фрагмент-причини|-> <рядки .pre-commit-config.yaml...>
+  local name="$1" want="$2" why="$3"; shift 3
+  local d="$TMPROOT/pc-$(printf '%s' "$name" | md5sum | cut -c1-8)"
+  mkdir -p "$d/.github/workflows"
+  printf 'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@%s\n' \
+    "$(printf 'a%.0s' {1..40})" > "$d/.github/workflows/ci.yml"
+  printf '%s\n' "$@" > "$d/.pre-commit-config.yaml"
+  local out rc; out=$(cd "$d" && bash "$REPO/scripts/check-action-pinning.sh" 2>&1); rc=$?
+  if [[ "$rc" != "$want" ]]; then bad "$name" "код $want" "код $rc: ${out:0:80}"
+  elif [[ "$why" != "-" && "$out" != *"$why"* ]]; then bad "$name" "причина «$why»" "${out:0:110}"
+  else ok "$name"; fi
+}
+pc_case "канарка: хук pre-commit на тегі ловиться" 1 "rev хука pre-commit замість SHA: https://github.com/o/r@v5.0.0" \
+  'repos:' '  - repo: https://github.com/o/r' '    rev: v5.0.0'
+pc_case "канарка: віддалений хук без rev ловиться" 1 "<нема rev>" \
+  'repos:' '  - repo: https://github.com/o/r' '    hooks:' '      - id: x'
+pc_case "local і meta без rev, SHA у лапках із коментарем — не знахідки" 0 - \
+  'repos:' '  - repo: local' '    hooks:' '      - id: y' '  - repo: meta' '    hooks:' '      - id: check-hooks-apply' \
+  '  - repo: https://github.com/o/r' "    rev: '$(printf 'b%.0s' {1..40})'  # frozen: v1"
+
 # Крок, відмову якого ховають, не є перевіркою: continue-on-error приховував
 # реальний ##[error] від dependency-review і давав зелену галочку (F-6).
 # Дивимось лише на ДІЮЧІ рядки yaml, не на коментарі: пояснення, ЧОМУ прапорця
