@@ -45,6 +45,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import re
@@ -307,7 +308,45 @@ class Scan:
                      f"(fingerprint {clean(mine, 20)} ≠ {clean(theirs, 20)})",
                      "синхронізувати з ai-lab main або позначити копію штампом синхронізації/строком "
                      "життя (правило «Цеглина»)", rel)
+        self.canon_copy_rules()
         self.canon_copy_losses()
+
+    def canon_copy_rules(self) -> None:
+        """Копія `CLAUDE.md` лабораторії, що відстала від канону, тихо вимикає новіші правила для
+        сесій цього репо, а відбиток MANIFEST цього не бачить (W-40, 2026-11-05: Sophie-TMS без §12 і
+        W-39). Штамп синхронізації (`> **Копія канону** …` і його рядки-продовження) не рахується."""
+        mine, canon = self.read("CLAUDE.md"), self.canon / "CLAUDE.md"
+        try:
+            theirs = canon.read_text(encoding="utf-8")
+        except OSError:
+            return
+        if mine is None or mine.splitlines()[:1] != theirs.splitlines()[:1]:
+            return  # власний CLAUDE.md репо, не копія лабораторії
+        def body(text: str) -> tuple[list[str], bool]:
+            out, stamped, in_stamp = [], False, False
+            for ln in text.splitlines():
+                if ln.startswith("> **Копія канону**"):
+                    stamped = in_stamp = True
+                    continue
+                if in_stamp and ln.startswith(">"):
+                    continue
+                in_stamp = False
+                out.append(ln.rstrip())
+            while len(out) > 1 and out[1] == "" and out[2:3] == [""]:
+                out.pop(1)  # порожній рядок, що лишився на місці штампа
+            return out, stamped
+        (m, stamped), (t, _) = body(mine), body(theirs)
+        if m != t:
+            diff = sum(1 for _ in difflib.unified_diff(t, m, n=0) if _[:1] in "+-" and _[:3] not in ("+++", "---"))
+            self.add("RH12", "medium", f"копія CLAUDE.md розійшлася з каноном ({diff} рядк. відрізняються)"
+                     + ("" if stamped else ", штампа синхронізації нема"),
+                     "синхронізувати з ai-lab main і оновити штамп `> **Копія канону** … @ <коміт>` "
+                     "(правило «Цеглина»): відстала копія вимикає новіші правила для сесій цього репо",
+                     "CLAUDE.md")
+        elif not stamped:
+            self.add("RH12", "info", "копія CLAUDE.md збігається з каноном, але без штампа синхронізації",
+                     "додати під заголовком `> **Копія канону** `patriotai/ai-lab/CLAUDE.md` @ <коміт> …`",
+                     "CLAUDE.md")
 
     def canon_copy_losses(self) -> None:
         """Копіювання (архів, вивантаження з іншого сервісу) губить символьні посилання і свідомо
