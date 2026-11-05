@@ -244,7 +244,7 @@
    "version": "0.9.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "7526b9f96d618803",
+    "SKILL.md": "272199af90b611d5",
     "evals/evals.json": "843c3887d7750c3d"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "fd3b7124bc639aac"
+ "built_fingerprint": "27d21e9957dd0509"
 }

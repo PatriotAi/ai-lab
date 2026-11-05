@@ -2625,6 +2625,29 @@ check "repo-health RH12: цілісна копія — мовчить" "0" "$n_w
 # Часткова втрата: .html лишився, sw.js зник (офлайн-кеш зламано) — теж знахідка (рев'ю Codex ai-lab#108)
 n_part=$($RH --canon "$K" --json "$RHT/k3.json" "$RHT/copy-partial" >/dev/null 2>&1; python3 -c "import json;print(['частину' in f['title'] and '1 з 2' in f['title'] for f in json.load(open('$RHT/k3.json'))['findings'] if f['rule']=='RH12'])")
 check "repo-health RH12: часткова втрата збережених артефактів (1 з 2) — одна знахідка" "[True]" "$n_part"
+# RH12 / W-40: копія CLAUDE.md лабораторії відстала від канону — знахідка; штамп не рахується;
+# збіг без штампа — info; власний CLAUDE.md репо (інший заголовок) — мовчить (інцидент 2026-11-05: Sophie-TMS без §12)
+K3="$RHT/canon3"; rh_init "$K3"; mkdir -p "$K3/melania-skills-ecosystem"
+echo '{"built_fingerprint":"ee"}' > "$K3/melania-skills-ecosystem/MANIFEST.json"
+printf '# CLAUDE.md — контекст лабораторії\n\nправило 1\nправило 12\n' > "$K3/CLAUDE.md"; rh_commit "$K3"
+for v in stale stamped bare own; do
+  Y="$RHT/rules-$v"; rh_init "$Y"; mkdir -p "$Y/melania-skills-ecosystem"; cp "$K3/melania-skills-ecosystem/MANIFEST.json" "$Y/melania-skills-ecosystem/"
+  case $v in
+    stale)   printf '# CLAUDE.md — контекст лабораторії\n\nправило 1\n' > "$Y/CLAUDE.md" ;;
+    stamped) printf '# CLAUDE.md — контекст лабораторії\n\n> **Копія канону** `ai-lab` @ `abc`\n> строк життя\n\nправило 1\nправило 12\n' > "$Y/CLAUDE.md" ;;
+    bare)    cp "$K3/CLAUDE.md" "$Y/CLAUDE.md" ;;
+    own)     printf '# CLAUDE.md — Sophie\n\nінше\n' > "$Y/CLAUDE.md" ;;
+  esac
+  rh_commit "$Y"
+done
+n_rules=$(for v in stale stamped bare own; do $RH --canon "$K3" --json "$RHT/r-$v.json" "$RHT/rules-$v" >/dev/null 2>&1; python3 -c "import json;print(','.join(f['severity'] for f in json.load(open('$RHT/r-$v.json'))['findings'] if f['rule']=='RH12' and 'CLAUDE' in f['title']) or '-', end=' ')"; done)
+check "repo-health RH12: CLAUDE.md відстала — medium; зі штампом — мовчить; без штампа — info; власний — мовчить" "medium - info - " "$n_rules"
+# scripts/run-ledger.py (реєстр дерева виконавців, session-tree): канарки на зламаних станах.
+# Тихий збій заборонено: без підсумкового рядка «усе гаразд» і 15 зелених випадків — провал.
+rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
+rl_ok=$(grep -c '^✅' <<<"$rl_out")
+[[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
+  || bad "run-ledger канарки" "код 0, 15 ✅" "код $rl_rc, $rl_ok ✅"
 # RH05: у .gitignore лише `.env` — `.env.local` відкритий; `.env.*` закриває (рев'ю Codex ai-lab#108)
 for v in only star; do G="$RHT/env-$v"; rh_init "$G"; echo r > "$G/README.md"
   if [[ $v == only ]]; then printf '.env\n' > "$G/.gitignore"; else printf '.env\n.env.*\n' > "$G/.gitignore"; fi; rh_commit "$G"; done
