@@ -1246,6 +1246,25 @@ grep -vE '^\s*#' "$REPO/.github/workflows/dependencies.yml" | grep -q 'continue-
   && bad "у dependencies.yml немає діючого continue-on-error" "відсутнє" "знайдено" \
   || ok "у dependencies.yml немає діючого continue-on-error"
 
+# W-38 (2026-11-04): обов'язкова `SAST (Semgrep)` і Trivy за побудовою не могли впасти
+# на знахідці. Тепер обидва джоби проганяють звіт через scripts/sarif-gate.py, а крок
+# Semgrep scan не ховає власного збою. Канарки — і на гейт, і на сам воркфлоу.
+SG="python3 $REPO/scripts/sarif-gate.py"; SGD="$TMPROOT/sarif"; mkdir -p "$SGD"
+printf '%s' '{"runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[{"ruleId":"CVE-1","level":"error"}]}]}' > "$SGD/err.sarif"
+printf '%s' '{"runs":[{"tool":{"driver":{"name":"Semgrep OSS","rules":[{"id":"r","defaultConfiguration":{"level":"error"}}]}},"results":[{"ruleId":"r"}]}]}' > "$SGD/rule-err.sarif"
+printf '%s' '{"runs":[{"tool":{"driver":{"name":"Semgrep OSS","rules":[{"id":"r","defaultConfiguration":{"level":"warning"}}]}},"results":[{"ruleId":"r"}]}]}' > "$SGD/warn.sarif"
+printf '%s' 'not json' > "$SGD/bad.sarif"
+check "канарка: знахідка рівня error валить гейт SARIF" "1" "$($SG "$SGD/err.sarif" >/dev/null 2>&1; echo $?)"
+check "канарка: рівень error з опису правила теж валить" "1" "$($SG "$SGD/rule-err.sarif" >/dev/null 2>&1; echo $?)"
+check "попередження (warning) гейт SARIF не валить" "0" "$($SG "$SGD/warn.sarif" >/dev/null 2>&1; echo $?)"
+check "звіту нема або він битий — «не перевіряли» (код 2), не «чисто»" "2 2" \
+  "$($SG "$SGD/nope.sarif" >/dev/null 2>&1; echo $?) $($SG "$SGD/bad.sarif" >/dev/null 2>&1; echo $?)"
+sec_wf="$REPO/.github/workflows/security.yml"
+awk '/- name: Semgrep scan/{f=1; next} f && /- (name|uses|run):/{f=0} f' "$sec_wf" | grep -q 'continue-on-error' \
+  && bad "крок Semgrep scan не ховає власного збою" "без continue-on-error" "continue-on-error є" \
+  || ok "крок Semgrep scan не ховає власного збою"
+check "обидва безпекові джоби проганяють звіт через sarif-gate" "2" "$(grep -c 'scripts/sarif-gate.py' "$sec_wf")"
+
 # Стенд класифікатора: рядки будуються зі шматків, тож він не тригерить те,
 # що вимірює (сам текст тесту раніше вмикав правило про ключі).
 probe=$(cd "$REPO" && python3 tests/probe-classify.py >/dev/null 2>&1; echo $?)
