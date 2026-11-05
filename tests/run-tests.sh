@@ -418,6 +418,55 @@ abst_out=$($ABST "$TMPROOT/abst-canary" 2>&1); abst_rc=$?
   && ok "згадка тега в прозі й законна абстенція — не знахідки" \
   || bad "немає хибних тривог" "лише один випадок" "${abst_out:0:120}"
 
+# ── Індекс навичок = диск (аудит 2026-10-26: `gmi-audit` випав з skills/README.md) ──
+# Рукописний перелік «Активні навички» тримався на уважності й тихо розійшовся.
+# Канарки — обидва напрямки розбіжності плюс зламаний файл; симлінки melania
+# в лабораторний індекс не входять (їх облік — MANIFEST).
+IDX="python3 $REPO/scripts/check-skills-index.py"
+$IDX "$REPO" >/dev/null 2>&1 \
+  && ok "індекс skills/README.md збігається з лабораторними навичками на диску" \
+  || bad "індекс навичок збігається з диском" "код 0" "$($IDX "$REPO" 2>&1 | head -2)"
+idx_case() { # idx_case <назва> <очікуваний-код> <фрагмент-причини|-> <тека|!тека-без-SKILL.md|тека~битий-симлінк|тека^симлінк-на-порожню-теку|-> <рядки README...>
+  local name="$1" want="$2" why="$3" skill="$4"; shift 4
+  local d="$TMPROOT/idx-$(printf '%s' "$name" | md5sum | cut -c1-8)"
+  mkdir -p "$d/.claude/skills" "$d/skills" "$d/melania/linked"
+  : > "$d/melania/linked/SKILL.md"; ln -sfn "$d/melania/linked" "$d/.claude/skills/linked"
+  if [[ "$skill" == *~* ]]; then ln -sfn "$d/nowhere" "$d/.claude/skills/${skill#*~}"; skill="${skill%%~*}"; fi
+  if [[ "$skill" == *^* ]]; then mkdir -p "$d/melania/hollow"; ln -sfn "$d/melania/hollow" "$d/.claude/skills/${skill#*^}"; skill="${skill%%^*}"; fi
+  if [[ "$skill" == !* ]]; then mkdir -p "$d/.claude/skills/${skill#!}"
+  elif [[ "$skill" != "-" ]]; then mkdir -p "$d/.claude/skills/$skill"; : > "$d/.claude/skills/$skill/SKILL.md"; fi
+  printf '%s\n' "$@" > "$d/skills/README.md"
+  local out rc; out=$($IDX "$d" 2>&1); rc=$?
+  if [[ "$rc" != "$want" ]]; then bad "$name" "код $want" "код $rc: ${out:0:80}"
+  elif [[ "$why" != "-" && "$out" != *"$why"* ]]; then bad "$name" "причина «$why»" "${out:0:110}"
+  else ok "$name"; fi
+}
+idx_case "індекс збігається, симлінк melania не вимагається → код 0" 0 - alpha \
+  '## Активні навички' '- `alpha` — опис.' '## Нові навички' '- `ghost` — поза секцією, не рахується.'
+idx_case "канарка: навичка на диску, але не в індексі" 1 "нема в індексі: \`alpha\`" alpha \
+  '## Активні навички' '## Нові навички'
+idx_case "канарка: пункт індексу без теки" 1 "привид в індексі: \`ghost\`" - \
+  '## Активні навички' '- `ghost` — опис.'
+idx_case "канарка: нема заголовка «Активні навички» → помилка виклику" 2 "нема заголовка" alpha \
+  '## Навички' '- `alpha` — опис.'
+# Умову «тека має SKILL.md» без цієї канарки можна було прибрати непомітно —
+# єдиний мутант незалежного рев'ю 2026-10-26, що вижив.
+idx_case "канарка: тека без SKILL.md — поломка, а не тиша" 1 "тека без SKILL.md" '!alpha' \
+  '## Активні навички' '- `alpha` — опис.'
+idx_case "вкладений підпункт і рядок у блоці коду — не пункти індексу" 0 - alpha \
+  '## Активні навички' '- `alpha` — опис.' '  - `--flag` — підпункт.' '```' '- `ghost` у прикладі' '```'
+idx_case "канарка: симлінк melania в індексі названо симлінком, не привидом" 1 "симлінк melania" alpha \
+  '## Активні навички' '- `alpha` — опис.' '- `linked` — навичка melania.'
+# Обидва випадки — з рев'ю Codex до PR #104, відтворені до виправлення.
+idx_case "заголовок-приклад у блоці коду до справжньої секції — не секція" 0 - alpha \
+  '# Навички' '```' '## Активні навички' '- `ghost` — приклад' '```' '## Активні навички' '- `alpha` — опис.'
+idx_case "вкладений блок коду (\`\`\`\` з \`\`\` усередині) — внутрішній рядок не закриває" 0 - alpha \
+  '## Активні навички' '- `alpha` — опис.' '````md' '```' '- `ghost` — приклад усередині' '```' '````'
+idx_case "канарка: битий симлінк у .claude/skills ловиться" 1 "битий симлінк: .claude/skills/gone" 'alpha~gone' \
+  '## Активні навички' '- `alpha` — опис.'
+idx_case "канарка: симлінк на теку без SKILL.md ловиться" 1 "симлінк без SKILL.md: .claude/skills/hollow" 'alpha^hollow' \
+  '## Активні навички' '- `alpha` — опис.'
+
 # ── Незворотність РІШЕНЬ (хвиля 4): `one-way` мусить мати рішення власника ──
 # Рівні R0–R4 судять дію в момент виконання; рішення «формат на диску» — це
 # звичайний R1, і гейт дій його не бачить. Тому таксономія рішень перевіряється
@@ -1165,6 +1214,28 @@ cp "$REPO/scripts/check-action-pinning.sh" "$PINDIR/check.sh"
 pin_broken=$(cd "$PINDIR" && bash check.sh >/dev/null 2>&1; echo $?)
 check "канарка: рухомий тег ловиться" "1" "$pin_broken"
 cd "$REPO" || exit 1
+
+# W-39 (2026-11-03): хуки pre-commit — той самий ланцюг постачання. До цього
+# скрипт дивився лише у воркфлоу, тож `rev: v5.0.0` проходив мовчки.
+pc_case() { # pc_case <назва> <очікуваний-код> <фрагмент-причини|-> <рядки .pre-commit-config.yaml...>
+  local name="$1" want="$2" why="$3"; shift 3
+  local d="$TMPROOT/pc-$(printf '%s' "$name" | md5sum | cut -c1-8)"
+  mkdir -p "$d/.github/workflows"
+  printf 'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@%s\n' \
+    "$(printf 'a%.0s' {1..40})" > "$d/.github/workflows/ci.yml"
+  printf '%s\n' "$@" > "$d/.pre-commit-config.yaml"
+  local out rc; out=$(cd "$d" && bash "$REPO/scripts/check-action-pinning.sh" 2>&1); rc=$?
+  if [[ "$rc" != "$want" ]]; then bad "$name" "код $want" "код $rc: ${out:0:80}"
+  elif [[ "$why" != "-" && "$out" != *"$why"* ]]; then bad "$name" "причина «$why»" "${out:0:110}"
+  else ok "$name"; fi
+}
+pc_case "канарка: хук pre-commit на тегі ловиться" 1 "rev хука pre-commit замість SHA: https://github.com/o/r@v5.0.0" \
+  'repos:' '  - repo: https://github.com/o/r' '    rev: v5.0.0'
+pc_case "канарка: віддалений хук без rev ловиться" 1 "<нема rev>" \
+  'repos:' '  - repo: https://github.com/o/r' '    hooks:' '      - id: x'
+pc_case "local і meta без rev, SHA у лапках із коментарем — не знахідки" 0 - \
+  'repos:' '  - repo: local' '    hooks:' '      - id: y' '  - repo: meta' '    hooks:' '      - id: check-hooks-apply' \
+  '  - repo: https://github.com/o/r' "    rev: '$(printf 'b%.0s' {1..40})'  # frozen: v1"
 
 # Крок, відмову якого ховають, не є перевіркою: continue-on-error приховував
 # реальний ##[error] від dependency-review і давав зелену галочку (F-6).

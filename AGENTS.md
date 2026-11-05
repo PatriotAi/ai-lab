@@ -15,5 +15,5 @@
    розбіжність ловить `maintain.py verify`. Познач число чи дату, що відстали від змін у PR.
 3. **Зміна навички Melania (`CLAUDE.md` §4).** Кожна змінена `SKILL.md`: bump версії, H1 і
    `last_updated` синхронні, один запис у «Зміни», рядок у `melania-skills-ecosystem/MELANIA-BOOTSTRAP.md`.
-4. **Безпека (`SECURITY.md`).** Жодних секретів у коді — лише env-змінні. Дії GitHub
-   закріплюються повним SHA коміта, не тегом (`scripts/check-action-pinning.sh`).
+4. **Безпека (`SECURITY.md`).** Жодних секретів у коді — лише env-змінні. Дії GitHub і хуки
+   pre-commit закріплюються повним SHA коміта, не тегом (`scripts/check-action-pinning.sh`).
