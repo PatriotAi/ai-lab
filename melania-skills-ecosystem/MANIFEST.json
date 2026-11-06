@@ -1,10 +1,10 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-10-24",
+ "built": "2026-11-05",
  "governance": "melania-skill-master-administrator v2.24.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
- "total_eval_cases": 142,
+ "total_eval_cases": 144,
  "eval_schema": "canonical: top-level version + evals[].name/prompt/expected_output/assertions",
  "provenance_note": "v4 rebuilt from live disk 2026-07-05. source-research-harvest recovered via GSRE (lost in parallel sessions). All 27 eval sets restored from v3 zip + regenerated where missing. collaborative-browser upgraded 2.7.2->3.0.0.",
  "install_entrypoint": "README-FOR-AI.md",
@@ -156,10 +156,10 @@
    ]
   },
   "multi-provider-ai-orchestration": {
-   "version": "1.7.5",
+   "version": "1.7.6",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "4ae161a35a96dcc1",
+    "SKILL.md": "8c9e23d80aac745a",
     "evals/evals.json": "fd3caa98067b9885"
    },
    "files": [
@@ -241,11 +241,11 @@
    ]
   },
   "rlm-harness": {
-   "version": "0.8.0",
-   "eval_cases": 4,
+   "version": "0.9.0",
+   "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "291376904d721b6d",
-    "evals/evals.json": "4c348b6d0b54326e"
+    "SKILL.md": "272199af90b611d5",
+    "evals/evals.json": "843c3887d7750c3d"
    },
    "files": [
     "SKILL.md",
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "9622f1df07f04254"
+ "built_fingerprint": "27d21e9957dd0509"
 }

@@ -153,6 +153,54 @@ check("OpenAI-сумісний: max_tokens як просили (у нього н
   core.buildCloudRequest({ provider: "openai", apiKey: "K", maxTokens: 800, messages: [] }).body.max_tokens);
 const oldModelReq = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", model: "claude-haiku-4-5", messages: [] });
 truthy("старій моделі effort не надсилається (Haiku 4.5 відповів би 400)", !("output_config" in oldModelReq.body));
+// Серверний fallback (2026-10-24): CORS-preflight Anthropic пропускає anthropic-beta —
+// перевірено пробою, docs/reviews/2026-10-24-cors-probe.md
+check("Anthropic: серверний fallbacks \"default\" для поточної моделі", "default", areq.body.fallbacks);
+check("Anthropic: бета-заголовок саме для форми \"default\"", "server-side-fallback-2026-07-01", areq.headers["anthropic-beta"]);
+for (const model of ["claude-haiku-5-5", "claude-sonnet-5", "claude-haiku-4-5"]) {
+  const r = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", model, messages: [] });
+  truthy(`${model}: без fallbacks і без бета-заголовка (у Haiku 5.5 серверного fallback нема; іншим — невідомо)`,
+    !("fallbacks" in r.body) && !("anthropic-beta" in r.headers), JSON.stringify({ body: Object.keys(r.body), beta: r.headers["anthropic-beta"] }));
+}
+// Рев'ю Codex до PR #101
+check("supportsServerFallback(\"claude-fable-5\") — Fable 5 теж має серверний fallback", true, core.supportsServerFallback("claude-fable-5"));
+check("cloudReplyStatus: відмова з recommended_model — підказку збережено",
+  JSON.stringify({ refusal: { category: "cyber", recommendedModel: "claude-sonnet-5" }, truncated: false }),
+  JSON.stringify(core.cloudReplyStatus("anthropic", { content: [], stop_reason: "refusal",
+    stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })));
+const rb = core.classifyFailure({ refusal: true, capacity: true, status: 200, message: "Модель відмовила" });
+truthy("classifyFailure: відмова з recommended_model — тимчасова (резервна перевантажена), з повтором",
+  rb.kind === "refusal-busy" && rb.retryable === true && rb.switchProvider === false, JSON.stringify(rb));
+truthy("fallbackNote: відповідь резервної моделі позначено",
+  core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5" }).includes("claude-sonnet-5"));
+check("fallbackNote: та сама модель — без позначки", "", core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5-5" }));
+// Повторне рев'ю Codex до PR #101 (E): закріплення резервної моделі обходиться без нової відмови —
+// позначка не має стверджувати, що «цей запит відхилили».
+truthy("fallbackNote: нейтральне формулювання — без твердження про відмову",
+  !/відхилен/i.test(core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5" })));
+// (D): відповідь самої моделі (відмова, обрізання) — не збій вузла
+for (const [kind, want] of [["refusal", true], ["refusal-busy", true], ["truncated", true],
+  ["rate-limit", false], ["transient", false], ["fatal", false], ["auth", false], ["offline", false]]) {
+  check(`isModelSideOutcome(${kind})`, want, core.isModelSideOutcome(kind));
+}
+{
+  const chain = core.defaultChain({ backupProvider: "openai" });
+  const caps = { online: true, hasCloudKey: true, hasBackupKey: true, localReady: false };
+  const health = { cloud: { fails: 1, cooldownUntil: Date.now() + 60000 } };
+  const free = core.planDispatch({ chain, health, caps, tried: [], now: Date.now(), wantsCloud: true });
+  check("без закріплення: основний вузол на паузі → запасний (звичайний failover)", "cloud-backup", free.node?.id);
+  const pinned = core.planDispatch({ chain, health, caps, tried: [], now: Date.now(), wantsCloud: true, pin: "cloud" });
+  check("закріплене завдання: основний на паузі → чекає, а не йде до іншого провайдера", "wait", pinned.action);
+  const q = core.pinTask([core.makeTask({ input: "x", id: "t1" }), core.makeTask({ input: "y", id: "t2" })], "t1", "cloud");
+  check("pinTask: закріплює лише своє завдання", "cloud|", `${q[0].pin}|${q[1].pin ?? ""}`);
+  const failed = [{ ...q[0], status: "failed" }];
+  check("ручний повтор зберігає закріплення (відхилений запит не йде деінде)", "cloud", core.requeue(failed, "t1")[0].pin);
+}
+
+check("fallbackNote: модель не названа — без позначки", "", core.fallbackNote("claude-sonnet-5-5", {}));
+check("відповідь із блоком fallback: текст читається", "відповідь резервної моделі",
+  core.readCloudReply("anthropic", { content: [{ type: "fallback", from: { model: "a" }, to: { model: "b" } },
+    { type: "text", text: "відповідь резервної моделі" }] }));
 for (const body of [areq.body, oreq.body]) {
   truthy(`без temperature/top_p/top_k у тілі (${body === areq.body ? "Anthropic" : "OpenAI"}): на 2026-10-21 вони дають 400`,
     !["temperature", "top_p", "top_k"].some((k) => k in body));

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# check-action-pinning.sh — кожна GitHub-дія має бути закріплена хешем коміта.
+# check-action-pinning.sh — кожна GitHub-дія і кожен віддалений хук pre-commit
+# мають бути закріплені хешем коміта.
 #
-# Одна відповідальність: перевірити, що жоден `uses:` у .github/workflows/
-# не вказує на рухоме посилання (тег або гілку).
+# Одна відповідальність: перевірити, що жоден `uses:` у .github/workflows/ і
+# жоден `rev:` віддаленого репо в .pre-commit-config.yaml не вказує на рухоме
+# посилання (тег або гілку). Хуки додано 2026-11-03 (W-39): тег хука можна
+# перепризначити так само, як тег дії, а виконується він на машині розробника.
 #
 # НАВІЩО. Тег і гілку можна перепризначити на інший коміт — хеш коміта ні.
 # Компрометація `tj-actions/changed-files` (CVE-2025-30066, березень 2025)
@@ -48,8 +51,36 @@ while IFS= read -r ref; do
 done < <(grep -rhE '^[[:space:]]*-?[[:space:]]*uses:' "$WF_DIR"/*.yml 2>/dev/null \
          | sed -E 's/.*uses:[[:space:]]*//; s/[[:space:]]*#.*//')
 
+# Хуки pre-commit: `rev:` належить останньому `repo:` вище. `local` і `meta`
+# коду ззовні не тягнуть і `rev:` не мають.
+PC="$ROOT/.pre-commit-config.yaml"
+if [ -f "$PC" ]; then
+  while IFS=$'\t' read -r repo rev; do
+    [ -z "$repo" ] && continue
+    total=$((total + 1))
+    if printf '%s' "$rev" | grep -qE '^[0-9a-f]{40}$'; then
+      echo "  ✓ pre-commit $repo@$rev"
+    else
+      echo "::error::рухомий rev хука pre-commit замість SHA: $repo@${rev:-<нема rev>}"
+      bad=$((bad + 1))
+    fi
+  done < <(awk '
+    /^[[:space:]]*-[[:space:]]*repo:/ {
+      if (repo != "" && repo != "local" && repo != "meta" && !seen) print repo "\t"
+      r = $0; sub(/.*repo:[[:space:]]*/, "", r); sub(/[[:space:]]*#.*/, "", r); gsub(/["\047]/, "", r)
+      repo = r; seen = 0; next
+    }
+    /^[[:space:]]*rev:/ && repo != "" {
+      v = $0; sub(/.*rev:[[:space:]]*/, "", v); sub(/[[:space:]]*#.*/, "", v); gsub(/["\047[:space:]]/, "", v)
+      if (repo != "local" && repo != "meta") print repo "\t" v
+      seen = 1
+    }
+    END { if (repo != "" && repo != "local" && repo != "meta" && !seen) print repo "\t" }
+  ' "$PC")
+fi
+
 if [ "$total" -eq 0 ]; then
-  echo "у воркфлоу немає жодного uses: — перевіряти нічого" >&2
+  echo "у воркфлоу немає жодного uses: і хуків pre-commit — перевіряти нічого" >&2
   exit 2
 fi
 
@@ -58,6 +89,7 @@ if [ "$bad" -gt 0 ]; then
   echo "❌ рухомих посилань: $bad із $total"
   echo "   Тег і гілку можна перепризначити на інший коміт — хеш коміта ні."
   echo "   Резолв: git ls-remote https://github.com/OWNER/REPO 'refs/tags/TAG^{}'"
+  echo "   (для анотованого тега — рядок із ^{}; у pre-commit: rev: <SHA>  # frozen: TAG)"
   exit 1
 fi
-echo "✅ усі $total дій закріплені повним SHA коміта"
+echo "✅ усі $total посилань (дії й хуки pre-commit) закріплені повним SHA коміта"
