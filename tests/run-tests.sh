@@ -2713,6 +2713,10 @@ specs = {
   "h2": {"repos": ["r"], "heads": {"r": {"sha": "bbb"}}, "findings": [f("id1"), f("id3", "</script ><SCRIPT/x>alert(1)</script>")]},
   "ci_green": {"repos": {"r": {"workflows": {"CI": {"conclusion": "success", "sha": "bbb"}}, "prs": []}}},
   "ci_red": {"repos": {"r": {"workflows": {"CI": {"conclusion": "failure", "sha": "bbb"}}, "prs": [{"number": 7, "title": "x", "idle_days": 30}]}}},
+  "h_real0": {"repos": ["r"], "heads": {"r": {"sha": "85f76b59a9cf"}}, "findings": []},
+  "h_real": {"repos": ["r"], "heads": {"r": {"sha": "a4c296c9d42b"}}, "findings": []},
+  "ci_real": {"repos": {"r": {"workflows": {"CI": {"conclusion": "success", "sha": "a4c296c"}}, "prs": []}}},
+  "ci_other": {"repos": {"r": {"workflows": {"CI": {"conclusion": "success", "sha": "85f76b5"}}, "prs": []}}},
 }
 json.dump(specs[spec], open(out, "w"))
 PY
@@ -2744,6 +2748,15 @@ out=$($UP --page "$RHT/p1.html" --health "$RHT/hinj.json" --out "$RHT/pinj.html"
   || bad "update-page: Markdown-ін'єкція" "без активного посилання й бектика в шляху" "${out:0:300}"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cig.json" --out "$RHT/p3.html" 2>&1)
 [[ "$out" == *"bbb: CI зелений"* ]] && ok "update-page: заливання з зеленим CI на цьому коміті" || bad "update-page: зелений CI" "CI зелений" "${out:0:300}"
+# Реальні довжини: голова — 12 символів (repo-health), прогін — 7 (ci-state). Пряме «==» тут
+# ніколи не збігалось — хибне «прогону CI немає» 2026-11-06; прогін на ІНШОМУ коміті — не зарахувати
+mkj "$RHT/hr0.json" h_real0; mkj "$RHT/hr.json" h_real; mkj "$RHT/cireal.json" ci_real; mkj "$RHT/cioth.json" ci_other
+$UP --page "$PAGE" --health "$RHT/hr0.json" --out "$RHT/pr0.html" >/dev/null 2>&1
+o1=$($UP --page "$RHT/pr0.html" --health "$RHT/hr.json" --ci "$RHT/cireal.json" --out "$RHT/pr1.html" 2>&1)
+o2=$($UP --page "$RHT/pr0.html" --health "$RHT/hr.json" --ci "$RHT/cioth.json" --out "$RHT/pr2.html" 2>&1)
+[[ "$o1" == *"CI зелений"* && "$o2" == *"прогону CI на цьому коміті немає"* ]] \
+  && ok "update-page: голова 12 символів = прогін 7 символів; прогін на іншому коміті не зараховано" \
+  || bad "update-page: різна довжина SHA" "зелений / немає" "${o1:0:200} | ${o2:0:200}"
 echo '{"repos":{"r":{"error":"HTTP 403"}}}' > "$RHT/cie.json"
 out=$($UP --page "$RHT/p1.html" --health "$RHT/h2.json" --ci "$RHT/cie.json" --out "$RHT/p5.html" 2>&1)
 [[ "$out" == *"bbb: CI-стан не прочитано — вердикт невідомий"* ]] && ok "update-page: непрочитаний CI — «невідомо», а не «немає CI»" \
