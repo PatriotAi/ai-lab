@@ -103,6 +103,20 @@ const ranked = core.rankLocalModels(
 check("не-q4f16 відсіяно", 2, ranked.length);
 check("першою — та, що влазить", "Small-1.5B-q4f16_1-MLC", ranked[0].id);
 check("завелика позначена як «не влазить»", false, ranked[1].fits);
+// Без shader-f16 (частий випадок Android-GPU) q4f16 не завантажиться: WebLLM 0.2.87
+// оголошує вимогу в required_features. Тоді — q4f32 і лише моделі без цієї вимоги.
+const noF16 = core.rankLocalModels(
+  [{ id: "Gemma-E2B-q4f16_1-MLC", vram: 3387, features: ["shader-f16"] },
+   { id: "Gemma-E2B-q4f32_1-MLC", vram: 3863, features: [] },
+   { id: "Odd-1B-q4f32_1-MLC", vram: 900, features: ["shader-f16"] },
+   { id: "Tiny-0.5B-q4f32_1-MLC", vram: 700 }],
+  4096, { f16: false },
+);
+check("без shader-f16: лише q4f32 без вимоги f16", "Tiny-0.5B-q4f32_1-MLC,Gemma-E2B-q4f32_1-MLC",
+  noF16.map((m) => m.id).join(","));
+check("з shader-f16 (типово) — як раніше, лише q4f16", "Gemma-E2B-q4f16_1-MLC",
+  core.rankLocalModels([{ id: "Gemma-E2B-q4f16_1-MLC", vram: 3387, features: ["shader-f16"] },
+    { id: "Gemma-E2B-q4f32_1-MLC", vram: 3863 }], 4096).map((m) => m.id).join(","));
 
 // ═══════ 7. Секрети: шифрування ключа ═══════
 console.log('\n════════ 7. Секрети (AES-GCM + пароль-фраза) ════════');

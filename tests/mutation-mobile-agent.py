@@ -169,6 +169,12 @@ CORE_MUTANTS: list[Mutant] = [
      'return { kind: "truncated", retryable: false, switchProvider: false, retryAfterMs: null };',
      'return { kind: "fatal", retryable: false, switchProvider: false, retryAfterMs: null };',
      "ліміт вичерпано до тексту, а людина бачить «провайдери недоступні» (рев'ю Codex, PR #100)"),
+    ("без shader-f16 однаково q4f16", CORE,
+     "const quant = f16 ? /q4f16/i : /q4f32/i;", "const quant = /q4f16/i;",
+     "на телефоні без shader-f16 обрано модель, що не завантажиться (ревізія 2026-11-06)"),
+    ("вимога shader-f16 моделі ігнорується", CORE,
+     '(f16 || !(m.features || []).includes("shader-f16"))', "true",
+     "q4f32-модель, що все-таки вимагає shader-f16, обрано на телефоні без нього"),
 ]
 
 APP_MUTANTS: list[Mutant] = [
@@ -221,6 +227,9 @@ APP_MUTANTS: list[Mutant] = [
     ("проводка не передає ознаку обрізання", APP,
      "refusal: err.refusal === true, truncated: err.truncated === true,", "refusal: err.refusal === true,",
      "чиста classifyFailure знає обрізання, а застосунок її не передає (рев'ю Codex, PR #100)"),
+    ("можливість shader-f16 не визначається", APP,
+     'state.caps.f16 = !!adapter?.features?.has?.("shader-f16");', "state.caps.f16 = true;",
+     "чиста rankLocalModels уміє q4f32, а застосунок завжди думає, що f16 є"),
 ]
 
 
@@ -228,6 +237,9 @@ APP_MUTANTS: list[Mutant] = [
 # означати випадковий збій: так мутант «розблокування не будить чергу» колись «вбила» нестабільна
 # перевірка про таймер, а не про розблокування (2026-09-30). Значення — уривок назви перевірки.
 EXPECT: dict[str, str] = {
+    "без shader-f16 однаково q4f16": "без shader-f16: лише q4f32 без вимоги f16",
+    "вимога shader-f16 моделі ігнорується": "без shader-f16: лише q4f32 без вимоги f16",
+    "можливість shader-f16 не визначається": "локальна модель без shader-f16 → q4f32",
     "бекоф без джитера": "перша спроба ≈ базова",
     "429 визнано фатальним": "429 → перемкнути провайдера",
     "Retry-After ігнорується": "Retry-After має пріоритет над формулою",

@@ -566,6 +566,36 @@ try {
   await page.unroute("**/api.anthropic.com/**");
   await reset();
 
+  // ── Локальна модель: варіант за можливостями відеочипа (v0.3.2) ──
+  // WebLLM 0.2.87 оголошує в q4f16 required_features: ["shader-f16"]; без цієї функції
+  // (частий випадок Android-GPU) модель не завантажиться — застосунок має обрати q4f32.
+  // Імітуємо WebGPU-адаптер і підміняємо модуль WebLLM: ні мережі, ні справжньої моделі.
+  const FAKE_WEBLLM = `export const prebuiltAppConfig = { model_list: [
+    { model_id: "Fake-E2B-q4f16_1-MLC", vram_required_MB: 900, required_features: ["shader-f16"] },
+    { model_id: "Fake-E2B-q4f32_1-MLC", vram_required_MB: 1000 } ] };
+  export async function CreateMLCEngine(id) {
+    return { chat: { completions: { create: async () => ({ choices: [{ message: { content: "локально: " + id } }] }) } } };
+  }`;
+  for (const [f16, want] of [[false, "Fake-E2B-q4f32_1-MLC"], [true, "Fake-E2B-q4f16_1-MLC"]]) {
+    const ctx = await browser.newContext({ ...pw.devices["Pixel 7"], locale: "uk-UA" });
+    await ctx.addInitScript((hasF16) => {
+      Object.defineProperty(navigator, "gpu", { configurable: true, value: {
+        requestAdapter: async () => ({ features: new Set(hasF16 ? ["shader-f16"] : []) }) } });
+    }, f16);
+    await ctx.route("https://esm.run/**", (route) => route.fulfill({ status: 200, body: FAKE_WEBLLM,
+      headers: { "content-type": "text/javascript", "access-control-allow-origin": "*" } }));
+    const p = await ctx.newPage();
+    await p.goto(base, { waitUntil: "networkidle" });
+    await p.waitForFunction(() => window.PocketAgent?.state.caps.webgpu === true);
+    await p.fill("#input", "перевірка локальної моделі");
+    await p.click("#send");
+    await p.waitForFunction(() => !!window.PocketAgent.state.local.model, null, { timeout: 15000 })
+      .catch(() => {});
+    check(`локальна модель ${f16 ? "з shader-f16 → q4f16" : "без shader-f16 → q4f32"}`, want,
+      await p.evaluate(() => window.PocketAgent.state.local.model || "<модель не обрано>"));
+    await ctx.close();
+  }
+
   mkdirSync(SHOTS, { recursive: true });
   await page.screenshot({ path: join(SHOTS, "pixel7-offline.png"), fullPage: false });
   ok("знімок екрана збережено (dist/screenshots/pixel7-offline.png)");

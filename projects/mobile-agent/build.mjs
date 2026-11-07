@@ -174,7 +174,7 @@ function main() {
   writeFileSync(DIST_FILE, html);
   writeFileSync(SW_FILE, sw);
   const versionJson = JSON.stringify(
-    { version, notes: "Запит, відхилений політикою, сервер Anthropic сам перезапускає на рекомендованій моделі (fallbacks).", updated: "2026-10-25" },
+    { version, notes: "Локальна модель: WebLLM 0.2.87 (з Gemma 4 E2B); на телефонах без shader-f16 — варіанти q4f32.", updated: "2026-11-07" },
     null,
     2,
   ) + "\n";
