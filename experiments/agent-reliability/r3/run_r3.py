@@ -27,7 +27,7 @@ FILLER = [
     "melania-skills-ecosystem/skills/rlm-harness/references/conductor-standard.md",
     "docs/reviews/2026-11-05-harness-research.md", "docs/reviews/2026-11-06-integration-research.md",
     "experiments/agent-reliability/README.md", "docs/PLAN.md", "docs/CONTEXT.md", "AGENTS.md",
-    "docs/portable-standard.md",
+    "docs/portable-standard.md", "docs/glossary.md",
 ]
 PROBES = {
     5: "Сформулюй одне правило (1–2 речення) для стандарту диригента: яку модель брати на роль судді в рецепті Deep Research.",
@@ -89,11 +89,35 @@ def run_session(name: str, arm: str, model: str, out: dict) -> None:
     out[name] = rows
 
 
+def resume(name: str, sid: str, arm: str, start: int, model: str) -> None:
+    """Дограти ходи start…20 у наявній сесії (після вади v1: 15 наповнювачів на 16 ходів)."""
+    for turn in range(start, 21):
+        text = prompt_for(turn, arm)
+        res = call(sid, False, text, model)
+        ans = str(res.get("result", ""))
+        row = {"turn": turn, "arm": arm, "prompt": text, "answer": ans,
+               "cost": res.get("total_cost_usd"), "error": res.get("error"), "resumed": True}
+        if turn in PROBES:
+            row["grade"] = grade(ans)
+        with (RAW / f"{name}.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--model", default="haiku")
+    ap.add_argument("--resume", nargs="*", help="назва:session-id:плече, дограти з --from")
+    ap.add_argument("--from", dest="start", type=int, default=19)
     a = ap.parse_args(argv[1:])
+    if a.resume:
+        threads = [threading.Thread(target=resume, args=(n, s, arm, a.start, a.model))
+                   for n, s, arm in (x.split(":") for x in a.resume)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return 0
     RAW.mkdir(exist_ok=True)
     out: dict = {}
     threads = [threading.Thread(target=run_session, args=(f"{arm}{i}", arm, a.model, out))
