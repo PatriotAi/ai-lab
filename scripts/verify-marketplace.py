@@ -5,7 +5,10 @@ Read-only. Exit 0 — усе зійшлося; exit 1 — є розбіжніс�
 Перевіряє те, що інакше трималося б лише на уважності автора:
 джерела плагінів, резолв симлінків (бандл МУСИТЬ бути симлінком на джерело правди,
 не копією), покриття скілів, похідні лічильники, збіг версій, політика MIT
-(кожен SKILL.md декларує MIT у frontmatter; відсутнє поле — теж порушення).
+(кожен SKILL.md декларує MIT у frontmatter; відсутнє поле — теж порушення),
+журнал перейменувань: ім'я плагіна з будь-якої минулої версії каталогу (історія git)
+не зникає без запису в `renames`, а ланцюжки `renames` не зациклені й не обірвані.
+Без історії (немає git, обрізаний клон) — видиме попередження, не мовчазне «чисто».
 
 Схемна валідація (`claude plugin validate --strict`) потребує claude CLI. Без нього:
 у звичайному прогоні — видиме попередження (структурні перевірки лишаються корисними,
@@ -226,6 +229,77 @@ def check_cli_validate(mp: dict, publish: bool = False) -> None:
 
 
 
+RENAMES_SKIPPED_MARK = "перевірку перейменувань не ганяли"  # той самий текст чекають run-tests і канарки
+
+
+def published_names() -> tuple[set[str], str | None]:
+    """Імена плагінів з усіх версій каталогу в історії git (HEAD і предки).
+
+    Повертає (імена, причина-неповноти). Причина не None — історію прочитано не всю
+    (немає git, обрізаний клон), і висновок «нічого не зникло» був би неперевіреним.
+    """
+    rel = str(MARKETPLACE.relative_to(ROOT))
+    try:
+        log = subprocess.run(
+            ["git", "-C", str(ROOT), "log", "--format=%H", "--", rel],
+            capture_output=True, text=True, timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return set(), f"git недоступний ({exc})"
+    if log.returncode != 0:
+        return set(), "каталог не в git-репозиторії"
+    names: set[str] = set()
+    for sha in log.stdout.split():
+        show = subprocess.run(["git", "-C", str(ROOT), "show", f"{sha}:{rel}"],
+                              capture_output=True, text=True, timeout=60)
+        if show.returncode != 0:
+            continue
+        try:
+            names |= {p.get("name") for p in json.loads(show.stdout).get("plugins", []) if p.get("name")}
+        except (json.JSONDecodeError, AttributeError):
+            continue  # битий каталог у минулому коміті — не привід валити сьогоднішній гейт
+    shallow = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
+                             capture_output=True, text=True, timeout=30)
+    if shallow.stdout.strip() == "true":
+        return names, "клон обрізаний (shallow) — старіші версії каталогу не видно; потрібен git fetch --unshallow"
+    return names, None
+
+
+def check_renames(mp: dict) -> None:
+    """Ім'я плагіна — його ідентифікатор у користувачів (`enabledPlugins`, `/plugin install`).
+
+    Перейменування чи видалення без запису в `renames` ламає чужі встановлення
+    («Plugin not found in marketplace»). Документація Claude Code «Host and maintain a
+    marketplace» (звірено 2026-11-06): `renames` — лише доповнюваний журнал, значення —
+    чинне ім'я або null (видалено), ланцюжок мусить закінчуватись у каталозі чи на null.
+    """
+    renames = mp.get("renames", {})
+    if not isinstance(renames, dict):
+        err("marketplace.json: renames мусить бути об'єктом {старе ім'я: нове ім'я | null}")
+        return
+    current = {p.get("name") for p in mp.get("plugins", []) if p.get("name")}
+    for old in renames:
+        if old in current:
+            err(f"renames.{old}: це ім'я ще в каталозі — журнал перейменувань має містити лише колишні імена")
+            continue
+        seen, name = [old], renames[old]
+        while name is not None and name not in current:
+            if name in seen:
+                err(f"renames.{old}: ланцюжок зациклено ({' → '.join(seen + [name])})")
+                break
+            if name not in renames:
+                err(f"renames.{old}: ланцюжок не веде ні до чинного плагіна, ні до null (обірвано на '{name}')")
+                break
+            seen.append(name)
+            name = renames[name]
+    names, gap = published_names()
+    for lost in sorted(names - current - set(renames)):
+        err(f"плагін '{lost}' зник з каталогу без запису в renames — у користувачів зламається "
+            f"встановлення; додай \"renames\": {{\"{lost}\": \"<нове ім'я>\" або null}}")
+    if gap:
+        warn(f"{RENAMES_SKIPPED_MARK} повністю: {gap}")
+
+
 def frontmatter_license(text: str) -> str | None:
     """Значення `license:` із YAML-frontmatter (між першою парою `---`), або None."""
     fm = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.S)
@@ -296,6 +370,7 @@ def main() -> int:
         for entry in mp.get("plugins", []):
             check_plugin(entry, seen)
         check_coverage(seen)
+        check_renames(mp)
         check_cli_validate(mp, publish)
         check_licenses()
         print(f"маркетплейс: {mp.get('name')} · плагінів: {len(mp.get('plugins', []))} · скілів: {len(seen)}")

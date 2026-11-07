@@ -799,6 +799,18 @@ $ABL "$ABL_T/r" --tasks "$ABL_T/ghost.jsonl" --limits 1:10 >/dev/null 2>&1; abl_
 [[ "$abl_rc" == "2" ]] \
   && ok "канарка: коміту задачі немає в історії — «не ганялось» (код 2), а не «чисто»" \
   || bad "канарка: відсутній коміт задачі" "код 2" "rc=$abl_rc"
+# Обрізаний клон, де ОБИДВА коміти є, але межа історії рве зв'язок між ними: до 2026-11-07
+# перевірка давала хибну знахідку «не є предком» (виявлено ревізією 2026-11-06 у контейнері
+# сесії). Тепер — «не ганялось» (код 2). Справжній «не предок» у повному клоні ловить канарка `rev` вище.
+git -C "$ABL_T/r" tag -f abl-start "$abl_st" >/dev/null 2>&1
+git clone -q --depth 1 "file://$ABL_T/r" "$ABL_T/shallow" 2>/dev/null
+git -C "$ABL_T/shallow" fetch -q --depth 1 origin tag abl-start 2>/dev/null
+abl_task cut "$abl_st" "$abl_so" "$A_CNT" "$A_SEC" "$A_CMD" > "$ABL_T/cut.jsonl"
+abl_out=$($ABL "$ABL_T/shallow" --tasks "$ABL_T/cut.jsonl" --limits 1:10 2>&1); abl_rc=$?
+[[ "$abl_rc" == "2" && "$abl_out" == *"НЕ ГАНЯЛОСЬ"* && "$abl_out" != *"не є предком"* \
+   && "$(git -C "$ABL_T/shallow" cat-file -t "$abl_st" 2>/dev/null)" == "commit" ]] \
+  && ok "канарка: обрізаний клон рве зв'язок start→solution — «не ганялось» (код 2), а не хибна знахідка" \
+  || bad "канарка: обрізаний клон і зв'язок start→solution" "код 2 без «не є предком», обидва коміти наявні" "rc=$abl_rc ${abl_out:0:160}"
 
 # ── Реєстр «розбитих вікон» (хвиля 5) ──
 # Борг фіксувався прозою й 🟡-статусами — чесно, але не як гейт: ніщо не
@@ -1189,6 +1201,23 @@ grep -q 'memory_guard.py' "$REPO/automations/g5-retrieve/g5-retrieve.sh" \
 grep -q 'security/hooks/pre-tool-use.sh' "$REPO/.claude/settings.json" \
   && ok "гейт дій зареєстрований як PreToolUse" \
   || bad "гейт дій зареєстрований як PreToolUse" "запис у settings.json" "не знайдено"
+
+# Відмова самого гейта не пропускає дію мовчки (fail-closed → «ask»). Код так робив і раніше,
+# але тесту не було (ревізія 2026-11-06: документація Claude Code наголошує, що впалий
+# хук-перевіряч інакше пропускає). Обидва способи відмови: файла перевіряча немає; він падає.
+# Справжній pre-tool-use.sh ганяється на тимчасовій копії проєкту — робочі файли не чіпаються.
+GF="$TMPROOT/gate-fail"; mkdir -p "$GF/security/hooks"
+cp "$REPO/security/hooks/pre-tool-use.sh" "$GF/security/hooks/"
+gf_in='{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}}'
+gf_out=$(printf '%s' "$gf_in" | CLAUDE_PROJECT_DIR="$GF" bash "$GF/security/hooks/pre-tool-use.sh" 2>/dev/null)
+[[ "$gf_out" == *'"permissionDecision":"ask"'* && "$gf_out" == *"не знайдено"* ]] \
+  && ok "перевіряча гейта немає → дія не пропускається, а питає (ask)" \
+  || bad "гейт без перевіряча fail-closed" "ask + «не знайдено»" "${gf_out:-<порожньо: дія пройшла б мовчки>}"
+mkdir -p "$GF/security/spine"; printf 'raise SystemExit(3)\n' > "$GF/security/spine/pretooluse.py"
+gf_out=$(printf '%s' "$gf_in" | CLAUDE_PROJECT_DIR="$GF" bash "$GF/security/hooks/pre-tool-use.sh" 2>/dev/null)
+[[ "$gf_out" == *'"permissionDecision":"ask"'* && "$gf_out" == *"не запустився"* ]] \
+  && ok "перевіряч гейта падає → дія не пропускається, а питає (ask)" \
+  || bad "гейт, що впав, fail-closed" "ask + «не запустився»" "${gf_out:-<порожньо: дія пройшла б мовчки>}"
 cd "$REPO" || exit 1
 
 echo ""
@@ -1823,7 +1852,7 @@ echo ""
 echo "════════ 20. Маркетплейс плагінів (patriotai-lab) ════════"
 # Структурний гейт каталогу: резолв симлінків, межі маркетплейсу, покриття без сиріт
 # і дублів, збіг версій каталог↔маніфест, похідні лічильники, зарезервовані імена.
-# Що гейт ЛОВИТЬ — доводять канарки tests/marketplace-gate-canary.py (16 поломок + 2 контролі);
+# Що гейт ЛОВИТЬ — доводять канарки tests/marketplace-gate-canary.py (20 поломок + 3 контролі);
 # вони не в цьому наборі, бо кожен сценарій копіює репозиторій (~3 хв сумарно).
 mp_out=$(python3 scripts/verify-marketplace.py 2>&1); mp_rc=$?
 [[ "$mp_rc" -eq 0 ]] && ok "гейт маркетплейсу проходить (структурні перевірки)" \
@@ -1831,6 +1860,11 @@ mp_out=$(python3 scripts/verify-marketplace.py 2>&1); mp_rc=$?
 # Схемна валідація потребує claude CLI, якого в CI немає: гейт тоді лише попереджає.
 # Без цього рядка зелене «гейт проходить» мовчки включало б перевірку, що не ганялась
 # (Core Rule 15: НЕ ГАНЯЛОСЬ ≠ пройдено). Мітка — SCHEMA_SKIPPED_MARK у гейті.
+# Журнал перейменувань читає історію каталогу з git: без неї (обрізаний клон) перевірка неповна.
+if [[ "$mp_out" == *"перевірку перейменувань не ганяли"* ]]; then
+  skip "журнал перейменувань маркетплейсу (renames проти історії каталогу)" \
+       "історія git неповна: $(echo "$mp_out" | grep 'перейменувань не ганяли' | head -1 | sed 's/^ *⚠ *//')"
+fi
 if [[ "$mp_out" == *"схемну валідацію пропущено"* ]]; then
   skip "схемна валідація маркетплейсу (claude plugin validate --strict)" \
        "claude CLI недоступний у цьому середовищі; структурні перевірки пройдено, схемні не ганялись"
