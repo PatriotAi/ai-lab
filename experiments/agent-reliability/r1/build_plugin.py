@@ -23,9 +23,9 @@ CASES = {
     "router-b": ("Не знаю, з чого почати: треба одночасно дослідити тему й зробити з неї двомовний пост. Що робимо?",
                  "semantic-router", r"Routing Decision"),
     "translate-a": ("Переклади англійською: «Гейт зупиняє незворотні дії без записаної згоди власника.»",
-                    "translate-uaen", r"(?i)\bgate\b"),
+                    "translate-uaen", r"\bgate\b"),
     "translate-b": ("Зроби двомовним (UA/EN) речення «Реєстр розбитих вікон — живий перелік відомого боргу.»",
-                    "translate-uaen", r"(?s)UA.*EN|EN.*UA"),
+                    "translate-uaen", r"UA[\s\S]*EN|EN[\s\S]*UA"),
 }
 
 
@@ -46,7 +46,8 @@ def main(dst: Path) -> None:
         (d / "skill-fired.md").write_text(
             f"---\ntype: tool_used\ntool: Skill\ninput_match: '\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?{skill}\"'\n---\n",
             encoding="utf-8")
-        (d / "result.md").write_text(f"---\ntype: regex\npattern: '{regex}'\n---\n", encoding="utf-8")
+        # JavaScript-регулярка; регістр — полем flags (v1 мав (?i)/(?s) у стилі Python — оцінювач падав).
+        (d / "result.md").write_text(f"---\ntype: regex\npattern: '{regex}'\nflags: i\n---\n", encoding="utf-8")
     print(dst)
 
 
