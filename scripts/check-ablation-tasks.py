@@ -65,6 +65,9 @@ def format_errors(root: Path, tasks: list[dict], lo: int, hi: int) -> tuple[list
     """Знахідки формату й речі, які перевірити неможливо (коміту немає)."""
     errs: list[str] = []
     missing: list[str] = []
+    # В обрізаному клоні межа історії рве зв'язок «start → solution», навіть коли обидва
+    # коміти є: is-ancestor тоді хибно каже «не предок». Це «не ганялось», а не знахідка.
+    shallow = git(root, "rev-parse", "--is-shallow-repository").stdout.strip() == "true"
     if not lo <= len(tasks) <= hi:
         errs.append(f"задач {len(tasks)}, а має бути {lo}–{hi}")
     seen: set[str] = set()
@@ -90,7 +93,10 @@ def format_errors(root: Path, tasks: list[dict], lo: int, hi: int) -> tuple[list
         start, sol = t.get("start", ""), t.get("solution", "")
         if (SHA.match(str(start)) and SHA.match(str(sol))
                 and git(root, "merge-base", "--is-ancestor", start, sol).returncode == 1):
-            errs.append(f"{tid}: `start` не є предком `solution`")
+            if shallow:
+                missing.append(f"{tid}: зв'язок `start` → `solution` не перевірити — клон обрізаний (shallow)")
+            else:
+                errs.append(f"{tid}: `start` не є предком `solution`")
         asserts = t.get("assertions", [])
         if not isinstance(asserts, list) or not 3 <= len(asserts) <= 6:
             errs.append(f"{tid}: тверджень має бути 3–6")
