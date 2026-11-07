@@ -35,6 +35,16 @@ STALE_DAYS = 14
 MAX_HISTORY = 120
 
 
+
+def same_commit(a, b) -> bool:
+    """Один коміт, хоч скорочення різної довжини: ci-state пише 7 символів, repo-health — 12.
+    Пряме `==` ніколи не збігалось, і кожне заливання звітувалось як «прогону CI немає»
+    (хибний звіт 2026-11-06 про a4c296c, де всі три прогони були зелені)."""
+    a, b = (a or "").lower(), (b or "").lower()
+    if a and a == b:
+        return True
+    return len(a) >= 7 and len(b) >= 7 and (a.startswith(b) or b.startswith(a))
+
 def embed(data: dict) -> str:
     """JSON усередині <script>: `<`, `>` і `&` екрануються — дані з чужих репо не закриють тег."""
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
@@ -142,7 +152,8 @@ def main() -> int:
             continue
         st = (ci.get("repos") or {}).get(repo) or {}
         wf = st.get("workflows") or {}
-        on_sha = {n: (w.get("conclusion") or w.get("status")) for n, w in wf.items() if w.get("sha") == h.get("sha")}
+        on_sha = {n: (w.get("conclusion") or w.get("status")) for n, w in wf.items()
+                  if same_commit(w.get("sha"), h.get("sha"))}
         # Фактичний прогін на цьому коміті — прямий доказ, тож він важить більше за статичну RH01
         if on_sha and all(v == "success" for v in on_sha.values()):
             verdict = "CI зелений"
