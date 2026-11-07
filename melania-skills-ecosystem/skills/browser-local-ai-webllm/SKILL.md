@@ -3,14 +3,14 @@ name: browser-local-ai-webllm
 description: "Run local LLMs directly in the browser via WebLLM (WebGPU) with NO middleware app — no Ollama, no PocketPal, no PC. Covers lazy-loading the ESM lib, WebGPU/HTTPS requirements, device analysis (RAM/VRAM), model-fit ranking, the Chrome 8GB deviceMemory cap, and OpenAI-compatible call/stream. ALWAYS use when adding in-browser local AI, running models client-side without a server, or the user says: локальний AI у браузері, WebLLM, без посередників, модель прямо в застосунку, WebGPU AI, браузерний AI, офлайн модель у браузері, run model in browser, on-device browser inference. Also triggers for: device analysis for model fit, VRAM detection, prebuiltAppConfig, MLCEngine. DO NOT use for server-side inference, native mobile inference, or when Ollama/LM Studio is the intended runtime (those are external providers)."
 license: MIT
 metadata:
-  version: 1.2.6
+  version: 1.3.0
   author: Melania (Master Administrator)
   category: browser-ai
   created: 2026-06-02
-  last_updated: 2026-09-28
+  last_updated: 2026-11-07
 ---
 
-# Browser-Local AI via WebLLM — v1.2.6
+# Browser-Local AI via WebLLM — v1.3.0
 > Напрацьовано на AI Gateway. Реальне рішення локального AI БЕЗ посередників: модель працює прямо в браузері/застосунку через WebGPU. Підтверджено тестуванням @mlc-ai/web-llm v0.2.84 (163 моделі, OpenAI-сумісний API).
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 >
@@ -33,6 +33,7 @@ WebLLM працює ТІЛЬКИ в secure context (HTTPS або localhost) бо
 - **[C] PocketPal НЕ має локального API-сервера** (open feature request) — не може бути middleware. WebLLM — реальна альтернатива.
 - **[C] window.ai / Gemini Nano НЕ працює на Android** (desktop/ChromeOS only).
 - **[C] Chrome навмисне обмежує `navigator.deviceMemory` до МАКС 8GB** (приватність). Це НЕ баг. Дай користувачу ручне коригування. У нативному APK буде справжнє значення.
+- **[E] Моделі q4f16 у WebLLM 0.2.87 оголошують `required_features: ["shader-f16"]`** (звірено за `src/config.ts` тега v0.2.87, 2026-11-07; є й Gemma 4 E2B: q4f16 ≈ 3387 МБ, q4f32 ≈ 3863 МБ). Частина Android-GPU цієї функції не має — тоді q4f16 не завантажиться. Перевіряй `adapter.features.has("shader-f16")` і без неї бери q4f32 без цієї вимоги. Доказ у продукті: `tests/mobile-agent-tests.mjs`, `tests/mobile-agent-browser.mjs` (ai-lab, mobile-agent v0.3.2).
 - [C] Список моделей фіксований версією WebLLM (тільки MLC-конвертовані). Довільну модель додати НЕ можна — для широкого вибору потрібні зовнішні Ollama/LM Studio або нативний застосунок.
 
 ---
@@ -80,7 +81,7 @@ const DeviceAnalyzer={
     if(this._cache)return this._cache;
     const info={deviceMemoryGB:navigator.deviceMemory||null,cores:navigator.hardwareConcurrency||null,webgpu:false,estVramMB:null};
     if(navigator.gpu){ try{ const a=await navigator.gpu.requestAdapter();
-      if(a){info.webgpu=true; info.maxStorageMB=a.limits?.maxStorageBufferBindingSize?Math.round(a.limits.maxStorageBufferBindingSize/1048576):null;}
+      if(a){info.webgpu=true; info.f16=!!a.features?.has?.("shader-f16"); info.maxStorageMB=a.limits?.maxStorageBufferBindingSize?Math.round(a.limits.maxStorageBufferBindingSize/1048576):null;}
     }catch{} }
     info.ramCapped=info.deviceMemoryGB===8; // Chrome cap signal
     const manual=localStorage.getItem("manualRamGB");
@@ -99,9 +100,10 @@ const DeviceAnalyzer={
 
 ```javascript
 const MODEL_FAMILY_RANK={"Qwen3.5":100,"Qwen3":95,"Llama-3.2":90,"Phi-4":88,"gemma3":86,"Qwen2.5":82,...};
-function rankModels(models, estVramMB){
+function rankModels(models, estVramMB, f16=true){ // f16 = DeviceAnalyzer.analyze().f16
   return models.map(m=>({...m, fam:familyOf(m.id), fits:DeviceAnalyzer.fits(m.vram,estVramMB), sizeB:parseFloat((m.id.match(/(\d+(?:\.\d+)?)B/)||[])[1]||999)}))
-    .filter(m=>m.fam!=="other" && /q4f16/.test(m.id)) // q4f16 = оптимальний баланс
+    .filter(m=>m.fam!=="other" && (f16 ? /q4f16/ : /q4f32/).test(m.id)
+      && (f16 || !(m.required_features||[]).includes("shader-f16"))) // q4f16 — баланс, але потребує shader-f16
     .sort((a,b)=> (a.fits!==b.fits ? (b.fits?1:0)-(a.fits?1:0) : b.famRank-a.famRank || b.sizeB-a.sizeB));
 }
 ```
@@ -144,6 +146,7 @@ node -e "const w=require('@mlc-ai/web-llm');console.log('models:',w.prebuiltAppC
 | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~2GB | ⚡⚡ | краща | чат, короткі відповіді |
 | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.5GB | ⚡⚡ | відмінна | розуміння коду |
 | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~5GB | ⚡ | дуже добра | загальне завдання |
+| `gemma-4-E2B-it-q4f16_1-MLC` / `…q4f32_1-MLC` | ~3.4 / ~3.9GB | ⚡⚡ | добра | текст + аудіо-вхід (з 0.2.86) |
 | `Llama-3.1-8B-Instruct-q4f32_1-MLC` | ~6GB | ⚡ | відмінна | best for quality |
 | `Llama-3.3-70B` | ~40GB | — | найкраща | лише в серверних браузерах |
 
@@ -219,6 +222,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.3.0** (2026-11-07) — Вибір моделі під можливості відеочипа: Critical Facts — моделі q4f16 у WebLLM 0.2.87 вимагають `shader-f16`, якого на частині Android-GPU нема [E]; Pattern 2 читає `adapter.features`, Pattern 3 без f16 бере q4f32 без цієї вимоги; у таблиці — Gemma 4 E2B. Звірено за `config.ts` тега v0.2.87 і перевірено в ai-lab mobile-agent v0.3.2 (юніт + браузер з імітованим адаптером). Історичний запис про тест 0.2.84 не змінено. Лише додавання й уточнення шаблонів.
 - **v1.2.6** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.2.5** (2026-07-26) — Core Rule 14 Claim-evidence: 4 факти в Critical Facts отримали теги **[C]** (PocketPal без API-сервера, window.ai не на Android, cap deviceMemory 8GB, фіксований список моделей) — усі із зовнішніх джерел, власного прогону під них нема. Лише тегування, тіло незмінне.
 - **v1.2.4** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): дубль secure-context правила замінено покажчиком на канон у `pwa-to-android-app` Core Rule (WebGPU-специфічна перевірка лишилась тут) [#46]; синхрон H1-банера (був v1.0 при 1.2.3) + `last_updated` [#21/#45]. Лише де-дублювання/метадані.
