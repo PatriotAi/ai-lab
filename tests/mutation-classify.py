@@ -270,6 +270,79 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "        if False:",
         "`grep KEY <<< .env` дає R4 — хибна тривога",
     ),
+    # ── W-43 (2026-11-08): пуш у захищену гілку — за призначенням ───────────
+    (
+        "детектор пушу в захищену гілку вимкнено",
+        "            pushed = _push_hits(push_dests(), protected)",
+        "            pushed = []",
+        "`git push origin HEAD:main` знову R2",
+    ),
+    (
+        "refspec: призначення = джерело",
+        "    dst = dst if \":\" in spec else src",
+        "    dst = src",
+        "`HEAD:main` іде в поточну гілку, `main:feature` — у main",
+    ),
+    (
+        "пуш без refspec не розв'язується",
+        "    implicit = not dests",
+        "    implicit = False",
+        "голий `git push` із main знову R2",
+    ),
+    (
+        "пуш-ціль гілки (`@{push}`) не читається",
+        "        if push.startswith(\"refs/remotes/\") and push.count(\"/\") >= 3:",
+        "        if False:",
+        "гілка, чия пуш-ціль — main, пушить як R2",
+    ),
+    (
+        "`push.default=matching` не враховується",
+        "        if matching or _git_out(gdir, opts, \"config\", \"push.default\").lower() == \"matching\":",
+        "        if False:",
+        "голий пуш, що штовхає всі однойменні гілки, знову R2",
+    ),
+    (
+        "`--all`/`--mirror` не рахуються",
+        "            if arg in _PUSH_ALL:",
+        "            if False:",
+        "`git push --all origin` знову R2",
+    ),
+    (
+        "`cd` перед пушем не враховується",
+        "                    here = os.path.normpath(os.path.join(here, toks[i + 1]))",
+        "                    pass",
+        "`cd <репо на main> && git push` знову R2",
+    ),
+    (
+        "`git -C` не враховується",
+        "                gdir = os.path.normpath(os.path.join(gdir, val))",
+        "                pass",
+        "`git -C <репо на main> push` розв'язується не в тому репо",
+    ),
+    (
+        "`git` упізнається лише як голе слово",
+        "            if cmd not in _PRINTERS and os.path.basename(tok) == \"git\":",
+        "            if cmd not in _PRINTERS and tok == \"git\":",
+        "`/usr/bin/git push origin HEAD:main` знову R2",
+    ),
+    (
+        "друк `echo git push …` вважається пушем",
+        "            if cmd not in _PRINTERS and os.path.basename(tok) == \"git\":",
+        "            if os.path.basename(tok) == \"git\":",
+        "`echo git push origin HEAD:main; ls` дає R4 — хибна тривога",
+    ),
+    (
+        "перемикання гілки перед пушем не враховується",
+        "                switched += _git_switch_target(toks, i + 1)",
+        "                pass",
+        "`git checkout main && git push` знову R2",
+    ),
+    (
+        "`--` у пуші забирає решту ланцюжка",
+        "            while j < n and toks[j] not in _SEGMENT_SEPS:\n                pos.append(toks[j])",
+        "            while j < n:\n                pos.append(toks[j])",
+        "`git push origin -- feature; git checkout main` дає R4 — хибна тривога",
+    ),
 ]
 
 # Перевірки, якими полюємо на мутантів. Кожна має відпрацювати в пісочниці
@@ -280,6 +353,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
 HUNTERS = [
     ("probe-classify.py", []),
     ("probe-mcp-and-quotes.py", []),
+    ("probe-git-push.py", []),
     ("property-classify.py", ["--cases", "60"]),
 ]
 

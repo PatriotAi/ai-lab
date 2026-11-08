@@ -1299,6 +1299,11 @@ check "обидва безпекові джоби проганяють звіт 
 probe=$(cd "$REPO" && python3 tests/probe-classify.py >/dev/null 2>&1; echo $?)
 check "стенд класифікатора: усі випадки збігаються" "0" "$probe"
 
+# W-43: пуш у захищену гілку будь-якою формою — R4; пуш у робочу гілку — ні.
+# Справжні тимчасові git-репо (гілка main, пуш-ціль main, matching).
+push_probe=$(cd "$REPO" && python3 tests/probe-git-push.py >/dev/null 2>&1; echo $?)
+check "пуш у main за призначенням (refspec, -u, без refspec) — R4" "0" "$push_probe"
+
 # Записана згода — іменна й точкова: вона не має відкривати сусідні правила.
 consent_scope=$(cd "$REPO" && python3 -c "
 import sys; sys.path.insert(0,'security/spine')

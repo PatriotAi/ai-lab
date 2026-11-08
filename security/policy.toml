@@ -165,7 +165,12 @@ alternatives = "Якщо перевірка заважає — краще пол
 
 [[rules]]
 id = "merge-to-main"
-match_commands = ["merge_pull_request", "pr merge", "git merge main", "git push origin main"]
+match_commands = ["merge_pull_request", "pr merge", "git merge main"]
+# Пуш у захищену гілку — за ПРИЗНАЧЕННЯМ, а не підрядком (W-43, 2026-11-08):
+# `HEAD:main`, `-u origin main`, `:main`, `--all`, пуш без refspec із `main` чи
+# з гілки, чия пуш-ціль — `main`. Розбір — `_git_push_dests` у `classify.py`;
+# він замінив підрядок `git push origin main`, що ловив одну форму з багатьох.
+match_git_push_dest = ["main", "master"]
 require_target = true
 level = "R4"
 why = "Злиття в `main` — це рішення «ця робота тепер канонічна». Її отримають усі інші сесії. Правило лабораторії: злиття — лише за твоєю явною згодою."

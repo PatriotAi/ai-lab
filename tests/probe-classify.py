@@ -100,6 +100,9 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "ls & rm -rf build", "R4"),
     # Виняток (`--force-with-lease`) діє лише у своїй команді ланцюжка.
     ("Bash", "git push --force-with-lease origin br; git push --force origin main", "R4"),
+    # Те саме без main: з W-43 пуш у main ловить і `merge-to-main`, тож лише ця
+    # форма доводить, що виняток не прикриває сусідню команду (мутант вижив би).
+    ("Bash", "git push --force-with-lease origin br; git push --force origin br2", "R4"),
     # 2. Підстановку в подвійних лапках оболонка ВИКОНУЄ; в одинарних — ні.
     ("Bash", 'ls "$(git push --force origin main)"', "R4"),
     ("Bash", f'echo "$(cat {ENV})"', "R4"),
