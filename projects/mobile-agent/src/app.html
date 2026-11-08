@@ -261,7 +261,7 @@ const state = {
   health: {},                     // cooldown вузлів ланцюга (лише в пам'яті сесії)
   drainTimer: null,
   draining: false,
-  caps: { webgpu: false, secure: false, online: true },
+  caps: { webgpu: false, f16: true, secure: false, online: true },
   local: { engine: null, model: null },
 };
 
@@ -280,7 +280,12 @@ async function detectCaps() {
   state.caps.online = navigator.onLine !== false;
   state.caps.webgpu = false;
   if (navigator.gpu && state.caps.secure) {
-    try { state.caps.webgpu = !!(await navigator.gpu.requestAdapter()); } catch { state.caps.webgpu = false; }
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      state.caps.webgpu = !!adapter;
+      // Без shader-f16 моделі q4f16 не завантажаться — ядро тоді обере q4f32.
+      state.caps.f16 = !!adapter?.features?.has?.("shader-f16");
+    } catch { state.caps.webgpu = false; }
   }
   renderEngine();
 }
@@ -385,7 +390,7 @@ async function runCloud(text, backup = false) {
   return st.truncated ? `${body}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : body;
 }
 
-const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
+const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.87";
 let webllmLib = null;
 async function loadWebllmLib() {
   if (webllmLib) return webllmLib;
@@ -398,8 +403,9 @@ async function ensureLocalModel(onProgress) {
   if (!state.caps.webgpu) throw new Error("WebGPU недоступний (потрібен HTTPS і сучасний Chrome)");
   const lib = await loadWebllmLib();
   const est = estimateVramMB(state.settings.ram || navigator.deviceMemory, true);
-  const models = (lib.prebuiltAppConfig?.model_list || []).map((m) => ({ id: m.model_id, vram: m.vram_required_MB }));
-  const best = rankLocalModels(models, est)[0];
+  const models = (lib.prebuiltAppConfig?.model_list || [])
+    .map((m) => ({ id: m.model_id, vram: m.vram_required_MB, features: m.required_features || [] }));
+  const best = rankLocalModels(models, est, { f16: state.caps.f16 !== false })[0];
   if (!best) throw new Error("Не знайдено придатної моделі");
   state.local.engine = await lib.CreateMLCEngine(best.id, {
     initProgressCallback: (p) => onProgress?.(Math.round((p.progress || 0) * 100), p.text || ""),

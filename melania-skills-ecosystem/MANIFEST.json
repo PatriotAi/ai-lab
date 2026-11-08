@@ -1,6 +1,6 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-11-05",
+ "built": "2026-11-07",
  "governance": "melania-skill-master-administrator v2.24.0",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
@@ -54,10 +54,10 @@
    ]
   },
   "browser-local-ai-webllm": {
-   "version": "1.2.6",
+   "version": "1.3.0",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "e826058359097829",
+    "SKILL.md": "9b4b3e0bfbbf5898",
     "evals/evals.json": "b78bf5d515e4d0bd"
    },
    "files": [
@@ -68,10 +68,10 @@
    ]
   },
   "collaborative-browser": {
-   "version": "3.2.1",
+   "version": "3.3.0",
    "eval_cases": 8,
    "sha256_16": {
-    "SKILL.md": "5c148f0705c03244",
+    "SKILL.md": "c1cd4f5aa19afbc0",
     "evals/evals.json": "6f7ed62b650202cf"
    },
    "files": [
@@ -111,10 +111,10 @@
    ]
   },
   "knowledge-synthesizer": {
-   "version": "1.2.1",
+   "version": "1.3.0",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "0ba0e4b319c347b9",
+    "SKILL.md": "68af19282a23966c",
     "evals/evals.json": "6181d196be6eba3a"
    },
    "files": [
@@ -186,10 +186,10 @@
    ]
   },
   "notebooklm-connector": {
-   "version": "4.4.1",
+   "version": "4.5.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "c081345b7d597ca2",
+    "SKILL.md": "c87d128a9123b57f",
     "evals/evals.json": "bca104be7be197b6"
    },
    "files": [
@@ -341,10 +341,10 @@
    ]
   },
   "source-research-harvest": {
-   "version": "0.4.0",
+   "version": "0.5.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "7b27d526aa8b9a10",
+    "SKILL.md": "5f5f219119b9caec",
     "evals/evals.json": "92ccf2fff431d5d6"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "27d21e9957dd0509"
+ "built_fingerprint": "1dff8f57f0080c7f"
 }

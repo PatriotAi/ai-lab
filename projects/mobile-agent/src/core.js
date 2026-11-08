@@ -6,7 +6,7 @@
 // Правило: усе, що можна перевірити без браузера, живе ТУТ.
 // Усе, що потребує DOM/мережі/WebGPU — в app.html і перевіряється браузерним прогоном.
 
-export const APP_VERSION = "0.3.1";
+export const APP_VERSION = "0.3.2";
 
 // Ідентифікатор моделі — це КОНФІГ застосунку, а не правило лабораторії
 // (закон не-старіння: назви моделей не живуть у правилах). Змінюється в налаштуваннях.
@@ -228,12 +228,15 @@ export function modelFits(vramRequiredMB, estVramMB) {
 
 /**
  * Впорядкування моделей WebLLM: спершу ті, що влазять, далі — менші за розміром.
- * Беремо лише q4f16 (оптимальний баланс якість/пам'ять).
+ * q4f16 — оптимальний баланс якість/пам'ять, але вимагає від відеочипа `shader-f16`
+ * (WebLLM 0.2.87 оголошує це в `required_features`), якого на багатьох Android-GPU нема.
+ * Тоді — q4f32 і лише моделі без вимоги `shader-f16`. f16 невідомий → як раніше, q4f16.
  */
-export function rankLocalModels(models, estVramMB) {
+export function rankLocalModels(models, estVramMB, { f16 = true } = {}) {
   const sizeOf = (id) => parseFloat((String(id).match(/(\d+(?:\.\d+)?)B/i) || [])[1] || "999");
+  const quant = f16 ? /q4f16/i : /q4f32/i;
   return (models || [])
-    .filter((m) => /q4f16/i.test(String(m.id)))
+    .filter((m) => quant.test(String(m.id)) && (f16 || !(m.features || []).includes("shader-f16")))
     .map((m) => ({ ...m, fits: modelFits(m.vram, estVramMB), size: sizeOf(m.id) }))
     .sort((a, b) => {
       const af = a.fits === true ? 1 : 0;

@@ -23,10 +23,16 @@
      є в ТІЛІ (приклад шаблону не є метаданими скіла)
  15. симлінк скіла замінено копією каталогу (тихо ламає «єдине джерело правди»)
  16. --publish без claude CLI: схемна валідація неможлива, реліз не дозволено
+ 17. плагін перейменовано (узгоджено в каталозі й plugin.json) без запису в renames —
+     у користувачів ламається встановлення, а всі інші перевірки зелені
+ 18. ланцюжок renames зациклено
+ 19. ланцюжок renames обірвано (веде до імені, якого нема ні в каталозі, ні в журналі)
+ 20. renames містить ім'я, що досі в каталозі
 
 КОНТРОЛІ (мусять ПРОХОДИТИ — інакше гейт просто завжди червоний):
   · чиста копія репозиторію;
-  · без claude CLI і без --publish: попередження, а не помилка (так працює CI).
+  · без claude CLI і без --publish: попередження, а не помилка (так працює CI);
+  · перейменування, записане в renames (легітимна дія).
 
 Сценарій 9 потребує claude CLI. Якщо його немає на машині, сценарій чесно
 позначається «не ганявся», а не зараховується: без CLI він нічого б не довів.
@@ -198,6 +204,59 @@ def break_nothing(root: Path) -> None:
     """Порожня поломка: сценарій ламає лише СЕРЕДОВИЩЕ (немає claude), не файли."""
 
 
+def git_baseline(root: Path) -> None:
+    """Копія стає git-репозиторієм з одним комітом — «вже опублікований» каталог."""
+    git = ["git", "-C", str(root), "-c", "user.name=canary", "-c", "user.email=canary@example.invalid",
+           "-c", "commit.gpgsign=false"]
+    subprocess.run(git + ["init", "-q"], check=True)
+    subprocess.run(git + ["add", "-A"], check=True)
+    subprocess.run(git + ["commit", "-q", "-m", "published"], check=True)
+
+
+def rename_plugin(root: Path, old: str, new: str) -> None:
+    """Найважчий випадок: ім'я змінено узгоджено в каталозі й у plugin.json — усі інші
+    перевірки гейта зелені, ламається лише встановлення в користувачів."""
+    edit_json(root / ".claude-plugin" / "marketplace.json",
+              lambda d: [e.update(name=new) for e in d["plugins"] if e["name"] == old])
+    edit_json(root / "plugins" / old / ".claude-plugin" / "plugin.json", lambda d: d.update(name=new))
+
+
+def set_renames(root: Path, renames: dict) -> None:
+    edit_json(root / ".claude-plugin" / "marketplace.json", lambda d: d.update(renames=renames))
+
+
+def break_rename_unrecorded(root: Path) -> None:
+    rename_plugin(root, "melania-connect", "melania-connectors")
+
+
+def break_renames_cycle(root: Path) -> None:
+    set_renames(root, {"old-a": "old-b", "old-b": "old-a"})
+
+
+def break_renames_dangling(root: Path) -> None:
+    set_renames(root, {"old-x": "never-existed"})
+
+
+def break_renames_current(root: Path) -> None:
+    set_renames(root, {"melania-build": None})
+
+
+def fix_rename_recorded(root: Path) -> None:
+    """Контроль: перейменування із записом у renames — легітимне, гейт мусить пропустити."""
+    rename_plugin(root, "melania-connect", "melania-connectors")
+    set_renames(root, {"melania-connect": "melania-connectors"})
+
+
+# Сценарії журналу перейменувань: копія з git-історією (каталог уже «опублікований»).
+# (назва, ламач, очікуваний фрагмент)
+GIT_SCENARIOS = [
+    ("17. перейменування без renames", break_rename_unrecorded, "зник з каталогу без запису в renames"),
+    ("18. renames зациклено", break_renames_cycle, "ланцюжок зациклено"),
+    ("19. renames обірвано", break_renames_dangling, "не веде ні до чинного плагіна"),
+    ("20. renames містить чинне ім'я", break_renames_current, "ще в каталозі"),
+]
+
+
 # (назва, ламач, очікуваний фрагмент, --publish, без claude у PATH, потребує claude)
 SCENARIOS = [
     ("1. битий симлінк", break_symlink, "битий симлінк", False, False, False),
@@ -268,8 +327,37 @@ def main() -> int:
             else:
                 print(f"✓ {label}: спіймано")
 
+    with tempfile.TemporaryDirectory() as tmp:
+        # Контроль 3: перейменування, записане в renames, проходить (інакше гейт забороняв би
+        # легітимну дію і його обходили б).
+        root = fresh_copy(Path(tmp) / "repo")
+        git_baseline(root)
+        fix_rename_recorded(root)
+        rc, out = run_gate(root)
+        if rc == 0:
+            controls += 1
+            print("✓ контроль 3: перейменування, записане в renames, проходить (exit 0)")
+        else:
+            failures.append(f"КОНТРОЛЬ 3: записане перейменування мусить проходити, маємо exit={rc}\n{out}")
+            print("✗ контроль 3: записане перейменування не пройшло")
+
+    for label, breaker, expect in GIT_SCENARIOS:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = fresh_copy(Path(tmp) / "repo")
+            git_baseline(root)
+            breaker(root)
+            rc, out = run_gate(root)
+            if rc == 0:
+                failures.append(f"{label}: гейт ПРОПУСТИВ поломку (exit 0)")
+                print(f"✗ {label}: гейт пропустив поломку")
+            elif expect not in out:
+                failures.append(f"{label}: гейт впав, але не на очікуваному ({expect!r})\n{out}")
+                print(f"✗ {label}: впав не на тому — очікували {expect!r}")
+            else:
+                print(f"✓ {label}: спіймано")
+
     print()
-    caught = len(SCENARIOS) - len(skipped)
+    caught = len(SCENARIOS) + len(GIT_SCENARIOS) - len(skipped)
     if failures:
         print(f"КАНАРКИ НЕ ПРОЙДЕНО: {len(failures)} проблем(и)")
         for f in failures:
