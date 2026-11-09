@@ -62,6 +62,8 @@ def cases(on_main: pathlib.Path, feature: pathlib.Path, up_main: pathlib.Path,
         (f"{P} origin :{M}", feature, "R4"),
         (f"{P} --all origin", feature, "R4"),
         (f"{P} --mirror origin", feature, "R4"),
+        (f"{P} --al origin", feature, "R4"),          # однозначне скорочення `--all`
+        (f"{P} --no-dry-run -n --no-dry-run origin HEAD:{M}", feature, "R4"),
         (f"{P} origin 'refs/heads/*:refs/heads/*'", feature, "R4"),
         (f"{P} origin HEAD:mas" + "ter", feature, "R4"),
         (f"git -C {feature} push origin HEAD:{M}", ROOT, "R4"),
@@ -92,10 +94,18 @@ def cases(on_main: pathlib.Path, feature: pathlib.Path, up_main: pathlib.Path,
         (f"{P} origin HEAD", feature, "R2"),
         (f"{P} origin v1.0", feature, "R2"),
         (f"{P} --tags origin", feature, "R2"),
+        (f"{P} --pr origin {M}", feature, "R2"),       # неоднозначне: git відмовить
+        (f"{P} --dry-run origin HEAD:{M}", feature, "R2"),
+        (f"{P} -nu origin {M}", feature, "R2"),          # `-n` у кластері — сухий прогін
+        (f"{P} -o ci.skip origin HEAD:feature", feature, "R2"),
         (f"git -C {feature} push", on_main, "R2"),
         (f"git checkout -b feat && {P}", feature, "R2"),
         (f"git switch -c feat && {P} -u origin HEAD", feature, "R2"),
         (f"{P} origin -- feature; git checkout {M}", feature, "R2"),
+        # Код інтерпретатора: аргументи списком чи рядком — та сама дія (рев'ю #94).
+        (f"python3 -c \"import subprocess; subprocess.run(['git','push','origin','{M}'])\"", feature, "R4"),
+        (f"node -e \"require('child_process').execSync('{P} origin HEAD:{M}')\"", feature, "R4"),
+        (f"python3 -c \"import subprocess; subprocess.run(['git','push','origin','HEAD:x'])\"", feature, "R2"),
         # Згадка — не дія.
         (f"echo {P} origin HEAD:{M}", feature, "R0"),
         (f"echo {P} origin HEAD:{M}; ls", feature, "R2"),   # не чисте читання — друк лишається друком
