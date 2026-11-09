@@ -49,6 +49,7 @@ NEGATIVE = {
     "neg-explain": ("Поясни одним реченням, що робить git rebase.", r"rebase|коміт|commit"),
 }
 ANY_SKILL = "(?:semantic-router|translate-uaen)"
+SETS = ("r1", "r1b")
 
 
 def _words(text: str) -> list[str]:
@@ -107,4 +108,9 @@ def main(dst: Path, case_set: str = "r1") -> None:
 if __name__ == "__main__":
     if sys.argv[1:] == ["--overlap"]:
         sys.exit(overlap())
-    main(Path(sys.argv[1]), sys.argv[3] if sys.argv[2:3] == ["--set"] else "r1")
+    # Невідома назва набору (`--set r1bb`) — помилка, а не тихий `r1`: інакше прогін без
+    # відкладених і негативних кейсів можна прийняти за вимір R1b (рев'ю #119).
+    case_set = sys.argv[3] if sys.argv[2:3] == ["--set"] and len(sys.argv) > 3 else "r1"
+    if sys.argv[2:] and (sys.argv[2:3] != ["--set"] or len(sys.argv) != 4 or case_set not in SETS):
+        sys.exit(f"невідомі аргументи {sys.argv[2:]}: очікую [--set {'|'.join(SETS)}]")
+    main(Path(sys.argv[1]), case_set)
