@@ -279,6 +279,133 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "        if False:",
         "`grep KEY <<< .env` дає R4 — хибна тривога",
     ),
+    # ── W-43 (2026-11-08): пуш у захищену гілку — за призначенням ───────────
+    (
+        "детектор пушу в захищену гілку вимкнено",
+        "            pushed = _push_hits(push_dests(), protected)",
+        "            pushed = []",
+        "`git push origin HEAD:main` знову R2",
+    ),
+    (
+        "refspec: призначення = джерело",
+        "    dst = dst if \":\" in spec else src",
+        "    dst = src",
+        "`HEAD:main` іде в поточну гілку, `main:feature` — у main",
+    ),
+    (
+        "пуш без refspec не розв'язується",
+        "    implicit = not dests",
+        "    implicit = False",
+        "голий `git push` із main знову R2",
+    ),
+    (
+        "пуш-ціль гілки (`@{push}`) не читається",
+        "        if push.startswith(\"refs/remotes/\") and push.count(\"/\") >= 3:",
+        "        if False:",
+        "гілка, чия пуш-ціль — main, пушить як R2",
+    ),
+    (
+        "`push.default=matching` не враховується",
+        "        if matching or _git_out(gdir, opts, \"config\", \"push.default\").lower() == \"matching\":",
+        "        if False:",
+        "голий пуш, що штовхає всі однойменні гілки, знову R2",
+    ),
+    (
+        "`--all`/`--mirror` не рахуються",
+        "            wild |= name in _PUSH_ALL",
+        "            wild |= False",
+        "`git push --all origin` знову R2",
+    ),
+    (
+        "`cd` перед пушем не враховується",
+        "                    here = os.path.normpath(os.path.join(here, toks[i + 1]))",
+        "                    pass",
+        "`cd <репо на main> && git push` знову R2",
+    ),
+    (
+        "`git -C` не враховується",
+        "                gdir = os.path.normpath(os.path.join(gdir, val))",
+        "                pass",
+        "`git -C <репо на main> push` розв'язується не в тому репо",
+    ),
+    (
+        "`git` упізнається лише як голе слово",
+        "            if cmd not in _PRINTERS and os.path.basename(tok) == \"git\":",
+        "            if cmd not in _PRINTERS and tok == \"git\":",
+        "`/usr/bin/git push origin HEAD:main` знову R2",
+    ),
+    (
+        "друк `echo git push …` вважається пушем",
+        "            if cmd not in _PRINTERS and os.path.basename(tok) == \"git\":",
+        "            if os.path.basename(tok) == \"git\":",
+        "`echo git push origin HEAD:main; ls` дає R4 — хибна тривога",
+    ),
+    (
+        "перемикання гілки перед пушем не враховується",
+        "                    switched, last, certain = switched + target, target, True",
+        "                    pass",
+        "`git checkout main && git push` знову R2",
+    ),
+    (
+        "`--` у пуші забирає решту ланцюжка",
+        "            while j < n and toks[j] not in _SEGMENT_SEPS:\n                pos.append(toks[j])",
+        "            while j < n:\n                pos.append(toks[j])",
+        "`git push origin -- feature; git checkout main` дає R4 — хибна тривога",
+    ),
+    (
+        "код інтерпретатора не розбирається на пуш",
+        "        texts.append(re.sub(r\"['\\\"\\\\,\\[\\]]\", \" \", command))",
+        "        pass",
+        "`python3 -c \"subprocess.run(['git','push','origin','main'])\"` знову R2",
+    ),
+    (
+        "скорочення довгих прапорців пушу не розгортаються",
+        "    cands = [o for o in _PUSH_LONG if o.startswith(flag)]",
+        "    cands = []",
+        "`git push --al origin` (= `--all`) знову R2",
+    ),
+    (
+        "сухий прогін пушу вважається пушем",
+        "        return []                          # сухий прогін нічого не пушить",
+        "        pass",
+        "`git push --dry-run origin HEAD:main` дає R4 — хибна тривога",
+    ),
+    (
+        "конфіг пушу з `-c` не передається в розв'язання",
+        "                    opts += [\"-c\", val]",
+        "                    pass",
+        "`git -c remote.origin.push=HEAD:main push` знову R2 (C1)",
+    ),
+    (
+        "`--config-env` не враховується",
+        "                matching |= _push_cfg_key(val.split(\"=\", 1)[0])",
+        "                pass",
+        "`git --config-env=remote.origin.push=VAR push` знову R2 (C1)",
+    ),
+    (
+        "конфіг git зі змінних середовища не читається",
+        "        env_cfg = _env_git_config(toks)",
+        "        env_cfg = []",
+        "`GIT_CONFIG_KEY_0=remote.origin.push … git push` знову R2 (C1)",
+    ),
+    (
+        "роздільник не скидає певність перемикання",
+        "                certain = certain and tok == \"&&\"",
+        "                pass",
+        "`git checkout x; git push` з main знову R2 — пуш іде й після збою перемикання",
+    ),
+    (
+        "новий рядок не вважається роздільником",
+        "        toks = _tokens(text.replace(\"\\\\\\n\", \" \").replace(\"\\n\", \" ; \"))",
+        "        toks = _tokens(text)",
+        "`git checkout feature⏎git push` з main знову R2",
+    ),
+    (
+        "певне перемикання не звужує ціль",
+        "    current = [] if only_switched else [\"\"]       # \"\" — поточна гілка (HEAD)",
+        "    current = [\"\"]",
+        "`git checkout feature && git push` з main — R4, хибна тривога (C4)",
+    ),
     # ── 2026-10-18: полювання на форми дії (F-25…F-28) ───────────────────────
     (
         "кластер прапорців виконавця не розбирається",
@@ -563,6 +690,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
 HUNTERS = [
     ("probe-classify.py", []),
     ("probe-mcp-and-quotes.py", []),
+    ("probe-git-push.py", []),
     ("property-classify.py", ["--cases", "60"]),
 ]
 

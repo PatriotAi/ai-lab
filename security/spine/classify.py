@@ -25,6 +25,7 @@ import fnmatch
 import os
 import re
 import shlex
+import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass, field
@@ -1269,6 +1270,277 @@ def _gh_api_call(toks: list[str], j: int, text: str, reads: set[str]) -> tuple[s
     return (scope, verb not in reads)
 
 
+# Глобальні опції git і опції `push`, що беруть значення ОКРЕМИМ словом.
+_GIT_VALUE_OPTS = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
+_PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec"}
+_PUSH_ALL = {"--all", "--mirror", "--branches"}
+# Довгі прапорці `git push`: git приймає однозначні СКОРОЧЕННЯ (`--al` = `--all`), а
+# неоднозначне (`--pr` — `--prune` чи `--progress`) відхиляє — пушу не буде (як у F-26).
+_PUSH_LONG = (
+    "--all", "--branches", "--mirror", "--prune", "--dry-run", "--no-dry-run", "--porcelain",
+    "--delete", "--tags", "--follow-tags", "--no-follow-tags", "--signed", "--no-signed",
+    "--atomic", "--no-atomic", "--push-option", "--receive-pack", "--exec", "--repo",
+    "--force-with-lease", "--no-force-with-lease", "--force-if-includes",
+    "--no-force-if-includes", "--force", "--set-upstream", "--thin", "--no-thin", "--quiet",
+    "--verbose", "--progress", "--no-progress", "--recurse-submodules",
+    "--no-recurse-submodules", "--verify", "--no-verify", "--ipv4", "--ipv6",
+)
+
+
+def _push_long(flag: str) -> str:
+    """Повна назва довгого прапорця `git push`; '?' — неоднозначне скорочення."""
+    if flag in _PUSH_LONG:
+        return flag
+    cands = [o for o in _PUSH_LONG if o.startswith(flag)]
+    return cands[0] if len(cands) == 1 else ("?" if cands else flag)
+
+
+def _git_push_dests(command: str, root: Path, cwd: str | None) -> list[str]:
+    """Гілки, у які команда ПУШИТЬ: повні імена (`refs/heads/x`, можливо з `*`) або `*`.
+
+    W-43 (2026-11-08). Правило `merge-to-main` ловило пуш у `main` підрядком
+    однієї форми — а той самий незворотний крок має їх багато: призначення
+    через refspec (`HEAD:main`, `гілка:refs/heads/main`), прапорець між словами
+    (`-u origin main`), видалення (`:main`, `--delete main`), `--all`/`--mirror`
+    і пуш без refspec, коли поточна гілка — `main` чи її пуш-ціль веде в `main`.
+    Тому вердикт — за ПРИЗНАЧЕННЯМ, як `gh api` за методом (F-20).
+
+    Пуш без refspec (і refspec `HEAD`/`@`) розв'язується в теці запуску
+    (`cwd` хука, `cd`, `-C`) читальними викликами git: поточна гілка, `@{push}`,
+    `push.default=matching`, `remote.*.push`. Не вдалося розв'язати — git теж не
+    знає, куди пушити, і пуш не відбудеться.
+
+    Виклик шукається за СЛОВАМИ (як `gh api`): `echo git push …` і текст у
+    лапках — дані; `bash -c '…'`, тіло heredoc в оболонку й підстановки —
+    код. Межа: псевдоніми git (`git p`) і обгортки-скрипти не розгортаються.
+    """
+    body = _HEREDOC.sub(r"\1", command)
+    texts = [body] + _substitutions(body)
+    if executes_inline_code(command):
+        texts += [a or b for a, b in re.findall(r"'([^']*)'|\"([^\"]*)\"", command)]
+        texts += [line for chunk in _heredoc_bodies(command) for line in chunk.splitlines()]
+    # Код інтерпретатора (`python3 -c`, `node -e`): аргументи бувають СПИСКОМ
+    # (`['git','push','origin','main']`) — лапки, коми й дужки там лише роздільники
+    # (той самий прийом, що в F-26 і в сегментах правил-команд, рев'ю #94).
+    if _invokes(command):
+        texts.append(re.sub(r"['\"\\,\[\]]", " ", command))
+    base = os.path.normpath(cwd) if cwd else str(root)
+    dests: list[str] = []
+    for text in texts:
+        if "git" not in text or "push" not in text:
+            continue
+        # Новий рядок — роздільник команд, як `;` (shlex вважає його пробілом);
+        # продовження рядка `\` + перевід — ні (рев'ю #119).
+        toks = _tokens(text.replace("\\\n", " ").replace("\n", " ; "))
+        # Перемикання гілки до пушу (C4, рев'ю #119): після `git checkout X && git push`
+        # пушиться лише X — збій перемикання зупинив би й пуш. Будь-який інший
+        # роздільник (`;`, `||`, `|`, `&`, новий рядок) пускає пуш і після збою — тоді
+        # ціль — поточна гілка й УСІ перемикання (закрито за замовчуванням).
+        here, cmd, switched, last, certain = base, "", [], [], False
+        env_cfg = _env_git_config(toks)
+        for i, tok in enumerate(toks):
+            if tok in _SEGMENT_SEPS:
+                cmd = ""
+                certain = certain and tok == "&&"
+                continue
+            if not cmd:
+                if re.match(r"^[A-Za-z_]\w*=", tok):
+                    continue
+                cmd = os.path.basename(tok)
+                if cmd in ("cd", "pushd") and i + 1 < len(toks) and \
+                        not toks[i + 1].startswith(("~", "$", "-")):
+                    here = os.path.normpath(os.path.join(here, toks[i + 1]))
+            if cmd not in _PRINTERS and os.path.basename(tok) == "git":
+                target = _git_switch_target(toks, i + 1)
+                if target:
+                    switched, last, certain = switched + target, target, True
+                dests += _git_push_call(toks, i + 1, here, last if certain else switched,
+                                        only_switched=certain, extra_opts=env_cfg)
+    return dests
+
+
+# Ключі конфігу, від яких залежить ЦІЛЬ пушу. Лише їх гейт передає у свої читальні
+# виклики git: `remote.*.push`, `push.default`, `branch.*.merge/remote` не виконують коду.
+_PUSH_CFG = ("remote.", "push.", "branch.")
+
+
+def _push_cfg_key(key: str) -> bool:
+    return key.strip().lower().startswith(_PUSH_CFG)
+
+
+def _env_git_config(toks: list[str]) -> list[str]:
+    """Конфіг git зі змінних середовища в тексті команди → опції `-c` (C1, рев'ю #119).
+
+    `GIT_CONFIG_COUNT/KEY_n/VALUE_n` і `GIT_CONFIG_PARAMETERS` діють як `git -c`:
+    `GIT_CONFIG_KEY_0=remote.origin.push GIT_CONFIG_VALUE_0=HEAD:main git push`
+    пушить у main. Збираються з усього тексту (і з `export`), що закрито за
+    замовчуванням: зайве присвоєння лише додає можливу ціль.
+    """
+    keys, values, out = {}, {}, []
+    for tok in toks:
+        m = re.match(r"^GIT_CONFIG_(KEY|VALUE)_(\d+)=(.*)$", tok, re.S)
+        if m:
+            (keys if m.group(1) == "KEY" else values)[m.group(2)] = m.group(3)
+        elif tok.startswith("GIT_CONFIG_PARAMETERS="):
+            for k, v in re.findall(r"'([^']+)'='([^']*)'", tok):
+                if _push_cfg_key(k):
+                    out += ["-c", f"{k}={v}"]
+    for idx, key in keys.items():
+        if _push_cfg_key(key):
+            out += ["-c", f"{key}={values.get(idx, '')}"]
+    return out
+
+
+def _git_out(gdir: str, opts: list[str], *args: str) -> str:
+    """Читальний виклик git у теці запуску; збій — порожньо."""
+    try:
+        r = subprocess.run(["git", *opts, *args], cwd=gdir, capture_output=True,
+                           text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _refspec_dest(spec: str) -> str:
+    """Призначення refspec як повне ім'я гілки; `HEAD` — поточна; '' — не гілка."""
+    spec = spec.lstrip("+")
+    src, _, dst = spec.partition(":")
+    dst = dst if ":" in spec else src
+    dst = dst or src
+    if dst.upper() in ("HEAD", "@"):
+        return "HEAD"
+    if dst.startswith("refs/"):
+        return dst
+    return "refs/heads/" + dst if dst else ""
+
+
+def _git_globals(toks: list[str], j: int, here: str) -> tuple[int, str, list[str], bool]:
+    """Глобальні опції git від слова після `git`: (індекс підкоманди, тека, опції, matching)."""
+    n, gdir, opts, matching = len(toks), here, [], False
+    while j < n and toks[j].startswith("-") and toks[j] not in _SEGMENT_SEPS:
+        opt = toks[j]
+        if opt in _GIT_VALUE_OPTS and j + 1 < n:
+            val = toks[j + 1]
+            if opt == "-C":
+                gdir = os.path.normpath(os.path.join(gdir, val))
+            elif opt == "-c":
+                matching |= val.replace(" ", "").lower() == "push.default=matching"
+                # Конфіг виклику (`-c remote.origin.push=HEAD:main`) змінює ціль
+                # пушу без refspec — його бачать і читальні виклики гейта (C1).
+                if _push_cfg_key(val.split("=", 1)[0]):
+                    opts += ["-c", val]
+            elif opt == "--config-env":
+                # Значення — у змінній середовища, якої гейт не бачить: ціль невідома,
+                # тож «усі гілки», як для `matching` (закрито за замовчуванням).
+                matching |= _push_cfg_key(val.split("=", 1)[0])
+            elif opt in ("--git-dir", "--work-tree"):
+                opts.append(f"{opt}={val}")
+            j += 2
+            continue
+        if opt.startswith(("--git-dir=", "--work-tree=")):
+            opts.append(opt)
+        elif opt.startswith("--config-env="):
+            matching |= _push_cfg_key(opt.split("=", 2)[1])
+        j += 1
+    return j, gdir, opts, matching
+
+
+def _git_switch_target(toks: list[str], j: int) -> list[str]:
+    """Гілка, на яку команда перемикається (`git checkout`/`git switch`) ДО пушу.
+
+    `git checkout main && git push` пушить `main`, хоча на момент рішення гейта
+    поточна гілка інша. Віддалена назва (`origin/main`) дає й коротку (`main`):
+    `--track` створює однойменну локальну гілку.
+    """
+    j, _, _, _ = _git_globals(toks, j, "")
+    n = len(toks)
+    if j >= n or toks[j] not in ("checkout", "switch"):
+        return []
+    j += 1
+    while j < n and toks[j] not in _SEGMENT_SEPS and toks[j] != "--":
+        arg = toks[j]
+        if arg in ("-b", "-B", "-c", "-C", "--orphan", "--create", "--force-create") and j + 1 < n:
+            return [toks[j + 1]]
+        if not arg.startswith("-"):
+            return [arg] + ([arg.split("/", 1)[1]] if "/" in arg else [])
+        j += 1
+    return []
+
+
+def _git_push_call(toks: list[str], j: int, here: str, switched: list[str] = (),
+                   only_switched: bool = False, extra_opts: list[str] = ()) -> list[str]:
+    """Розбір одного `git … push …` від слова після `git`: призначення пушу.
+
+    `only_switched` — гілку певно перемкнуто тією ж командою (`&&`): поточна гілка
+    на момент рішення гейта вже не та, з якої піде пуш.
+    """
+    n = len(toks)
+    j, gdir, opts, matching = _git_globals(toks, j, here)
+    opts = [*extra_opts, *opts]
+    if j >= n or toks[j] != "push":
+        return []
+    pos: list[str] = []
+    wild = dry = False
+    j += 1
+    while j < n and toks[j] not in _SEGMENT_SEPS:
+        arg = toks[j]
+        if arg == "--":
+            j += 1
+            while j < n and toks[j] not in _SEGMENT_SEPS:
+                pos.append(toks[j])
+                j += 1
+            break
+        if arg.startswith("--"):
+            name = _push_long(arg.split("=", 1)[0])
+            if name == "?":
+                return []                  # git відмовить на неоднозначному скороченні
+            wild |= name in _PUSH_ALL
+            dry = (dry or name == "--dry-run") and name != "--no-dry-run"
+            if name in _PUSH_VALUE_OPTS and "=" not in arg:
+                j += 1
+        elif arg.startswith("-") and len(arg) > 1:
+            # Кластер коротких: `-n` — сухий прогін; `-o` бере значення (окремим словом,
+            # якщо в кластері після `o` нічого нема). Той самий розбір, що й F-26.
+            dry |= "n" in _push_short_letters(arg)
+            if "o" in arg[1:] and not arg[1:].split("o", 1)[1]:
+                j += 1
+        else:
+            pos.append(arg)
+        j += 1
+    if dry:
+        return []                          # сухий прогін нічого не пушить
+    if wild:
+        return ["*"]
+    dests = [_refspec_dest(s) if s != ":" else "*" for s in pos[1:]]
+    implicit = not dests
+    current = [] if only_switched else [""]       # "" — поточна гілка (HEAD)
+    if implicit or "HEAD" in dests:
+        branch = _git_out(gdir, opts, "symbolic-ref", "--quiet", "HEAD") if current else ""
+        dests = [d for d in dests if d != "HEAD"] + ([branch] if branch else []) + \
+            ["refs/heads/" + s for s in switched]
+    if implicit:
+        for name in current + list(switched):
+            push = _git_out(gdir, opts, "rev-parse", "--symbolic-full-name", f"{name}@{{push}}")
+            if push.startswith("refs/remotes/") and push.count("/") >= 3:
+                dests.append("refs/heads/" + push.split("/", 3)[3])
+        if matching or _git_out(gdir, opts, "config", "push.default").lower() == "matching":
+            dests.append("*")
+        configured = _git_out(gdir, opts, "config", "--get-regexp", r"^remote\..*\.push$")
+        dests += [_refspec_dest(line.split()[-1]) for line in configured.splitlines() if line.split()]
+    return [d for d in dests if d and d != "HEAD"]
+
+
+def _push_hits(dests: list[str], protected: list[str]) -> list[str]:
+    """Захищені гілки, у які йде пуш: точна назва або візерунок refspec (`refs/heads/*`)."""
+    hits = []
+    for d in dests:
+        for name in protected:
+            full = "refs/heads/" + name.lower()
+            if d == "*" or fnmatch.fnmatchcase(full, d.lower()):
+                hits.append(name)
+    return list(dict.fromkeys(hits))
+
+
 def _verb_hit(text: str, verbs: list[str], bare: bool = False) -> bool:
     """Чи містить назва (або аргумент `method`) одне з дієслів.
 
@@ -1448,6 +1720,13 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     # правил пишуться з одним, тож `push  --force` (два пробіли) чи табуляція
     # давали R2 на тій самій незворотній дії.
     segments = [" ".join(seg.split()) for seg in segments]
+    # Призначення пушу рахуються раз і лише на вимогу правила (виклики git).
+    dest_cache: list[list[str]] = []
+
+    def push_dests() -> list[str]:
+        if not dest_cache:
+            dest_cache.append(_git_push_dests(command, root, cwd))
+        return dest_cache[0]
 
     def rule_verdict(idx: int, rule: dict) -> Verdict | None:
         need = bool(rule.get("require_target"))
@@ -1496,6 +1775,14 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
             if any(needle.lower() in seg and not any(exc in seg for exc in exceptions)
                    for seg in segments):
                 return verdict(f"команда містить «{needle}» (правило «{rule['id']}»)",
+                               command, command, " ".join(command.split()))
+        # Пуш у захищену гілку — за ПРИЗНАЧЕННЯМ, будь-якою формою (W-43).
+        protected = rule.get("match_git_push_dest", [])
+        if protected:
+            pushed = _push_hits(push_dests(), protected)
+            if pushed:
+                return verdict(f"пуш у захищену гілку «{', '.join(pushed)}» "
+                               f"(правило «{rule['id']}»)",
                                command, command, " ".join(command.split()))
         return None
 

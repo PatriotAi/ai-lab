@@ -1,0 +1,144 @@
+{
+ "claudeVersion": "2.1.319",
+ "costUsd": 0.29533600000000004,
+ "partial": false,
+ "aggregates": {
+  "casesTotal": 2,
+  "casesPassed": 2,
+  "overallScore": 1,
+  "overallPassRate": 1,
+  "meanDelta": 0
+ },
+ "cases": [
+  {
+   "name": "neg-explain",
+   "model": "sonnet",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.026222,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.026452,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.026122,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.023724000000000002,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.023635999999999997,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.023764,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "neg-math",
+   "model": "sonnet",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.025570000000000002,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.025582,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.025594000000000002,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.022898,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.022886,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.022886,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
