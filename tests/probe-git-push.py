@@ -86,6 +86,23 @@ def cases(on_main: pathlib.Path, feature: pathlib.Path, up_main: pathlib.Path,
         (P, up_main, "R4"),                      # feature, але пуш-ціль — main
         (P, matching, "R4"),                     # push.default=matching штовхає й main
         (f"git -c push.default=matching push origin", feature, "R4"),
+        # Конфіг пушу задано в самому виклику (C1, рев'ю #119).
+        (f"git -c remote.origin.push=HEAD:refs/heads/{M} push origin", feature, "R4"),
+        (f"git -c remote.origin.push=HEAD:refs/heads/{M} push", feature, "R4"),
+        (f"git -c push.default=upstream -c branch.feature.remote=origin "
+         f"-c branch.feature.merge=refs/heads/{M} push", feature, "R4"),
+        (f"GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.push "
+         f"GIT_CONFIG_VALUE_0=HEAD:refs/heads/{M} {P}", feature, "R4"),
+        (f"export GIT_CONFIG_PARAMETERS=\"'remote.origin.push'='HEAD:refs/heads/{M}'\"; {P}",
+         feature, "R4"),
+        (f"git --config-env=remote.origin.push=SPEC push", feature, "R4"),
+        (f"git --config-env remote.origin.push=SPEC push", feature, "R4"),
+        # Перемикання: роздільник, після якого пуш іде й при збої перемикання (C4).
+        (f"git checkout nonexistent; {P}", on_main, "R4"),
+        (f"git checkout feature || {P} origin HEAD", on_main, "R4"),
+        (f"git checkout feature\n{P} origin HEAD", on_main, "R4"),
+        (f"git checkout {M} && git checkout x; {P}", feature, "R4"),
+        (f"{P} \\\n origin HEAD:{M}", feature, "R4"),
         # ── Не main — не R4 (інакше гейт кричить на кожному робочому пуші) ───
         (f"{P} -u origin claude/x", feature, "R2"),
         (f"{P} origin HEAD:feature", feature, "R2"),
@@ -99,6 +116,11 @@ def cases(on_main: pathlib.Path, feature: pathlib.Path, up_main: pathlib.Path,
         (f"{P} -nu origin {M}", feature, "R2"),          # `-n` у кластері — сухий прогін
         (f"{P} -o ci.skip origin HEAD:feature", feature, "R2"),
         (f"git -C {feature} push", on_main, "R2"),
+        # Певне перемикання (`&&`): пушиться лише нова гілка (C4, рев'ю #119).
+        (f"git checkout feature && {P} origin HEAD", on_main, "R2"),
+        (f"git switch feature && {P}", on_main, "R2"),
+        (f"git -c remote.origin.push=HEAD:refs/heads/feature push", feature, "R2"),
+        (f"git -c remote.origin.push=HEAD:refs/heads/{M} push origin HEAD:feature", feature, "R2"),
         (f"git checkout -b feat && {P}", feature, "R2"),
         (f"git switch -c feat && {P} -u origin HEAD", feature, "R2"),
         (f"{P} origin -- feature; git checkout {M}", feature, "R2"),

@@ -1329,11 +1329,19 @@ def _git_push_dests(command: str, root: Path, cwd: str | None) -> list[str]:
     for text in texts:
         if "git" not in text or "push" not in text:
             continue
-        toks = _tokens(text)
-        here, cmd, switched = base, "", []
+        # Новий рядок — роздільник команд, як `;` (shlex вважає його пробілом);
+        # продовження рядка `\` + перевід — ні (рев'ю #119).
+        toks = _tokens(text.replace("\\\n", " ").replace("\n", " ; "))
+        # Перемикання гілки до пушу (C4, рев'ю #119): після `git checkout X && git push`
+        # пушиться лише X — збій перемикання зупинив би й пуш. Будь-який інший
+        # роздільник (`;`, `||`, `|`, `&`, новий рядок) пускає пуш і після збою — тоді
+        # ціль — поточна гілка й УСІ перемикання (закрито за замовчуванням).
+        here, cmd, switched, last, certain = base, "", [], [], False
+        env_cfg = _env_git_config(toks)
         for i, tok in enumerate(toks):
             if tok in _SEGMENT_SEPS:
                 cmd = ""
+                certain = certain and tok == "&&"
                 continue
             if not cmd:
                 if re.match(r"^[A-Za-z_]\w*=", tok):
@@ -1343,9 +1351,44 @@ def _git_push_dests(command: str, root: Path, cwd: str | None) -> list[str]:
                         not toks[i + 1].startswith(("~", "$", "-")):
                     here = os.path.normpath(os.path.join(here, toks[i + 1]))
             if cmd not in _PRINTERS and os.path.basename(tok) == "git":
-                switched += _git_switch_target(toks, i + 1)
-                dests += _git_push_call(toks, i + 1, here, switched)
+                target = _git_switch_target(toks, i + 1)
+                if target:
+                    switched, last, certain = switched + target, target, True
+                dests += _git_push_call(toks, i + 1, here, last if certain else switched,
+                                        only_switched=certain, extra_opts=env_cfg)
     return dests
+
+
+# Ключі конфігу, від яких залежить ЦІЛЬ пушу. Лише їх гейт передає у свої читальні
+# виклики git: `remote.*.push`, `push.default`, `branch.*.merge/remote` не виконують коду.
+_PUSH_CFG = ("remote.", "push.", "branch.")
+
+
+def _push_cfg_key(key: str) -> bool:
+    return key.strip().lower().startswith(_PUSH_CFG)
+
+
+def _env_git_config(toks: list[str]) -> list[str]:
+    """Конфіг git зі змінних середовища в тексті команди → опції `-c` (C1, рев'ю #119).
+
+    `GIT_CONFIG_COUNT/KEY_n/VALUE_n` і `GIT_CONFIG_PARAMETERS` діють як `git -c`:
+    `GIT_CONFIG_KEY_0=remote.origin.push GIT_CONFIG_VALUE_0=HEAD:main git push`
+    пушить у main. Збираються з усього тексту (і з `export`), що закрито за
+    замовчуванням: зайве присвоєння лише додає можливу ціль.
+    """
+    keys, values, out = {}, {}, []
+    for tok in toks:
+        m = re.match(r"^GIT_CONFIG_(KEY|VALUE)_(\d+)=(.*)$", tok, re.S)
+        if m:
+            (keys if m.group(1) == "KEY" else values)[m.group(2)] = m.group(3)
+        elif tok.startswith("GIT_CONFIG_PARAMETERS="):
+            for k, v in re.findall(r"'([^']+)'='([^']*)'", tok):
+                if _push_cfg_key(k):
+                    out += ["-c", f"{k}={v}"]
+    for idx, key in keys.items():
+        if _push_cfg_key(key):
+            out += ["-c", f"{key}={values.get(idx, '')}"]
+    return out
 
 
 def _git_out(gdir: str, opts: list[str], *args: str) -> str:
@@ -1382,12 +1425,22 @@ def _git_globals(toks: list[str], j: int, here: str) -> tuple[int, str, list[str
                 gdir = os.path.normpath(os.path.join(gdir, val))
             elif opt == "-c":
                 matching |= val.replace(" ", "").lower() == "push.default=matching"
+                # Конфіг виклику (`-c remote.origin.push=HEAD:main`) змінює ціль
+                # пушу без refspec — його бачать і читальні виклики гейта (C1).
+                if _push_cfg_key(val.split("=", 1)[0]):
+                    opts += ["-c", val]
+            elif opt == "--config-env":
+                # Значення — у змінній середовища, якої гейт не бачить: ціль невідома,
+                # тож «усі гілки», як для `matching` (закрито за замовчуванням).
+                matching |= _push_cfg_key(val.split("=", 1)[0])
             elif opt in ("--git-dir", "--work-tree"):
                 opts.append(f"{opt}={val}")
             j += 2
             continue
         if opt.startswith(("--git-dir=", "--work-tree=")):
             opts.append(opt)
+        elif opt.startswith("--config-env="):
+            matching |= _push_cfg_key(opt.split("=", 2)[1])
         j += 1
     return j, gdir, opts, matching
 
@@ -1414,10 +1467,16 @@ def _git_switch_target(toks: list[str], j: int) -> list[str]:
     return []
 
 
-def _git_push_call(toks: list[str], j: int, here: str, switched: list[str] = ()) -> list[str]:
-    """Розбір одного `git … push …` від слова після `git`: призначення пушу."""
+def _git_push_call(toks: list[str], j: int, here: str, switched: list[str] = (),
+                   only_switched: bool = False, extra_opts: list[str] = ()) -> list[str]:
+    """Розбір одного `git … push …` від слова після `git`: призначення пушу.
+
+    `only_switched` — гілку певно перемкнуто тією ж командою (`&&`): поточна гілка
+    на момент рішення гейта вже не та, з якої піде пуш.
+    """
     n = len(toks)
     j, gdir, opts, matching = _git_globals(toks, j, here)
+    opts = [*extra_opts, *opts]
     if j >= n or toks[j] != "push":
         return []
     pos: list[str] = []
@@ -1454,14 +1513,16 @@ def _git_push_call(toks: list[str], j: int, here: str, switched: list[str] = ())
         return ["*"]
     dests = [_refspec_dest(s) if s != ":" else "*" for s in pos[1:]]
     implicit = not dests
+    current = [] if only_switched else [""]       # "" — поточна гілка (HEAD)
     if implicit or "HEAD" in dests:
-        branch = _git_out(gdir, opts, "symbolic-ref", "--quiet", "HEAD")
+        branch = _git_out(gdir, opts, "symbolic-ref", "--quiet", "HEAD") if current else ""
         dests = [d for d in dests if d != "HEAD"] + ([branch] if branch else []) + \
             ["refs/heads/" + s for s in switched]
     if implicit:
-        push = _git_out(gdir, opts, "rev-parse", "--symbolic-full-name", "@{push}")
-        if push.startswith("refs/remotes/") and push.count("/") >= 3:
-            dests.append("refs/heads/" + push.split("/", 3)[3])
+        for name in current + list(switched):
+            push = _git_out(gdir, opts, "rev-parse", "--symbolic-full-name", f"{name}@{{push}}")
+            if push.startswith("refs/remotes/") and push.count("/") >= 3:
+                dests.append("refs/heads/" + push.split("/", 3)[3])
         if matching or _git_out(gdir, opts, "config", "push.default").lower() == "matching":
             dests.append("*")
         configured = _git_out(gdir, opts, "config", "--get-regexp", r"^remote\..*\.push$")

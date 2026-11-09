@@ -342,8 +342,8 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "перемикання гілки перед пушем не враховується",
-        "                switched += _git_switch_target(toks, i + 1)",
-        "                pass",
+        "                    switched, last, certain = switched + target, target, True",
+        "                    pass",
         "`git checkout main && git push` знову R2",
     ),
     (
@@ -369,6 +369,42 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "        return []                          # сухий прогін нічого не пушить",
         "        pass",
         "`git push --dry-run origin HEAD:main` дає R4 — хибна тривога",
+    ),
+    (
+        "конфіг пушу з `-c` не передається в розв'язання",
+        "                    opts += [\"-c\", val]",
+        "                    pass",
+        "`git -c remote.origin.push=HEAD:main push` знову R2 (C1)",
+    ),
+    (
+        "`--config-env` не враховується",
+        "                matching |= _push_cfg_key(val.split(\"=\", 1)[0])",
+        "                pass",
+        "`git --config-env=remote.origin.push=VAR push` знову R2 (C1)",
+    ),
+    (
+        "конфіг git зі змінних середовища не читається",
+        "        env_cfg = _env_git_config(toks)",
+        "        env_cfg = []",
+        "`GIT_CONFIG_KEY_0=remote.origin.push … git push` знову R2 (C1)",
+    ),
+    (
+        "роздільник не скидає певність перемикання",
+        "                certain = certain and tok == \"&&\"",
+        "                pass",
+        "`git checkout x; git push` з main знову R2 — пуш іде й після збою перемикання",
+    ),
+    (
+        "новий рядок не вважається роздільником",
+        "        toks = _tokens(text.replace(\"\\\\\\n\", \" \").replace(\"\\n\", \" ; \"))",
+        "        toks = _tokens(text)",
+        "`git checkout feature⏎git push` з main знову R2",
+    ),
+    (
+        "певне перемикання не звужує ціль",
+        "    current = [] if only_switched else [\"\"]       # \"\" — поточна гілка (HEAD)",
+        "    current = [\"\"]",
+        "`git checkout feature && git push` з main — R4, хибна тривога (C4)",
     ),
     # ── 2026-10-18: полювання на форми дії (F-25…F-28) ───────────────────────
     (
