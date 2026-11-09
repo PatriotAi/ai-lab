@@ -104,6 +104,9 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "ls & rm -rf build", "R4"),
     # Виняток (`--force-with-lease`) діє лише у своїй команді ланцюжка.
     ("Bash", "git push --force-with-lease origin br; git push --force origin main", "R4"),
+    # Те саме без main: з W-43 пуш у main ловить і `merge-to-main`, тож лише ця
+    # форма доводить, що виняток не прикриває сусідню команду (мутант вижив би).
+    ("Bash", "git push --force-with-lease origin br; git push --force origin br2", "R4"),
     # 2. Підстановку в подвійних лапках оболонка ВИКОНУЄ; в одинарних — ні.
     ("Bash", 'ls "$(git push --force origin main)"', "R4"),
     ("Bash", f'echo "$(cat {ENV})"', "R4"),
@@ -209,7 +212,9 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "git push --prune origin", "R4"),
     ("Bash", f"git -C /tmp/r push origin {DEL} x", "R4"),
     ("Bash", f'bash -lc "git push origin {DEL} x"', "R4"),
-    ("Bash", "git push origin :", "R2"),              # «push matching», не видалення
+    # «push matching»: не видалення (F-26), але штовхає всі однойменні гілки, тож і
+    # `main`, — R4 за правилом `merge-to-main` (W-43, 2026-11-09).
+    ("Bash", "git push origin :", "R4"),
     ("Bash", f"git push --dry-run origin {DEL} x", "R2"),
     ("Bash", f'echo "git push origin {DEL} x"', "R0"),
     # ── Рев'ю #94 (2026-10-19): кожен випадок, що має ловитись, падав на голові
@@ -274,10 +279,15 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "git push \\\n --for" + "ce origin main", "R4"),
     ("Bash", "git push  --for" + "ce origin main", "R4"),
     ("Bash", "git push\t--for" + "ce origin main", "R4"),
+    # Ті самі форми без `main` (W-43, 2026-11-09): пуш у `main` тепер ловить і розбір
+    # призначення, тож лише ці доводять, що правило-команда бачить дію сама.
+    ("Bash", "git push  --for" + "ce origin br2", "R4"),
+    ("Bash", "git push\t--for" + "ce origin br2", "R4"),
     # №11: аргументи СПИСКОМ у коді інтерпретатора.
     ("Bash", f"python3 -c \"import subprocess; subprocess.run(['git','push','origin','{DEL}','feature'])\"", "R4"),
     ("Bash", f"node -e \"require('child_process').execFileSync('git', ['push','origin','{DEL}','x'])\"", "R4"),
     ("Bash", "python3 -c \"import subprocess; subprocess.run(['git','push','--for" + "ce','origin','main'])\"", "R4"),
+    ("Bash", "python3 -c \"import subprocess; subprocess.run(['git','push','--for" + "ce','origin','br2'])\"", "R4"),
     # №12: сухий прогін — за ОСТАННІМ прапорцем; `-o` бере решту кластера.
     ("Bash", f"git push --dry-run --no-dry-run origin {DEL} feature", "R4"),
     ("Bash", f"git push -ocontinue {DEL} origin feature", "R4"),

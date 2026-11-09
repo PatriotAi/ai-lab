@@ -1,0 +1,640 @@
+{
+ "claudeVersion": "2.1.319",
+ "costUsd": 0.11668023999999999,
+ "partial": false,
+ "aggregates": {
+  "casesTotal": 10,
+  "casesPassed": 6,
+  "overallScore": 0.6666666666666667,
+  "overallPassRate": 0.6666666666666667,
+  "meanDelta": 0.16666666666666669
+ },
+ "cases": [
+  {
+   "name": "neg-explain",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0015123,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0015028,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0015068,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.001382,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013765000000000001,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013683,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "neg-math",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0014773,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014773,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014773,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0013425,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013425,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013425,
+      "error": null,
+      "graders": {
+       "no-skill": true,
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-a",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.001861,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0018698000000000002,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0018222,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0016740000000000001,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0016890000000000002,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017623,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-b",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0018256000000000001,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0018945,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0018265,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0016667,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0016202,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0015903000000000002,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-c",
+   "model": "haiku",
+   "delta": 1,
+   "arms": {
+    "with": [
+     {
+      "turns": 3,
+      "costUsd": 0.004599010000000001,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 3,
+      "costUsd": 0.00465234,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 3,
+      "costUsd": 0.00461504,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0019180000000000002,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017255000000000003,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0018654000000000001,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-d",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0023343,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0023753000000000003,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0020619,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0020210000000000002,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0019635,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0019679000000000003,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-a",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 4,
+      "costUsd": 0.0023367600000000002,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014918000000000002,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.00231918,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0013744000000000002,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014209000000000003,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013739000000000002,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-b",
+   "model": "haiku",
+   "delta": 0.33333333333333337,
+   "arms": {
+    "with": [
+     {
+      "turns": 4,
+      "costUsd": 0.00240024,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.00242171,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.0023665199999999996,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0014848,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0015217,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014912,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-c",
+   "model": "haiku",
+   "delta": 0.3333333333333333,
+   "arms": {
+    "with": [
+     {
+      "turns": 4,
+      "costUsd": 0.00250313,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 5,
+      "costUsd": 0.00262686,
+      "error": null,
+      "graders": {
+       "result": false,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.0024418699999999996,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0015371,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.001537,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014865,
+      "error": null,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-d",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 5,
+      "costUsd": 0.0026129000000000005,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.0024232700000000004,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 5,
+      "costUsd": 0.0026747100000000003,
+      "error": null,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0014854,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.001482,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.001557,
+      "error": null,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
