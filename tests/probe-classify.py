@@ -323,6 +323,28 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "cat <<'EOF'\ngit branch -D x\nEOF", "R0"),
     # №10 (давнє): `command -v` лише шукає шлях, нічого не запускає.
     ("Bash", f'command -v bash && git commit -m "x {PUSHF}"', "R2"),
+    # ── W-42 (2026-11-14): хибні тривоги після PR #94; на `1be990d` — не R4 ──
+    # Клас 1: код лише ДРУКУЄ список аргументів — програму ніхто не запускає.
+    ("Bash", "python3 -c 'print(\"rm\", \"-r" + "f\", \"build\")'", "R2"),
+    ("Bash", f"python3 -c 'print([\"git\", \"push\", \"{DEL}\", \"x\"])'", "R2"),
+    ("Bash", "node -e 'console.log([\"rm\", \"-r" + "f\", \"build\"])'", "R2"),
+    ("Bash", f"python3 -c 'print(\" \".join([\"git\",\"push\",\"{DEL}\",\"b\"]))'", "R2"),
+    #   …а код, що ЗАПУСКАЄ список, — як і раніше дія (сторож механізму).
+    ("Bash", "node -e 'require(\"child_process\").execFileSync(\"rm\", [\"-r" + "f\", \"build\"])'", "R4"),
+    # Клас 2: дані через `xargs` у команду-читача — читач нічого не виконає.
+    ("Bash", f"cat <<'EOF' | xargs -n1 echo\n{PUSHF}\nEOF", "R2"),
+    ("Bash", "cat <<'EOF' | xargs grep -l x\nrm -r" + "f build\nEOF", "R2"),
+    ("Bash", f"grep -rl '{PUSHF}' docs | xargs -r head -3", "R2"),
+    #   …а дані-аргументи в `git` чи невідомий прапорець `xargs` — і далі код.
+    ("Bash", "echo 'push --for" + "ce origin main' | xargs git", "R4"),
+    ("Bash", "echo 'push --for" + "ce origin main' | xargs -Z cat", "R4"),
+    # Клас 3: виконавець із файлом-скриптом — stdin для нього лише дані.
+    ("Bash", f"perl tool.pl <<'EOF'\n{PUSHF}\nEOF", "R2"),
+    ("Bash", f"node tool.js <<< '{PUSHF}'", "R2"),
+    ("Bash", "php tool.php <<< 'rm -r" + "f build'", "R2"),
+    ("Bash", f"echo '{PUSHF}' | node tool.js -", "R2"),
+    #   …а без файлу-скрипта (`-I lib` — каталог, не скрипт) stdin — програма.
+    ("Bash", f"perl -I lib <<'EOF'\nsystem(\"{PUSHF}\")\nEOF", "R4"),
 ]
 
 
