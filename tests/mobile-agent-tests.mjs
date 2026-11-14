@@ -103,6 +103,20 @@ const ranked = core.rankLocalModels(
 check("не-q4f16 відсіяно", 2, ranked.length);
 check("першою — та, що влазить", "Small-1.5B-q4f16_1-MLC", ranked[0].id);
 check("завелика позначена як «не влазить»", false, ranked[1].fits);
+// Без shader-f16 (частий випадок Android-GPU) q4f16 не завантажиться: WebLLM 0.2.87
+// оголошує вимогу в required_features. Тоді — q4f32 і лише моделі без цієї вимоги.
+const noF16 = core.rankLocalModels(
+  [{ id: "Gemma-E2B-q4f16_1-MLC", vram: 3387, features: ["shader-f16"] },
+   { id: "Gemma-E2B-q4f32_1-MLC", vram: 3863, features: [] },
+   { id: "Odd-1B-q4f32_1-MLC", vram: 900, features: ["shader-f16"] },
+   { id: "Tiny-0.5B-q4f32_1-MLC", vram: 700 }],
+  4096, { f16: false },
+);
+check("без shader-f16: лише q4f32 без вимоги f16", "Tiny-0.5B-q4f32_1-MLC,Gemma-E2B-q4f32_1-MLC",
+  noF16.map((m) => m.id).join(","));
+check("з shader-f16 (типово) — як раніше, лише q4f16", "Gemma-E2B-q4f16_1-MLC",
+  core.rankLocalModels([{ id: "Gemma-E2B-q4f16_1-MLC", vram: 3387, features: ["shader-f16"] },
+    { id: "Gemma-E2B-q4f32_1-MLC", vram: 3863 }], 4096).map((m) => m.id).join(","));
 
 // ═══════ 7. Секрети: шифрування ключа ═══════
 console.log('\n════════ 7. Секрети (AES-GCM + пароль-фраза) ════════');
@@ -125,7 +139,7 @@ truthy("маскований текст не містить ключа", !core.r
 console.log('\n════════ 8. Хмарний запит (побудова) ════════');
 const areq = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", messages: [{ role: "user", content: "привіт" }] });
 check("Anthropic: правильний endpoint", "https://api.anthropic.com/v1/messages", areq.url);
-check("Anthropic: версія API у заголовку", "2023-06-01", areq.headers["anthropic-version"]);
+check("Anthropic: версія API у заголовку", "2026-10-21", areq.headers["anthropic-version"]);
 check("Anthropic: заголовок прямого браузерного доступу (інакше CORS)", "true",
   areq.headers["anthropic-dangerous-direct-browser-access"]);
 truthy("ключ у заголовку, а НЕ в URL", !areq.url.includes("K") && areq.headers["x-api-key"] === "K");
@@ -140,6 +154,112 @@ check("Anthropic: відповідь читається", "текст",
 check("OpenAI: відповідь читається", "текст",
   core.readCloudReply("openai", { choices: [{ message: { content: "текст" } }] }));
 check("зіпсована відповідь → порожній рядок, не виняток", "", core.readCloudReply("anthropic", null));
+
+// ── 2026-10-23: форма запиту під поточне покоління (довідка Claude API, кеш 2026-10-06) ──
+check("модель за замовчуванням — поточне покоління середнього класу", "claude-sonnet-5-5", areq.body.model);
+truthy("поточний DEFAULT не в списку колишніх (інакше міграція крутилась би вхолосту)",
+  !core.PREVIOUS_DEFAULT_MODELS.includes(core.DEFAULT_CLOUD_MODEL));
+check("Anthropic: effort low за замовчуванням", "low", areq.body.output_config?.effort);
+const a800 = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", maxTokens: 800, messages: [] });
+truthy("Anthropic: запас max_tokens під thinking навіть коли застосунок просить 800",
+  a800.body.max_tokens >= core.ANTHROPIC_MAX_TOKENS, `≥ ${core.ANTHROPIC_MAX_TOKENS}; фактично ${a800.body.max_tokens}`);
+check("OpenAI-сумісний: max_tokens як просили (у нього нема thinking у бюджеті)", 800,
+  core.buildCloudRequest({ provider: "openai", apiKey: "K", maxTokens: 800, messages: [] }).body.max_tokens);
+const oldModelReq = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", model: "claude-haiku-4-5", messages: [] });
+truthy("старій моделі effort не надсилається (Haiku 4.5 відповів би 400)", !("output_config" in oldModelReq.body));
+// Серверний fallback (2026-10-24): CORS-preflight Anthropic пропускає anthropic-beta —
+// перевірено пробою, docs/reviews/2026-10-24-cors-probe.md
+check("Anthropic: серверний fallbacks \"default\" для поточної моделі", "default", areq.body.fallbacks);
+check("Anthropic: бета-заголовок саме для форми \"default\"", "server-side-fallback-2026-07-01", areq.headers["anthropic-beta"]);
+for (const model of ["claude-haiku-5-5", "claude-sonnet-5", "claude-haiku-4-5"]) {
+  const r = core.buildCloudRequest({ provider: "anthropic", apiKey: "K", model, messages: [] });
+  truthy(`${model}: без fallbacks і без бета-заголовка (у Haiku 5.5 серверного fallback нема; іншим — невідомо)`,
+    !("fallbacks" in r.body) && !("anthropic-beta" in r.headers), JSON.stringify({ body: Object.keys(r.body), beta: r.headers["anthropic-beta"] }));
+}
+// Рев'ю Codex до PR #101
+check("supportsServerFallback(\"claude-fable-5\") — Fable 5 теж має серверний fallback", true, core.supportsServerFallback("claude-fable-5"));
+check("cloudReplyStatus: відмова з recommended_model — підказку збережено",
+  JSON.stringify({ refusal: { category: "cyber", recommendedModel: "claude-sonnet-5" }, truncated: false }),
+  JSON.stringify(core.cloudReplyStatus("anthropic", { content: [], stop_reason: "refusal",
+    stop_details: { type: "refusal", category: "cyber", recommended_model: "claude-sonnet-5" } })));
+const rb = core.classifyFailure({ refusal: true, capacity: true, status: 200, message: "Модель відмовила" });
+truthy("classifyFailure: відмова з recommended_model — тимчасова (резервна перевантажена), з повтором",
+  rb.kind === "refusal-busy" && rb.retryable === true && rb.switchProvider === false, JSON.stringify(rb));
+truthy("fallbackNote: відповідь резервної моделі позначено",
+  core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5" }).includes("claude-sonnet-5"));
+check("fallbackNote: та сама модель — без позначки", "", core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5-5" }));
+// Повторне рев'ю Codex до PR #101 (E): закріплення резервної моделі обходиться без нової відмови —
+// позначка не має стверджувати, що «цей запит відхилили».
+truthy("fallbackNote: нейтральне формулювання — без твердження про відмову",
+  !/відхилен/i.test(core.fallbackNote("claude-sonnet-5-5", { model: "claude-sonnet-5" })));
+// (D): відповідь самої моделі (відмова, обрізання) — не збій вузла
+for (const [kind, want] of [["refusal", true], ["refusal-busy", true], ["truncated", true],
+  ["rate-limit", false], ["transient", false], ["fatal", false], ["auth", false], ["offline", false]]) {
+  check(`isModelSideOutcome(${kind})`, want, core.isModelSideOutcome(kind));
+}
+{
+  const chain = core.defaultChain({ backupProvider: "openai" });
+  const caps = { online: true, hasCloudKey: true, hasBackupKey: true, localReady: false };
+  const health = { cloud: { fails: 1, cooldownUntil: Date.now() + 60000 } };
+  const free = core.planDispatch({ chain, health, caps, tried: [], now: Date.now(), wantsCloud: true });
+  check("без закріплення: основний вузол на паузі → запасний (звичайний failover)", "cloud-backup", free.node?.id);
+  const pinned = core.planDispatch({ chain, health, caps, tried: [], now: Date.now(), wantsCloud: true, pin: "cloud" });
+  check("закріплене завдання: основний на паузі → чекає, а не йде до іншого провайдера", "wait", pinned.action);
+  const q = core.pinTask([core.makeTask({ input: "x", id: "t1" }), core.makeTask({ input: "y", id: "t2" })], "t1", "cloud");
+  check("pinTask: закріплює лише своє завдання", "cloud|", `${q[0].pin}|${q[1].pin ?? ""}`);
+  const failed = [{ ...q[0], status: "failed" }];
+  check("ручний повтор зберігає закріплення (відхилений запит не йде деінде)", "cloud", core.requeue(failed, "t1")[0].pin);
+}
+
+check("fallbackNote: модель не названа — без позначки", "", core.fallbackNote("claude-sonnet-5-5", {}));
+check("відповідь із блоком fallback: текст читається", "відповідь резервної моделі",
+  core.readCloudReply("anthropic", { content: [{ type: "fallback", from: { model: "a" }, to: { model: "b" } },
+    { type: "text", text: "відповідь резервної моделі" }] }));
+for (const body of [areq.body, oreq.body]) {
+  truthy(`без temperature/top_p/top_k у тілі (${body === areq.body ? "Anthropic" : "OpenAI"}): на 2026-10-21 вони дають 400`,
+    !["temperature", "top_p", "top_k"].some((k) => k in body));
+}
+for (const [model, want] of [["claude-sonnet-5-5", true], ["claude-haiku-5-5", true], ["claude-fable-5-1", true],
+  ["claude-opus-4-6", true], ["claude-opus-4-8", true], ["claude-haiku-4-5", false], ["claude-sonnet-4-5", false],
+  ["claude-opus-4-5-20251101", false], ["claude-sonnet-4-20250514", false], ["claude-3-5-sonnet-20241022", false],
+  ["gpt-6-luna", false], ["", false], [undefined, false]]) {
+  check(`supportsEffort(${JSON.stringify(model)})`, want, core.supportsEffort(model));
+}
+check("міграція: колишній типовий ID → поточний", "claude-sonnet-5-5", core.migrateSettings({ model: "claude-sonnet-5" }).model);
+check("міграція: власний вибір моделі не чіпаємо", "claude-opus-5-5", core.migrateSettings({ model: "claude-opus-5-5" }).model);
+check("міграція: решта налаштувань зберігається", "local", core.migrateSettings({ model: "claude-sonnet-5", prefer: "local" }).prefer);
+check("міграція: зіпсовані налаштування → порожній об'єкт, не виняток", "{}", JSON.stringify(core.migrateSettings(null)));
+
+// HTTP 200 ще не відповідь: відмова й обрізання приходять полем stop_reason / finish_reason
+const st = (p, d) => JSON.stringify(core.cloudReplyStatus(p, d));
+check("cloudReplyStatus: відмова Anthropic із категорією", JSON.stringify({ refusal: { category: "cyber" }, truncated: false }),
+  st("anthropic", { content: [], stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber" } }));
+check("cloudReplyStatus: відмова без категорії", JSON.stringify({ refusal: { category: null }, truncated: false }),
+  st("anthropic", { content: [], stop_reason: "refusal" }));
+check("cloudReplyStatus: max_tokens → обрізано", JSON.stringify({ refusal: null, truncated: true }),
+  st("anthropic", { content: [{ type: "text", text: "по" }], stop_reason: "max_tokens" }));
+check("cloudReplyStatus: end_turn → усе гаразд", JSON.stringify({ refusal: null, truncated: false }),
+  st("anthropic", { content: [{ type: "text", text: "так" }], stop_reason: "end_turn" }));
+check("cloudReplyStatus: OpenAI content_filter → відмова", JSON.stringify({ refusal: { category: "content_filter" }, truncated: false }),
+  st("openai", { choices: [{ finish_reason: "content_filter", message: { content: "" } }] }));
+check("cloudReplyStatus: OpenAI length → обрізано", JSON.stringify({ refusal: null, truncated: true }),
+  st("openai", { choices: [{ finish_reason: "length", message: { content: "по" } }] }));
+check("cloudReplyStatus: зіпсовані дані → без винятку", JSON.stringify({ refusal: null, truncated: false }), st("anthropic", null));
+// Рев'ю Codex до PR #100: OpenAI відмовляє й полем message.refusal зі звичайним finish_reason "stop"
+check("cloudReplyStatus: OpenAI message.refusal → відмова (finish_reason \"stop\", content null)",
+  JSON.stringify({ refusal: { category: null }, truncated: false }),
+  st("openai", { choices: [{ finish_reason: "stop", message: { content: null, refusal: "I can't help with that." } }] }));
+check("cloudReplyStatus: OpenAI порожній refusal — не відмова", JSON.stringify({ refusal: null, truncated: false }),
+  st("openai", { choices: [{ finish_reason: "stop", message: { content: "так", refusal: null } }] }));
+const rf = core.classifyFailure({ refusal: true, status: 200, message: "Модель відмовилась відповідати" });
+check("classifyFailure: відмова — окремий вид", "refusal", rf.kind);
+truthy("classifyFailure: відмова не повторюється й не перекидається на інших провайдерів",
+  rf.retryable === false && rf.switchProvider === false, JSON.stringify(rf));
+// Рев'ю Codex до PR #100: обрізання ДО появи тексту — не «провайдери недоступні»
+const tf = core.classifyFailure({ truncated: true, status: 200, message: "Відповідь обрізано лімітом ще до появи тексту" });
+check("classifyFailure: обрізання без тексту — окремий вид", "truncated", tf.kind);
+truthy("classifyFailure: обрізання без тексту не повторюється й не підміняється іншим вузлом",
+  tf.retryable === false && tf.switchProvider === false, JSON.stringify(tf));
 
 // ═══════ 9. Збірка: dist синхронний з джерелами ═══════
 console.log('\n════════ 9. Збірка одного файлу ════════');

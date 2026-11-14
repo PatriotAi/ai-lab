@@ -29,6 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: gitleaks
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
@@ -42,6 +43,8 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Trivy filesystem scan
         # v0.36.0 — теги до 0.35.0 уражені supply-chain-інцидентом / tags before 0.35.0 affected by the supply-chain incident
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -54,10 +57,14 @@ jobs:
       - name: Upload SARIF
         if: always()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy
+      # W-38: звіт сам по собі нічого не зупиняє — джоб падає на знахідках рівня error
+      # (Trivy: HIGH/CRITICAL, Semgrep: ERROR); звіт уже завантажено кроком вище.
+      - name: Серйозні знахідки валять перевірку / Fail on error-level findings
+        run: python3 scripts/sarif-gate.py trivy-results.sarif
 
   sast:
     name: SAST (Semgrep)
@@ -67,17 +74,25 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.x"
-      - run: pip install semgrep
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          # Не "3.x": колесо semgrep 1.183.0 заявляє лише cp310–cp314, а "3.x" з
+          # листопада 2026 дає 3.15 — на ньому semgrep-core падав (exit -11) і скан
+          # мовчки не відбувався (W-38). Підняти разом із версією semgrep.
+          python-version: "3.14"
+      - run: pip install semgrep==1.183.0
       - name: Semgrep scan
-        continue-on-error: true
         run: semgrep scan --config p/security-audit --config p/secrets --sarif --output semgrep.sarif
       - name: Upload SARIF
         if: always()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           sarif_file: semgrep.sarif
           category: semgrep
+      # W-38: звіт сам по собі нічого не зупиняє — джоб падає на знахідках рівня error
+      # (Trivy: HIGH/CRITICAL, Semgrep: ERROR); звіт уже завантажено кроком вище.
+      - name: Серйозні знахідки валять перевірку / Fail on error-level findings
+        run: python3 scripts/sarif-gate.py semgrep.sarif

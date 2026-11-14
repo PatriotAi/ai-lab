@@ -59,6 +59,11 @@ check "R3: зовнішній текст"        "R3" "$(lvl WebFetch 'https://e
 check "R4: примусовий пуш"         "R4" "$(lvl Bash  'git push --force origin main')"
 check "R4: файл секретів"          "R4" "$(lvl Write '.env')"
 check "не-R4: --force-with-lease"  "R2" "$(lvl Bash  'git push --force-with-lease origin br')"
+# 2026-10-16: секрет захищений і від ЧИТАННЯ будь-яким каналом (F-21), а читання
+# налаштувань — ні (W-18); `gh api` на запис — R4 за методом (F-20).
+check "R4: читання секрету оболонкою"   "R4" "$(lvl Bash  'cat .env')"
+check "не-R4: читання налаштувань"      "R0" "$(lvl Read  '.claude/settings.json')"
+check "R4: gh api на запис"             "R4" "$(lvl Bash  'gh api -X PUT repos/o/r/pulls/1/merge')"
 
 echo ""
 echo "── розріз симлінка (GhostApproval) ──"

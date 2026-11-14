@@ -1,0 +1,237 @@
+{
+ "claudeVersion": "2.1.319",
+ "costUsd": 0.7796008999999999,
+ "aggregates": {
+  "casesTotal": 4,
+  "casesPassed": 2,
+  "overallScore": 0.6666666666666666,
+  "overallPassRate": 0.6666666666666666,
+  "meanDelta": 0.16666666666666666
+ },
+ "cases": [
+  {
+   "name": "router-a",
+   "model": "sonnet",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.030182,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.029482,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.030312,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.026256,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.027105999999999998,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.027254,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-b",
+   "model": "sonnet",
+   "delta": 0.6666666666666666,
+   "arms": {
+    "with": [
+     {
+      "turns": 3,
+      "costUsd": 0.08161460000000001,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 3,
+      "costUsd": 0.0826469,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.031054,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.02905,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.029169999999999998,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.029079999999999998,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-a",
+   "model": "sonnet",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.02506,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.025048,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.025468,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.023174,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.023174,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.023186,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-b",
+   "model": "sonnet",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 5,
+      "costUsd": 0.0387322,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.0358748,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     },
+     {
+      "turns": 4,
+      "costUsd": 0.034330400000000004,
+      "graders": {
+       "result": true,
+       "skill-fired": true
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.023898000000000003,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.02405,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.024398,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

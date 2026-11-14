@@ -251,7 +251,7 @@ const state = {
   settings: Object.assign(
     { prefer: "auto", provider: "anthropic", model: DEFAULT_CLOUD_MODEL, updateUrl: "", baseUrl: "", ram: "",
       backupProvider: "", backupModel: "", backupBaseUrl: "" },
-    LS.get(SETTINGS_KEY, {}),
+    migrateSettings(LS.get(SETTINGS_KEY, {})),   // старий типовий ID моделі → поточний
   ),
   apiKey: "",            // лише в пам'яті сесії, ніколи в localStorage у відкритому вигляді
   backupKey: "",         // ключ запасного провайдера — так само лише в пам'яті
@@ -261,7 +261,7 @@ const state = {
   health: {},                     // cooldown вузлів ланцюга (лише в пам'яті сесії)
   drainTimer: null,
   draining: false,
-  caps: { webgpu: false, secure: false, online: true },
+  caps: { webgpu: false, f16: true, secure: false, online: true },
   local: { engine: null, model: null },
 };
 
@@ -280,7 +280,12 @@ async function detectCaps() {
   state.caps.online = navigator.onLine !== false;
   state.caps.webgpu = false;
   if (navigator.gpu && state.caps.secure) {
-    try { state.caps.webgpu = !!(await navigator.gpu.requestAdapter()); } catch { state.caps.webgpu = false; }
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      state.caps.webgpu = !!adapter;
+      // Без shader-f16 моделі q4f16 не завантажаться — ядро тоді обере q4f32.
+      state.caps.f16 = !!adapter?.features?.has?.("shader-f16");
+    } catch { state.caps.webgpu = false; }
   }
   renderEngine();
 }
@@ -362,12 +367,30 @@ async function runCloud(text, backup = false) {
     err.retryAfter = res.headers.get("retry-after");
     throw err;
   }
-  const reply = readCloudReply(backup ? (s.backupProvider || "openai") : s.provider, await res.json());
-  if (!reply) throw new Error("Порожня відповідь провайдера");
-  return reply;
+  const provider = backup ? (s.backupProvider || "openai") : s.provider;
+  const data = await res.json();
+  // HTTP 200 ще не відповідь: відмову й обрізання модель повідомляє полем stop_reason.
+  const st = cloudReplyStatus(provider, data);
+  if (st.refusal) {
+    const err = new Error(st.refusal.recommendedModel
+      ? "Модель відмовила, а резервна модель зараз перевантажена"
+      : "Модель відмовилась відповідати" + (st.refusal.category ? ` (категорія: ${st.refusal.category})` : ""));
+    err.refusal = true;
+    err.capacity = !!st.refusal.recommendedModel;
+    throw err;
+  }
+  const reply = readCloudReply(provider, data);
+  if (!reply) {
+    const err = new Error(st.truncated ? "Відповідь обрізано лімітом ще до появи тексту" : "Порожня відповідь провайдера");
+    err.truncated = st.truncated;
+    throw err;
+  }
+  const note = provider === "anthropic" ? fallbackNote(req.body.model, data) : "";
+  const body = note ? `${reply}\n\n${note}` : reply;
+  return st.truncated ? `${body}\n\n✂️ Відповідь обрізано лімітом довжини — попроси продовжити.` : body;
 }
 
-const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.84";
+const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm@0.2.87";
 let webllmLib = null;
 async function loadWebllmLib() {
   if (webllmLib) return webllmLib;
@@ -380,8 +403,9 @@ async function ensureLocalModel(onProgress) {
   if (!state.caps.webgpu) throw new Error("WebGPU недоступний (потрібен HTTPS і сучасний Chrome)");
   const lib = await loadWebllmLib();
   const est = estimateVramMB(state.settings.ram || navigator.deviceMemory, true);
-  const models = (lib.prebuiltAppConfig?.model_list || []).map((m) => ({ id: m.model_id, vram: m.vram_required_MB }));
-  const best = rankLocalModels(models, est)[0];
+  const models = (lib.prebuiltAppConfig?.model_list || [])
+    .map((m) => ({ id: m.model_id, vram: m.vram_required_MB, features: m.required_features || [] }));
+  const best = rankLocalModels(models, est, { f16: state.caps.f16 !== false })[0];
   if (!best) throw new Error("Не знайдено придатної моделі");
   state.local.engine = await lib.CreateMLCEngine(best.id, {
     initProgressCallback: (p) => onProgress?.(Math.round((p.progress || 0) * 100), p.text || ""),
@@ -473,7 +497,7 @@ async function drainQueue() {
     while (true) {
       const plan = planDispatch({
         chain, health: state.health, caps, tried, lastChance,
-        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud",
+        prefer: state.settings.prefer, now: Date.now(), wantsCloud: task.intent === "cloud", pin: task.pin,
       });
       if (plan.action === "wait") {
         // Чекання — не невдача: спробу НЕ витрачаємо. Cooldown — таймер, ключ/мережа — подія.
@@ -496,10 +520,14 @@ async function drainQueue() {
       } catch (err) {
         failure = classifyFailure({
           status: err.status, message: err.message, retryAfter: err.retryAfter,
-          offline: navigator.onLine === false,
+          offline: navigator.onLine === false, refusal: err.refusal === true, truncated: err.truncated === true,
+          capacity: err.capacity === true,
         });
         lastErr = redactSecrets(err.message || String(err));
-        state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        // Відмова й обрізання — відповідь моделі, а не збій вузла: паузи вузла не ставимо.
+        if (!isModelSideOutcome(failure.kind)) {
+          state.health = markFailure(state.health, node.id, { kind: failure.kind, retryAfterMs: failure.retryAfterMs });
+        }
         if (!failure.switchProvider) break;   // наступний вузол не допоможе
       }
     }
@@ -509,14 +537,20 @@ async function drainQueue() {
       state.queue = applyOutcome(state.queue, task.id, {
         ok: false, failure: f, engine: node?.id, tried, error: lastErr,
       });
+      // Повтор тимчасової відмови — лише на тому самому вузлі (повторне рев'ю Codex, PR #101).
+      if (f.kind === "refusal-busy" && node) state.queue = pinTask(state.queue, task.id, node.id);
       const after = state.queue.find((x) => x.id === task.id);
       if (after?.status === "failed") {
         // Вичерпано ланцюг: чесний офлайн-запис + завдання лишається видимим
         // і придатним до ручного повтору. Мовчазної втрати не буває.
-        state.notes.unshift(makeNote({
-          input: task.input, kind: task.kind, engine: "offline",
-          answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.`,
-        }));
+        // Відмова й обрізання — не «провайдери недоступні»: мережа й ключ були, відповіла сама модель.
+        const modelSide = { refusal: "Це не збій мережі й не ліміт: повтор того самого запиту не допоможе — переформулюй його.",
+          truncated: "Це не збій мережі: модель вичерпала ліміт довжини ще до тексту — спробуй коротший запит.",
+          "refusal-busy": "Резервна модель була перевантажена до кінця спроб; повтор пізніше може спрацювати — кнопка повтору в черзі." }[f.kind];
+        state.notes.unshift(modelSide
+          ? makeNote({ input: task.input, kind: task.kind, engine: node?.id || "cloud", answer: `⚠️ ${lastErr}. ${modelSide}` })
+          : makeNote({ input: task.input, kind: task.kind, engine: "offline",
+              answer: offlineAnswer(task.input, task.kind) + `\n\n⚠️ Провайдери недоступні (${f.kind}). Запис збережено офлайн; повтор — кнопкою в черзі.` }));
         saveNotes();
         notifyFailure(after);
       }
@@ -762,7 +796,8 @@ if (state.settings.updateUrl) checkUpdate(true);
 window.PocketAgent = {
   version: APP_VERSION, state, render, submit, currentEngine,
   core: { pickEngine, parseCommand, searchNotes, offlineAnswer, makeNote, extractTags, isNewerVersion, encryptSecret, decryptSecret,
-          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary },
+          classifyFailure, nextBackoffMs, defaultChain, planDispatch, makeTask, nextRunnable, applyOutcome, requeue, queueSummary,
+          cloudReplyStatus, migrateSettings, supportsEffort, buildCloudRequest, fallbackNote, isModelSideOutcome, pinTask },
   queue: { drain: drainQueue, summary: () => queueSummary(state.queue, Date.now()) },
   wake: wakeAndDrain,
 };

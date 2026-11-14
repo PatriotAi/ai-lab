@@ -1,31 +1,30 @@
 ---
 name: semantic-router
 description: >
-  Analyzes user intent and routes requests to the correct skills and
-  orchestration flows in the ecosystem; selects the minimal skill set
-  and prevents over-activation.
+  ВИКЛИКАЙ ПЕРШОЮ, коли запит зачіпає кілька навичок або неясно, яку
+  навичку брати: багатокрокова справа з різними типами роботи, вибір
+  інструментів, план дій. Дає те, чого без неї нема: блок «Routing
+  Decision» — мінімальний набір навичок у порядку виконання, причина
+  для кожної й що НЕ вмикати. Викликай навіть тоді, коли здається, що
+  порадиш сам: без неї порада не бачить карти навичок екосистеми.
+  Call FIRST when a request spans several skills or the right skill is
+  unclear; returns a Routing Decision (minimal ordered skill set,
+  reasons, what not to activate). Збіг — за ЗНАЧЕННЯМ наміру, не за
+  словами; приклади не вичерпні.
 
-  USE whenever: запит неоднозначний чи багатоскіловий, вибір скіла
-  неочевидний, потрібна координація кількох скілів. Also: "який скіл
-  використати", "route this request", "intent classification",
-  "skill selection", "multi-agent coordination".
-
-  ALWAYS the entry point for multi-skill workflows. Triggers match by
-  MEANING (semantic intent) — синоніми й парафрази активують скіл;
-  фрази в описі лише приклади, не вичерпний список.
-
-  DO NOT use for: механіка топологій (workflow-orchestration);
-  kernel/активація агентів (ai-core-runtime); мета-оркестрація важких
-  процесів (rlm-harness); один очевидний скіл — активуй напряму.
+  НЕ для: одного очевидного скіла (активуй напряму); простого питання
+  без навичок; механіки топологій (workflow-orchestration); kernel і
+  активації агентів (ai-core-runtime); мета-оркестрації важких процесів
+  (rlm-harness).
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 1.16.1
+  version: 1.17.0
   category: routing
-  last_updated: 2026-09-28
+  last_updated: 2026-11-09
 ---
 
-# Semantic Router — v1.16.1
+# Semantic Router — v1.17.0
 > Працює українською за замовчуванням (українською-перша): рішення про маршрут і пояснення — українською; перемикання лише слідом за користувачем.
 
 
@@ -355,6 +354,7 @@ Load only on demand — not proactively.
 
 ## Changelog
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (v1.6.0 двічі — артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.17.0** (2026-11-09) — **Опис під тригер** (рішення власника 2026-11-08, експеримент R1b `experiments/agent-reliability/r1/`): R1 показав, що за старим описом найдешевший клас не викликав навичку жодного разу (0 з 12), середній — 5 з 12. Новий `description`: спершу КОЛИ викликати і що дає лише ця навичка (блок «Routing Decision»), пряма вказівка викликати навіть тоді, коли здається, що можна порадити самому; межі «НЕ для» збережено й доповнено «простого питання без навичок». Принцип збігу за значенням — без змін. Тіло навички не змінено.
 - **v1.16.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.16.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.15.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): Routing Map — додано primary-рядок для `workflow-orchestration` («розбий на агентів»/subagents/agent team/топологія; був лише secondary при rlm-harness) [#4]; легасі-рядок «Complex build + deploy» роздвоєно за платформою (Vercel → vercel-mcp-connector; n8n-пайплайн → n8n-orchestrator; був беззастережний n8n) [#7]; H1-банер з версією + `last_updated` [#21/#45]. Лише Routing Map/метадані. _(Merge-reconcile: рядок `github-collab` з v1.14.1 main збережено в Routing Map.)_

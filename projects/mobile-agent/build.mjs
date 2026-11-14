@@ -174,7 +174,7 @@ function main() {
   writeFileSync(DIST_FILE, html);
   writeFileSync(SW_FILE, sw);
   const versionJson = JSON.stringify(
-    { version, notes: "Резервний контур: черга завдань, повтори з паузою, запасний провайдер, сповіщення.", updated: "2026-07-24" },
+    { version, notes: "Локальна модель: WebLLM 0.2.87 (з Gemma 4 E2B); на телефонах без shader-f16 — варіанти q4f32.", updated: "2026-11-07" },
     null,
     2,
   ) + "\n";

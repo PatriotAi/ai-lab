@@ -50,6 +50,38 @@ build_digest() {
     fi
   fi
 
+  # Радар розходження: main, що пішов уперед у моїх файлах; незлиті гілки, що
+  # торкаються тих самих файлів; карта паралельної роботи. Друкує лише знахідки.
+  # Навіщо — виміряний дубль F-17 (docs/reviews/2026-10-09-git-substrate-audit.md).
+  # Мережа лише на fetch, з тайм-аутом; збій не ламає старт сесії.
+  if command -v python3 >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1 \
+     && [ -f scripts/check-main-drift.py ]; then
+    drift="$(timeout 25 python3 scripts/check-main-drift.py --fetch --quiet --branches --inflight --pr-aware \
+             --max-files 3 --max-subjects 1 2>/dev/null || true)"
+    if [ -n "${drift:-}" ]; then
+      printf '%s\n\n' "$drift"
+    fi
+  fi
+
+  # Свіжість знімка моделей: можливості ринку старіють так само, як можливості харнесу
+  # (docs/reviews/2026-10-16-tools-harvest.md). Друкує лише попередження; збій мовчить.
+  if command -v python3 >/dev/null 2>&1 && [ -f melania-skills-ecosystem/scripts/maintain.py ]; then
+    snap="$(python3 melania-skills-ecosystem/scripts/maintain.py snapshot-age 2>/dev/null || true)"
+    if [ -n "${snap:-}" ]; then
+      printf '%s\n\n' "$snap"
+    fi
+  fi
+
+  # Скіли акаунта, старші за канон: дрейф «28 із 28» (2026-10-17) жив лише в уважності
+  # агента. Рядок — лише коли є що сказати (дрейф або «перевірку не виконано»);
+  # монтування нема чи все рівне канону — тиша.
+  if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-account-skills.py ]; then
+    acct="$(python3 scripts/check-account-skills.py 2>/dev/null || true)"
+    if [ -n "${acct:-}" ]; then
+      printf '%s\n\n' "$acct"
+    fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi

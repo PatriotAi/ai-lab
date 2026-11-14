@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-28T18:09:13.304876+00:00",
-  "md5": "a270c7f6358d5fbd35260227bd26fe17",
-  "total_lines": 275,
+  "timestamp": "2026-09-30T15:11:03.273306+00:00",
+  "md5": "fc82c2bc275b199c91e9ced7303a3d40",
+  "total_lines": 292,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Critical Facts",
@@ -14,6 +14,7 @@
     "## Hallucination Detection Checklist",
     "## Architecture Validation Checklist",
     "## Claim-Evidence Layer",
+    "### Абстенція: коли чесна відповідь — «не можу знати»",
     "## Security Validation Layer",
     "## API Contract Validation",
     "## Prompt Quality Validation",
@@ -36,6 +37,7 @@
     "Validation Flow",
     "Validation Report",
     "Validation Types",
+    "Абстенція",
     "Зміни",
     "📎 Advanced Patterns",
     "🛡️ Протокол Збереження Перед Оновленням"

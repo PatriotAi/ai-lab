@@ -8,8 +8,9 @@
   python3 maintain.py resync   # після свідомого оновлення білду: пере-знімає baseline
                                #   для змінених SKILL.md, перераховує похідні поля MANIFEST
                                #   (хеші, лічильники evals, підсумки) і лічильники у
-                               #   MELANIA-BOOTSTRAP.md. Версії/дата білду беруться з
-                               #   frontmatter/пакета — не вигадуються. Наприкінці — verify.
+                               #   MELANIA-BOOTSTRAP.md. Версії беруться з frontmatter;
+                               #   дата збірки — сьогоднішня, ЛИШЕ коли змінився вміст
+                               #   (відбиток built_fingerprint, W-21). Наприкінці — verify.
 
   python3 maintain.py package [skill|all]
                                # upload-safe .skill-пакети для скіл-стору claude.ai:
@@ -21,6 +22,7 @@
 Запускати з будь-якої теки: шляхи визначаються відносно розташування скрипта.
 """
 import json, hashlib, re, sys, subprocess, os
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent          # melania-skills-ecosystem/
@@ -44,6 +46,99 @@ SECRET_SCAN_EXT = {".md", ".py", ".json", ".html", ".txt", ".yml", ".yaml", ".js
 SUBCMD_GUARDS = {"notebooklm-connector": ("snapshot", "validate")}
 # Скіли, чий guard не тримає читабельний baseline з md5 (перевірка суто інваріантна).
 NO_MD5_BASELINE = {"rlm-harness"}
+
+# Документи, чиї похідні лічильники й дати звіряє verify і переписує resync.
+DOC_TARGETS = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
+               ROOT / "README-FOR-AI.md", ROOT / "INSTALL-PROMPT.txt",
+               ROOT.parent / "README.md"]
+# Згадка дати збірки/перевірки пакета в цих документах = MANIFEST.built.
+# «зафіксовано:» і «актуальні на» додано 2026-10-15: дві такі дати в BOOTSTRAP
+# проходили повз перевірку. Без урахування регістру — з 2026-10-16 (друге рев'ю
+# Codex): «Перевірено …» на початку речення інакше обходило гейт.
+BUILD_DATE_MENTION = re.compile(
+    r"((?:збірк[аи]|зафіксовано:?|верифіковано|перевірено|актуальні на|Дата збірки:)\s*)"
+    r"(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
+# Службове, що не є вмістом пакета: кеш Python і runtime-журнал guard-а.
+# Крапкові шляхи (.snapshots тощо) відкидаються окремо — як і в package().
+FINGERPRINT_SKIP = {"__pycache__", "audit.jsonl"}
+
+
+# ---------------------------------------------------------------- дата збірки
+# W-21 (рев'ю Codex до PR #90): resync перераховував лічильники, але дату збірки
+# лишав старою, тож BOOTSTRAP казав іншим AI «перевірено 2026-09-30» про eval-кейси,
+# доданих 2026-10-15. Двічі поспіль (135→136 і 136→142). Дата прив'язується до
+# відбитка вмісту: змінився вміст — змінюється дата; не змінився — дата стоїть.
+def content_fingerprint(skills_dir: Path = SKILLS) -> str:
+    """Відбиток УСЬОГО вмісту навичок на диску — кожного файла, що йде в пакет або в evals.
+    Перша версія брала лише SKILL.md і evals з MANIFEST, а довідкові файли й скрипти
+    (теж у пакеті) змінювались непомітно — друге рев'ю Codex до PR #90."""
+    h = hashlib.sha256()
+    files = [(f.relative_to(skills_dir).as_posix(), f) for f in skills_dir.rglob("*") if f.is_file()]
+    for rel, f in sorted(files):
+        parts = rel.split("/")
+        if any(p.startswith(".") or p in FINGERPRINT_SKIP for p in parts) or rel.endswith(".pyc"):
+            continue
+        h.update(rel.encode("utf-8") + b"\0" + hashlib.sha256(f.read_bytes()).digest())
+    return h.hexdigest()[:16]
+
+
+def build_date_problems(man: dict, skills_dir: Path = SKILLS) -> list[str]:
+    """Дата збірки застаріла, якщо вміст змінився після неї (відбиток не збігається)."""
+    want = content_fingerprint(skills_dir)
+    if man.get("built_fingerprint") != want:
+        return [f"вміст пакета змінено після дати збірки {man.get('built')} "
+                f"(відбиток {man.get('built_fingerprint')} != {want}) — "
+                "запусти resync: він оновить дату"]
+    return []
+
+
+def stamp_build_date(man: dict, today: str, skills_dir: Path = SKILLS) -> bool:
+    """Ставить built=today лише при зміні вмісту. True — якщо дату оновлено."""
+    want = content_fingerprint(skills_dir)
+    if man.get("built_fingerprint") == want:
+        return False
+    man["built"], man["built_fingerprint"] = today, want
+    return True
+
+
+def restamp_doc_dates(txt: str, built: str) -> str:
+    """Переписує в тексті згадки дати збірки/перевірки на built (інші дати не чіпає)."""
+    return BUILD_DATE_MENTION.sub(lambda m: m.group(1) + built, txt)
+
+
+# ---------------------------------------------------------------- свіжість знімка моделей
+# Дослідження 2026-10-16 (docs/reviews/2026-10-16-tools-harvest.md): знімок моделей,
+# з якого правило економії бере мапінг «клас → модель», 97 днів мовчки старів — без
+# класу Sonnet і поколінь 5.5 / GPT-6. Можливості харнесу лабораторія перевіряє щосесії,
+# можливості ринку — ніде. Попередження, не блок: блок на першому ж прогоні вчить обходу.
+SNAPSHOT_DIR = SKILLS / "multi-provider-ai-orchestration" / "references"
+SNAPSHOT_MAX_AGE_DAYS = 60
+SNAPSHOT_DATE = re.compile(r"знімок\s+(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
+
+
+def snapshot_age_warnings(today: str, snap_dir: Path = SNAPSHOT_DIR,
+                          max_age: int = SNAPSHOT_MAX_AGE_DAYS) -> list[str]:
+    """Поточний знімок — найновіший model-snapshot-YYYY-MM.md; дата — перша «знімок YYYY-MM-DD»
+    у тексті (інакше перше число місяця з імені файла). Старший за max_age днів → попередження."""
+    from datetime import date
+    snaps = sorted(snap_dir.glob("model-snapshot-*.md"))
+    if not snaps:
+        return [f"знімок моделей не знайдено в {snap_dir.name}/ — маршрутизація «клас → модель» без даних"]
+    cur = snaps[-1]
+    m = SNAPSHOT_DATE.search(cur.read_text(encoding="utf-8", errors="replace"))
+    if m:
+        taken = date.fromisoformat(m.group(1))
+    else:
+        ym = re.search(r"(\d{4})-(\d{2})", cur.name)
+        if not ym:
+            return [f"{cur.name}: дату знімка не визначено — немає «знімок YYYY-MM-DD» і місяця в імені"]
+        taken = date(int(ym.group(1)), int(ym.group(2)), 1)
+    age = (date.fromisoformat(today) - taken).days
+    if age > max_age:
+        return [f"знімок моделей {cur.name} від {taken} — {age} дн. (поріг {max_age}): ринок моделей "
+                "міг змінитись, маршрутизація «клас → модель» може бути застарілою — онови знімок "
+                "(дослідження за source-research-harvest)"]
+    return []
 
 
 def md5_text(p: Path) -> str:
@@ -102,9 +197,21 @@ def skill_dirs():
 
 
 # ---------------------------------------------------------------- verify
+# Вказівник на доказ у тексті факту. Шлях МОЖЕ починатись із крапки (`.github/…`,
+# `./tests/…`): W-17 — перша версія вимагала літеру на початку й різала крапку через
+# lstrip("./"), тож наявний файл у теці з крапкою давав хибне «доказу немає».
+EVIDENCE_PATH = re.compile(r"[\w.][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b")
+
+
+def evidence_exists(p: str, root: Path, skill_dir: Path | None = None) -> bool:
+    rel = re.sub(r"^(?:\./)+", "", p)   # лише префікс «./», а не крапку з назви теки
+    return (root / rel).exists() or bool(skill_dir and (skill_dir / rel).exists())
+
+
 def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
-                            skill_dir: Path | None = None) -> list[str]:
-    """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S].
+                            skill_dir: Path | None = None,
+                            abstentions: list[str] | None = None) -> list[str]:
+    """Гейт доказовості (Core Rule 14): фактичні твердження несуть тег [E]/[C]/[S]/[?].
 
     Чому саме секція «Critical Facts», а не «Core Rule»: правило-директива не буває
     істинним чи хибним — воно обов'язкове, тег там був би театром. Тегуємо лише те,
@@ -124,6 +231,26 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
     власний `references/…` — законний доказ, і вимагати для нього повний шлях від
     кореня означало б хибну тривогу (знайдено аудитом до появи реального випадку).
 
+    ЧЕТВЕРТИЙ СТАН `[?]` — «не можна перевірити в межах наявної специфікації»
+    (з 2026-09-27). Навіщо окремий стан: на твердженні, правильна відповідь до
+    якого зі специфікації НЕ виводиться, перевіряч не знає, що він не знає —
+    виміряна поведінка таких перевірок у сторонніх дослідженнях: майже завжди
+    впевнений PASS. Три наявні теги не мали куди це подіти: `[C]` читається як
+    «обґрунтовано» (тобто відповідь відома), `[S]` — як «моя гіпотеза». `[?]`
+    каже інше: **бракує самої специфікації**, і рішення за власником.
+
+    Два правила, щоб це не стало новим тег-театром:
+      1. `[?]` мусить назвати, ЧОГО бракує (маркер «бракує:») — абстенція без
+         причини нічим не краща за впевнену помилку, бо не підказує, що робити.
+      2. GUARD ПРОТИ НАД-АБСТЕНЦІЇ: якщо факт вказує на шлях, який РЕАЛЬНО
+         існує на диску, `[?]` відхиляється. Твердження, яке можна перевірити,
+         не має права ховатись у «не можу знати» — інакше тег стає способом
+         обійти вимогу доказу, і гейт зіпсується у протилежний бік.
+
+    `[?]` НЕ є помилкою: він збирається окремо (`abstentions`) і друкується
+    видимим рядком «чекає рішення власника». Якби абстенція падала, її б не
+    вживали — писали б `[C]`, тобто повернулись би до впевненого твердження.
+
     Винесено окремою функцією (root — параметр), щоб canary-тести ганяли її на
     тимчасовому тексті й тимчасовому корені, а не мутували робочі файли
     репозиторію (урок 2026-07-21).
@@ -141,22 +268,39 @@ def claim_evidence_problems(name: str, txt: str, root: Path | None = None,
         nxt = re.search(r"^##+ ", txt[start:], re.M)
         body = txt[start:start + (nxt.start() if nxt else len(txt))]
         for bullet in re.findall(r"^[-*] +.*", body, re.M):
-            tag = re.search(r"\[(E|C|S)\]", bullet)
+            tag = re.search(r"\[(E|C|S|\?)\]", bullet)
             if not tag:
                 problems.append(f"{name}: факт без тега доказовості — {bullet[2:60].strip()}")
+                continue
+            if tag.group(1) == "?":
+                # Абстенція мусить сказати, ЧОГО бракує — інакше вона не дає дії.
+                if not re.search(r"бракує\s*:", bullet, re.I):
+                    problems.append(
+                        f"{name}: [?] без «бракує:» — абстенція мусить назвати, "
+                        f"чого саме немає у специфікації — {bullet[2:60].strip()}")
+                    continue
+                # Guard проти над-абстенції: якщо доказ ІСНУЄ, це не «не можу знати».
+                existing = [p for p in EVIDENCE_PATH.findall(bullet)
+                            if evidence_exists(p, root, skill_dir)]
+                if existing:
+                    problems.append(
+                        f"{name}: [?] на твердженні, доказ якого існує "
+                        f"({', '.join(sorted(set(existing)))}) — це [E], не абстенція "
+                        f"— {bullet[2:60].strip()}")
+                    continue
+                if abstentions is not None:
+                    abstentions.append(f"{name}: {bullet[2:110].strip()}")
                 continue
             if tag.group(1) != "E":
                 continue
             # Кандидати-шляхи: беремо ВСІ, вимагаємо, щоб ХОЧА Б ОДИН існував.
             # (У тексті факту поруч живуть не-файлові згадки на кшталт `sw.js` —
             # вимагати існування кожної було б хибною тривогою.)
-            paths = re.findall(r"[\w][\w./-]*\.(?:py|mjs|js|sh|md|json|ya?ml|html|txt)\b", bullet)
+            paths = EVIDENCE_PATH.findall(bullet)
             has_date = re.search(r"\d{4}-\d{2}-\d{2}", bullet)
             if not paths and not has_date:
                 problems.append(f"{name}: [E] без вказівника на перевірку — {bullet[2:60].strip()}")
-            elif not any((root / p.lstrip("./")).exists()
-                         or (skill_dir and (skill_dir / p.lstrip("./")).exists())
-                         for p in paths):
+            elif not any(evidence_exists(p, root, skill_dir) for p in paths):
                 problems.append(
                     f"{name}: [E] без доказу, який існує на диску "
                     f"({'шляхи: ' + ', '.join(sorted(set(paths))) if paths else 'лише дата'}) "
@@ -329,10 +473,8 @@ def verify() -> int:
         problems.append(f"MANIFEST.governance v{gov.group(1)} != melania {mel_ver}")
 
     # Похідні лічильники в будь-якому документі екосистеми та ключових файлах репо
-    doc_targets = [ROOT / "MELANIA-BOOTSTRAP.md", ROOT / "README-FOR-HUMANS.md",
-                   ROOT / "README-FOR-AI.md", ROOT / "INSTALL-PROMPT.txt",
-                   ROOT.parent / "README.md"]
-    for doc in doc_targets:
+    problems += build_date_problems(man)
+    for doc in DOC_TARGETS:
         if not doc.exists():
             continue
         txt = doc.read_text(encoding="utf-8", errors="replace")
@@ -350,9 +492,7 @@ def verify() -> int:
                 problems.append(f"{rel}: governance v{m_gov} != melania {mel_ver}")
         # дати «збірка/зафіксовано/верифіковано» = MANIFEST.built
         built = man.get("built", "")
-        stale_dates = {d for d in re.findall(
-            r"(?:збірк[аи]|зафіксовано|верифіковано|перевірено|Дата збірки:)\s*(\d{4}-\d{2}-\d{2})", txt)
-            if d != built}
+        stale_dates = {m.group(2) for m in BUILD_DATE_MENTION.finditer(txt) if m.group(2) != built}
         if stale_dates:
             problems.append(f"{rel}: застаріла дата {sorted(stale_dates)} != built {built}")
 
@@ -373,7 +513,9 @@ def verify() -> int:
     # правило не буває істинним чи хибним, воно обов'язкове — тег там був би театром.
     #   [E] перевірено ділом → ОБОВ'ЯЗКОВИЙ вказівник (шлях/файл/дата)
     #   [C] обґрунтоване, машинно не перевірене   [S] гіпотеза
+    #   [?] не виводиться з наявної специфікації → «бракує:» + рішення власника
     claim_problems = []
+    claim_abstentions: list[str] = []
     # ── Самоперевірний протокол (Core Rule 15) ────────────────────────────
     # Кроки, які досі звітувались словами (bump/H1-синхрон, крос-посилання,
     # лічильники про інші файли, чистота тексту), стають машинними. Підстава —
@@ -382,7 +524,8 @@ def verify() -> int:
     for name in dirs:
         d = SKILLS / name
         txt = (d / "SKILL.md").read_text(encoding="utf-8", errors="replace")
-        claim_problems += claim_evidence_problems(name, txt, skill_dir=d)
+        claim_problems += claim_evidence_problems(name, txt, skill_dir=d,
+                                                  abstentions=claim_abstentions)
         self_check_problems += version_triad_problems(
             name, txt, man["skills"].get(name, {}).get("version"))
         self_check_problems += crossref_problems(name, txt)
@@ -427,12 +570,21 @@ def verify() -> int:
         for p in problems: print(f"  ✗ {p}")
     else:
         print("✅ MANIFEST цілісний (хеші, версії, лічильники збігаються)")
+    # Попередження, не провал: exit-код не змінюється (див. snapshot_age_warnings).
+    for w in snapshot_age_warnings(datetime.now(timezone.utc).date().isoformat()):
+        print(f"⚠️  {w}")
     if claim_problems:
         ok = False; print(f"\n❌ доказовість тверджень (Core Rule 14) — {len(claim_problems)}:")
         for c in claim_problems: print(f"  ✗ {c}")
     else:
         print("✅ усі фактичні твердження несуть тег доказовості "
               "([E] — з доказом, який існує на диску)")
+    # Абстенції — НЕ падіння, але й не тиша: твердження, правильна відповідь до
+    # якого не виводиться зі специфікації, мусить бути видимим власнику.
+    # Якби `[?]` падав, його б не вживали — писали б `[C]`, тобто впевнено.
+    if claim_abstentions:
+        print(f"\n⚠️  абстенції [?] — {len(claim_abstentions)} (чекають рішення власника, не падіння):")
+        for a in claim_abstentions: print(f"  ? {a}")
     if self_check_problems:
         ok = False; print(f"\n❌ самоперевірний протокол (Core Rule 15) — {len(self_check_problems)}:")
         for s in self_check_problems: print(f"  ✗ {s}")
@@ -454,6 +606,26 @@ def verify() -> int:
         for h in secret_hits: print(f"  ! {h}")
     else:
         print("✅ секрет-скан чистий (нуль захардкоджених ключів/токенів)")
+    # Декларативні гейти навичок (точка `verify`): навичка сама заявляє, що перевіряти
+    # (gates.json), виконавець — scripts/run-gates.py. Так перевірка поверхні навичок
+    # вбудована без жорсткого вшивання в цей файл (рішення власника 2026-09-30).
+    # Пакет melania може жити ПОЗА ai-lab, де виконавця немає — тоді це видима
+    # примітка, а не падіння й не мовчання.
+    runner = REPO / "scripts" / "run-gates.py"
+    if runner.is_file():
+        import subprocess as _sp
+        res = _sp.run([sys.executable, str(runner), "--point", "verify", "--root", str(REPO)],
+                      capture_output=True, text=True)
+        if res.returncode != 0:
+            ok = False
+            print(f"\n❌ декларативні гейти (точка verify), код {res.returncode}:")
+        else:
+            print("✅ декларативні гейти навичок (точка verify):")
+        for ln in res.stdout.rstrip().splitlines():
+            print(f"  {ln.strip()}")
+    else:
+        print("ℹ️  декларативні гейти не запущено: scripts/run-gates.py поза цим пакетом "
+              "(пакет працює без ai-lab) — перевірку поверхні навичок треба запустити там, де виконавець є")
     return 0 if ok else 1
 
 
@@ -472,7 +644,7 @@ def resync() -> int:
             code, first = run_guard(name, "snapshot")
             resnapped.append(f"{name}: {first}")
 
-    # Перерахунок похідних полів MANIFEST (версія/дата білду — авторитетні, не чіпаємо)
+    # Перерахунок похідних полів MANIFEST (версії — з frontmatter; дата — нижче, за відбитком)
     man = json.loads(MANIFEST.read_text(encoding="utf-8"))
     changed_manifest = False
     total = 0
@@ -500,6 +672,9 @@ def resync() -> int:
         want_gov = f"melania-skill-master-administrator v{mel_v}"
         if man.get("governance") != want_gov:
             man["governance"] = want_gov; changed_manifest = True
+    today = datetime.now(timezone.utc).date().isoformat()
+    restamped = stamp_build_date(man, today)
+    changed_manifest |= restamped
     if changed_manifest:
         MANIFEST.write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -514,11 +689,21 @@ def resync() -> int:
         for name in dirs:
             if name not in txt:
                 bootstrap_warn.append(name)
+    # Дати збірки в документах = MANIFEST.built (ідемпотентно: без зміни вмісту дата та сама)
+    redated = []
+    for doc in DOC_TARGETS:
+        if doc.exists():
+            txt = doc.read_text(encoding="utf-8")
+            new_txt = restamp_doc_dates(txt, man.get("built", ""))
+            if new_txt != txt:
+                doc.write_text(new_txt, encoding="utf-8"); redated.append(doc.name)
 
     print("resync:")
     print(f"  пере-знято baseline: {len(resnapped)}")
     for r in resnapped: print(f"    · {r}")
     print(f"  MANIFEST оновлено: {'так' if changed_manifest else 'без змін'} (skills={len(dirs)}, evals={total})")
+    print(f"  дата збірки: {man.get('built')}{' (оновлено — вміст змінився)' if restamped else ' (вміст той самий)'}"
+          + (f"; дати переписано в: {', '.join(redated)}" if redated else ""))
     if bootstrap_warn:
         print(f"  ⚠️  нема рядка в маршрутній таблиці MELANIA-BOOTSTRAP.md (додати вручну): {bootstrap_warn}")
     print("\n--- фінальний verify ---")
@@ -572,5 +757,9 @@ if __name__ == "__main__":
         sys.exit(verify())
     elif cmd == "resync":
         sys.exit(resync())
+    elif cmd == "snapshot-age":   # дешево, для SessionStart: друкує лише попередження
+        for w in snapshot_age_warnings(datetime.now(timezone.utc).date().isoformat()):
+            print(f"⚠️ {w}")
+        sys.exit(0)
     else:
         print(__doc__); sys.exit(2)

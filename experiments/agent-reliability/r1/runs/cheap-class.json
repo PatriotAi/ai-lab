@@ -1,0 +1,237 @@
+{
+ "claudeVersion": "2.1.319",
+ "costUsd": 0.038778,
+ "aggregates": {
+  "casesTotal": 4,
+  "casesPassed": 2,
+  "overallScore": 0.5,
+  "overallPassRate": 0.5,
+  "meanDelta": 0.08333333333333334
+ },
+ "cases": [
+  {
+   "name": "router-a",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0017768,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017643000000000001,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017232000000000003,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0017575000000000002,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017345000000000001,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017100000000000001,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "router-b",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0018136,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017961000000000001,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017430000000000002,
+      "graders": {
+       "result": false,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0017002,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0017052,
+      "graders": {
+       "result": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0016236000000000002,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-a",
+   "model": "haiku",
+   "delta": 0,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.001445,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014471000000000002,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0015578,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0013519000000000003,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013529000000000002,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013534000000000003,
+      "graders": {
+       "result": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "translate-b",
+   "model": "haiku",
+   "delta": 0.33333333333333337,
+   "arms": {
+    "with": [
+     {
+      "turns": 1,
+      "costUsd": 0.0017534,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0016525,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0016465000000000002,
+      "graders": {
+       "result": true,
+       "skill-fired": false
+      }
+     }
+    ],
+    "without": [
+     {
+      "turns": 1,
+      "costUsd": 0.0016022,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0014022,
+      "graders": {
+       "result": true
+      }
+     },
+     {
+      "turns": 1,
+      "costUsd": 0.0013651000000000002,
+      "graders": {
+       "result": false
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
