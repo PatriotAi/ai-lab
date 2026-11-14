@@ -866,6 +866,20 @@ $WIN --strict "${win_strict_dir%/docs}" >/dev/null 2>&1; win_rc=$?
 check "у режимі --strict відкрите вікно дає код 1" "1" "$win_rc"
 $WIN "${win_strict_dir%/docs}" >/dev/null 2>&1; win_rc2=$?
 check "той самий реєстр у режимі обліку дає код 0" "0" "$win_rc2"
+# --fix-counter: злиття гілок тихо лишало неправильний лічильник (тричі за PR #94).
+# Зламаний лічильник → виправлено й код 0; битий рядок → лічильник НЕ чіпається.
+win_fix_dir="$TMPROOT/win-fix/docs"; mkdir -p "$win_fix_dir"; : > "$win_fix_dir/PLAN.md"
+{ printf '<!-- ВІДКРИТИХ ВІКОН: 7 -->\n'
+  printf '| id | вікно | де | стан | причина / дата |\n|---|---|---|---|---|\n'
+  printf '%s\n' '| W-1 | борг | docs/PLAN.md | open | — |' '| W-2 | борг | docs/PLAN.md | open | — |'; } > "$win_fix_dir/WINDOWS.md"
+$WIN --fix-counter "${win_fix_dir%/docs}" >/dev/null 2>&1; wf_rc=$?
+check "--fix-counter: 7 → факт 2, далі реєстр коректний" "0|2" \
+  "$wf_rc|$(sed -n 's/.*ВІДКРИТИХ ВІКОН: \([0-9]*\).*/\1/p' "$win_fix_dir/WINDOWS.md")"
+printf '%s\n' '| X-3 | битий номер | docs/PLAN.md | open | — |' '| W-4 | борг | docs/PLAN.md | maybe | — |' >> "$win_fix_dir/WINDOWS.md"
+sed -i '1s/.*/<!-- ВІДКРИТИХ ВІКОН: 9 -->/' "$win_fix_dir/WINDOWS.md"
+$WIN --fix-counter "${win_fix_dir%/docs}" >/dev/null 2>&1; wf_rc2=$?
+check "--fix-counter не чіпає лічильник зламаного реєстру" "2|9" \
+  "$wf_rc2|$(sed -n 's/.*ВІДКРИТИХ ВІКОН: \([0-9]*\).*/\1/p' "$win_fix_dir/WINDOWS.md")"
 
 # Директива не буває істинною чи хибною — тег там був би театром. Секція Critical Facts
 # у фікстурі присутня, щоб перевірялась саме ця властивість, а не наявність секції.

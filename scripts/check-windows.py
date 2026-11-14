@@ -100,9 +100,23 @@ def problems(root: Path, rows: list[dict], text: str) -> list[str]:
     return found
 
 
+def fix_counter(path: Path, text: str, rows: list[dict]) -> str:
+    """Переписати лічильник фактом. Злиття двох гілок, кожна з яких додала вікно,
+    тихо лишає «16 → 17» замість 18 (тричі за історію PR #94) — виправлення руками
+    щоразу трималось на уважності. Лише лічильник: решту поломок лагодить людина."""
+    open_count = sum(1 for r in rows if r["state"] == "open")
+    line = f"<!-- ВІДКРИТИХ ВІКОН: {open_count} -->"
+    new = COUNTER.sub(line, text, count=1) if COUNTER.search(text) else f"{line}\n{text}"
+    if new != text:
+        path.write_text(new, encoding="utf-8")
+        print(f"check-windows: лічильник виправлено → {open_count}")
+    return new
+
+
 def main(argv: list[str]) -> int:
     strict = "--strict" in argv
-    rest = [a for a in argv[1:] if a != "--strict"]
+    fix = "--fix-counter" in argv
+    rest = [a for a in argv[1:] if a not in ("--strict", "--fix-counter")]
     root = Path(rest[0]) if rest else Path(__file__).resolve().parents[1]
     path = root / REGISTER
     if not path.is_file():
@@ -111,6 +125,9 @@ def main(argv: list[str]) -> int:
 
     text = path.read_text(encoding="utf-8", errors="replace")
     rows, broken = parse(text)
+    # Не правимо лічильник зламаного реєстру: число з битих рядків — теж неправда.
+    if fix and not broken and all(r["state"] in STATES for r in rows):
+        text = fix_counter(path, text, rows)
     issues = broken + problems(root, rows, text)
     if issues:
         print(f"🚩 реєстр зламаний — {len(issues)}:")
