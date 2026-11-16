@@ -55,7 +55,8 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__claude-code-remote__add_repo"
     ],
     "deny": [
       "Read(.env)",
