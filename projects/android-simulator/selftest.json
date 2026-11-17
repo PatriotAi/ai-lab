@@ -1,0 +1,18 @@
+[
+  {
+    "label": "fdroid-app-phone",
+    "target": "fdroid:org.fdroid.fdroid",
+    "device": "phone",
+    "android": "33",
+    "flow": "",
+    "monkey_events": "300"
+  },
+  {
+    "label": "web-small-screen",
+    "target": "https://f-droid.org/uk/",
+    "device": "small",
+    "android": "33",
+    "flow": "",
+    "monkey_events": "0"
+  }
+]
