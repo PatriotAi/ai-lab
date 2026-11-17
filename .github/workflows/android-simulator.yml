@@ -235,7 +235,7 @@ jobs:
         id: run
         if: steps.prepare.outcome == 'success'
         continue-on-error: true
-        uses: reactivecircus/android-emulator-runner@e93c997dcab69054e999e3924af3d21c4a736e13 # v2.9.0
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           KIND: ${{ matrix.kind }}
           DEVICE: ${{ matrix.device }}
