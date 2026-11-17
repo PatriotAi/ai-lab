@@ -3,14 +3,14 @@ name: llm-api-builder
 description: "Build apps with the Claude API or Anthropic SDK. TRIGGER when code imports anthropic, @anthropic-ai/sdk, or claude_agent_sdk, or user asks to use Claude API, Anthropic SDKs, or Agent SDK. Також використовуй, коли користувач хоче: збудувати застосунок на Claude API, інтегрувати Anthropic SDK, налаштувати tool use / function calling, streaming, Batch API, structured outputs чи prompt caching. DO NOT TRIGGER when code imports openai or other AI SDK, general programming, or ML/data-science tasks. НЕ використовувати для openai чи інших не-Anthropic SDK."
 license: MIT
 metadata:
-  version: 1.5.2
+  version: 1.5.3
   author: Melania (Master Administrator)
   category: api-building
   created: 2026-06-02
-  last_updated: 2026-10-16
+  last_updated: 2026-11-17
 ---
 
-# Building LLM-Powered Applications with Claude — v1.5.2
+# Building LLM-Powered Applications with Claude — v1.5.3
 > Пояснення — українською за замовчуванням (українською-перша); код, ідентифікатори та поля API лишаються англійською. Перемикання мови лише слідом за користувачем.
 
 
@@ -146,9 +146,9 @@ metadata:
 
 **Поточні флагмани — adaptive thinking (рекомендовано):** `thinking: {type: "adaptive"}`. На поточних флагманах `budget_tokens` deprecated.
 
-**Effort-параметр (GA):** `output_config: {effort: "low"|"medium"|"high"|"max"}`. Замовчування — `high`. `max` — лише для топ-Opus.
+**Effort-параметр (GA):** `output_config: {effort: "low"|"medium"|"high"|"max"}`. Замовчування — `high`. `max` — лише для найсильнішого класу (перелік — у model-snapshot).
 
-**Adaptive thinking** підтримується поточними Sonnet/Opus; `budget_tokens` на них deprecated.
+**Adaptive thinking** підтримується поточними моделями середнього й найсильнішого класу (перелік — у model-snapshot); `budget_tokens` на них deprecated.
 
 **Старіші моделі (лише за явним запитом):** `thinking: {type: "enabled", budget_tokens: N}`. `budget_tokens` має бути менший за `max_tokens` (мінімум 1024).
 > ⚠️ `budget_tokens` валідний **лише для старіших поколінь** (межу звір у docs). Не використовуй із поточними флагманами — звір актуальну поведінку в docs.
@@ -191,7 +191,7 @@ metadata:
 
 * Не обрізай вхід, передаючи файли чи контент в API.
 * **Thinking на поточних флагманах:** `thinking: {type: "adaptive"}` — НЕ використовуй `budget_tokens`.
-* **Prefill:** на найновіших Opus assistant-prefill може повертати 400 — звір у docs перед використанням prefill.
+* **Prefill:** на найновіших моделях найсильнішого класу assistant-prefill може повертати 400 — звір у docs перед використанням prefill.
 * **128K output tokens:** `.stream()` з `.get_final_message()` / `.finalMessage()`.
 * **Batch API до 300K output:** beta-хедер `output-300k-2026-03-24` (звір docs) — для довгих batch-генерацій.
 * **Structured outputs:** `output_config: {format: {...}}` замість deprecated `output_format`.
@@ -208,6 +208,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.5.3** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: назви родин моделей у правилах (effort, adaptive thinking, prefill) → класи; `claude-opus-4-5` ×5 у прикладах `advanced-api.md` → `MODEL` зі знімка. Лише правила/межі/покажчики; поведінка незмінна.
 - **v1.5.2** (2026-10-16) — Вказівник на знімок моделей став не-старіючим (без зашитого «2026-07»): знімок оновлено до 2026-10 у `multi-provider-ai-orchestration`. Логіка скіла не змінена.
 - **v1.5.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.5.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.

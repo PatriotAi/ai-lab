@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-11-07T12:16:31.598086+00:00",
-  "md5": "234a3317ee9f120e498b1083c4939168",
+  "timestamp": "2026-11-17T22:38:21.949219+00:00",
+  "md5": "c01dd6255abe56a001f981513235c72f",
   "total_lines": 236,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
@@ -12,7 +12,7 @@
     "## Behavior",
     "## Verify before integrating (завжди)",
     "## Coordinates with",
-    "## Рекомендовані Моделі 2026",
+    "## Вибір моделі за класом пристрою",
     "## Streaming з Progress",
     "## Service Worker — Кешування Ваг",
     "## 📎 Advanced Patterns (v4)",
@@ -29,8 +29,8 @@
     "Service Worker",
     "Streaming з Progress",
     "Verify before integrating",
+    "Вибір моделі за класом пристрою",
     "Зміни",
-    "Рекомендовані Моделі 2026",
     "📎 Advanced Patterns",
     "🛡️ Протокол Збереження Перед Оновленням"
   ]

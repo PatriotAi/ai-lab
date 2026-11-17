@@ -4,7 +4,7 @@
 
 ```javascript
 const engine = new mlc.MLCEngine();
-await engine.reload("Llama-3.1-8B-Instruct-q4f32_1-MLC");
+await engine.reload(TIERS.quality); // ID — у знімку моделей (§ WebLLM)
 
 const tools = [{
   type: "function",
@@ -32,7 +32,7 @@ if (toolCall) {
 }
 ```
 
-Підтримка function calling залежить від моделі (Llama 3.1+, Qwen2.5 — так).
+Підтримка function calling залежить від моделі — перелік придатних у знімку моделей (§ WebLLM).
 
 ---
 
@@ -73,8 +73,8 @@ async function getEngine(modelId) {
   return engines[modelId];
 }
 // Маленька модель для класифікації, велика для генерації
-const classifier = await getEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC");
-const generator  = await getEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC");
+const classifier = await getEngine(TIERS.micro);
+const generator  = await getEngine(TIERS.quality);
 ```
 
 ⚠️ Увага на VRAM — дві великі моделі можуть не поміститись. Вивантажуй: `engine.unload()`.

@@ -99,3 +99,22 @@ DeepSeek: `https://api.deepseek.com/anthropic`; Grok: див. docs xAI. Пате
 - Fable 5.1: forced `tool_choice` (`any`/`tool`) → 400; потрібна 30-денна політика зберігання даних.
 - Економіка прогону: диригент 5-15% токенів, воркери 85-95% на дешевих → економія на воркер-токенах
   зросла: найдешевший клас тепер у 40× дешевший за Opus 5.5 на вході.
+
+## WebLLM: локальні моделі за класом пристрою (знімок 2026-10; перенесено з `browser-local-ai-webllm` 2026-11-17)
+Класи для правила «RAM → клас» навички `browser-local-ai-webllm`: `quality` = `Llama-3.1-8B-Instruct-q4f32_1-MLC` ·
+`general` = `Qwen2.5-7B-Instruct-q4f16_1-MLC` · `compact` = `Phi-3.5-mini-instruct-q4f16_1-MLC` ·
+`micro` = `Llama-3.2-1B-Instruct-q4f16_1-MLC`.
+`familyRank`: `{"Qwen3.5":100,"Qwen3":95,"Llama-3.2":90,"Phi-4":88,"gemma3":86,"Qwen2.5":82}`.
+Окремий вхід «текст + аудіо» — `gemma-4-E2B-it-q4f16_1-MLC` / `…q4f32_1-MLC` (з WebLLM 0.2.86).
+Вбудований AI браузера (`window.ai`) — Gemini Nano, лише desktop/ChromeOS.
+Розміри (звірено за `src/config.ts` WebLLM v0.2.87, 2026-11-07): Gemma 4 E2B q4f16 ≈ 3387 МБ, q4f32 ≈ 3863 МБ.
+
+| Модель | VRAM | Швидкість | Якість | Use case |
+|---|---|---|---|---|
+| `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~1GB | ⚡⚡⚡ | добра | тригери, класифікація |
+| `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~2GB | ⚡⚡ | краща | чат, короткі відповіді |
+| `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.5GB | ⚡⚡ | відмінна | розуміння коду |
+| `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~5GB | ⚡ | дуже добра | загальне завдання |
+| `gemma-4-E2B-it-q4f16_1-MLC` / `…q4f32_1-MLC` | ~3.4 / ~3.9GB | ⚡⚡ | добра | текст + аудіо-вхід (з 0.2.86) |
+| `Llama-3.1-8B-Instruct-q4f32_1-MLC` | ~6GB | ⚡ | відмінна | best for quality |
+| `Llama-3.3-70B` | ~40GB | — | найкраща | лише в серверних браузерах |

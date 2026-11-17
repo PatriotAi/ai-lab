@@ -18,7 +18,7 @@
 | Changelog | `переглянути changelog` | Вивести references/CHANGELOG.md |
 | Затвердити | `затвердити пропозицію #N` | Apply Proposal #N → CHANGELOG.md |
 | Відхилити | `відхилити пропозицію #N [причина]` | Move до Rejected з причиною |
-| Репакування | `перепакувати skill` | Запустити package_skill.py → новий .skill |
+| Репакування | `перепакувати skill` | Запустити `maintain.py package <skill>` → новий .skill |
 | Показати diff | `показати diff [секція]` | Вивести до/після без застосування |
 | Скинути версію | `rollback до v[X.Y.Z]` | Відновити зі snapshot (якщо є) |
 
