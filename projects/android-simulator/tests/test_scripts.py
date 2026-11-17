@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import plan  # noqa: E402
 import report  # noqa: E402
+import tap_text  # noqa: E402
 import urltools  # noqa: E402
 
 CRASH = """11-17 10:00:00.000 E/AndroidRuntime( 1234): FATAL EXCEPTION: main
@@ -75,6 +76,19 @@ class Plan(unittest.TestCase):
     def test_selftest_file_is_valid(self):
         runs = plan.build("push", {}, Path(plan.__file__).resolve().parent.parent / "selftest.json")
         self.assertGreaterEqual(len(runs), 2)
+
+
+class TapText(unittest.TestCase):
+    XML = ('<?xml version="1.0"?><hierarchy><node index="0" text="" content-desc="Got it" '
+           'bounds="[0,0][100,50]"/><node text="Accept &amp; continue" bounds="[10,20][110,60]"/></hierarchy>')
+
+    def test_finds_button_in_priority_order(self):
+        self.assertEqual(tap_text.find(self.XML, ["Accept & continue", "Got it"]), (60, 40))
+        self.assertEqual(tap_text.find(self.XML, ["got it"]), (50, 25))
+
+    def test_no_match_and_garbage(self):
+        self.assertIsNone(tap_text.find(self.XML, ["Nope"]))
+        self.assertIsNone(tap_text.find("<<<not xml", ["Got it"]))
 
 
 class Scrub(unittest.TestCase):
