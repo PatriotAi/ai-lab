@@ -7,7 +7,6 @@
 #
 # Вхід (змінні оточення; у shell не підставляються):
 #   KIND=app|web  SOURCE=url|fdroid|artifact  TARGET (без перепустки)
-#   TARGET_RAW (сире поле вводу; може містити перепустку до сайту)
 #   VERCEL_BYPASS (необов'язковий секрет)  ARTIFACT_DIR  WORK  SIM_DIR
 #   BUNDLETOOL_VERSION  BUNDLETOOL_SHA256 (необов'язково)
 set -euo pipefail
@@ -23,15 +22,6 @@ fail() { printf '::error::%s\n' "$*"; printf 'PREPARE_ERROR=%q\n' "$*" >> "$ENV_
 # ── Сайт ───────────────────────────────────────────────────────────────────
 if [ "$KIND" = web ]; then
   launch="$TARGET"
-  # Перепустка з поля вводу: ховаємо в журналах і повертаємо в посилання запуску.
-  if [ -n "${TARGET_RAW:-}" ]; then
-    while IFS= read -r s; do
-      [ -n "$s" ] && echo "::add-mask::$s"
-    done < <(python3 "$SIM_DIR/scripts/urltools.py" secrets "$TARGET_RAW")
-    if [ "$(python3 "$SIM_DIR/scripts/urltools.py" strip "$TARGET_RAW")" = "$TARGET" ]; then
-      launch="$TARGET_RAW"
-    fi
-  fi
   if [ -n "${VERCEL_BYPASS:-}" ]; then
     case "$launch" in *\?*) sep='&' ;; *) sep='?' ;; esac
     launch="${launch}${sep}x-vercel-protection-bypass=${VERCEL_BYPASS}&x-vercel-set-bypass-cookie=true"

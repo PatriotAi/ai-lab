@@ -63,10 +63,14 @@ class Plan(unittest.TestCase):
         with self.assertRaises(plan.PlanError):
             plan.normalize({"target": "https://x.org", "android": "9; rm"}, 0)
 
-    def test_secret_never_in_plan(self):
-        run = plan.normalize({"target": "https://s.vercel.app/?a=1&_vercel_share=TOPSECRET"}, 0)
-        self.assertNotIn("TOPSECRET", json.dumps(run))
-        self.assertEqual(run["target"], "https://s.vercel.app/?a=1")
+    def test_secret_in_form_is_rejected(self):
+        for u in ["https://s.vercel.app/?a=1&_vercel_share=TOPSECRET",
+                  "https://s.vercel.app/?x-vercel-protection-bypass=K"]:
+            with self.assertRaises(plan.PlanError) as e:
+                plan.normalize({"target": u}, 0)
+            self.assertNotIn("TOPSECRET", str(e.exception))
+        self.assertEqual(plan.normalize({"target": "https://s.vercel.app/?a=1"}, 0)["target"],
+                         "https://s.vercel.app/?a=1")
 
     def test_selftest_file_is_valid(self):
         runs = plan.build("push", {}, Path(plan.__file__).resolve().parent.parent / "selftest.json")

@@ -139,12 +139,7 @@ jobs:
           IN_FLOW: ${{ inputs.flow }}
           IN_MONKEY: ${{ inputs.monkey_events }}
           IN_LABEL: ${{ inputs.label }}
-        run: |
-          # Перепустку до закритого сайту ховаємо в журналі ще до будь-якого друку.
-          if [ -n "$IN_TARGET" ]; then
-            python3 "$SIM_PATH/scripts/urltools.py" secrets "$IN_TARGET" | while IFS= read -r s; do echo "::add-mask::$s"; done
-          fi
-          python3 "$SIM_PATH/scripts/plan.py"
+        run: python3 "$SIM_PATH/scripts/plan.py"
 
   simulate:
     name: "📱 ${{ matrix.label }}"
@@ -198,7 +193,6 @@ jobs:
           KIND: ${{ matrix.kind }}
           SOURCE: ${{ matrix.source }}
           TARGET: ${{ matrix.target }}
-          TARGET_RAW: ${{ github.event_name != 'push' && inputs.target || '' }}
           VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           ARTIFACT_DIR: ${{ github.workspace }}/.work/artifact
         run: bash "$SIM_DIR/scripts/prepare-target.sh"

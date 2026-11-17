@@ -59,14 +59,17 @@ adb logcat -v time > "$R/logcat.txt" 2>/dev/null &
 LOGCAT_PID=$!
 
 # Відео: Android пише максимум 3 хв за раз, тож пишемо шматками до 3 штук.
-(
-  for i in 1 2 3; do
-    adb shell screenrecord --bit-rate 1200000 --time-limit 175 "/sdcard/sim-rec-$i.mp4" >/dev/null 2>&1 || break
-    [ -f "$WORK/.stop-rec" ] && break
-  done
-) &
-REC_PID=$!
-sleep 1
+REC_PID=""
+start_rec() {
+  (
+    for i in 1 2 3; do
+      adb shell screenrecord --bit-rate 1200000 --time-limit 175 "/sdcard/sim-rec-$i.mp4" >/dev/null 2>&1 || break
+      [ -f "$WORK/.stop-rec" ] && break
+    done
+  ) &
+  REC_PID=$!
+  sleep 1
+}
 
 # ── Ціль ────────────────────────────────────────────────────────────────────
 installed=0; launched=0
@@ -76,13 +79,20 @@ if [ "$KIND" = web ]; then
   adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device
   adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-signin-promo" > /data/local/tmp/chrome-command-line' >/dev/null 2>&1 || true
   adb shell am set-debug-app --persistent com.android.chrome >/dev/null 2>&1 || true
-  if adb shell pm path com.android.chrome 2>/dev/null | grep -q package:; then
+  open_url() { # open_url <url>
+    if [ -n "${HAS_CHROME:-}" ]; then
+      adb shell am start -a android.intent.action.VIEW -n com.android.chrome/com.google.android.apps.chrome.Main -d "'$1'" >/dev/null 2>&1
+    else
+      adb shell am start -a android.intent.action.VIEW -d "'$1'" >/dev/null 2>&1
+    fi
+  }
+  adb shell pm path com.android.chrome 2>/dev/null | grep -q package: && HAS_CHROME=1
+  if [ -n "${HAS_CHROME:-}" ]; then
     st BROWSER "Chrome $(adb shell dumpsys package com.android.chrome | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')"
-    adb shell am start -a android.intent.action.VIEW -n com.android.chrome/com.google.android.apps.chrome.Main -d "'$url'" >/dev/null 2>&1
   else
     st BROWSER "вбудований переглядач (Chrome на образі відсутній)"
-    adb shell am start -a android.intent.action.VIEW -d "'$url'" >/dev/null 2>&1
   fi
+  open_url "$url"
   installed=1; launched=1
   sleep 15
   # Вітальні екрани Chrome (умови, вхід в акаунт, сповіщення) — закрити, якщо є.
@@ -95,9 +105,17 @@ if [ "$KIND" = web ]; then
     adb shell input tap $xy
     sleep 4
   done
+  # Якщо відкривали з ключем доступу — тепер (кука вже є) відкриваємо чисте
+  # посилання, щоб ключ не потрапив на знімки й відео. Запис — лише після цього.
+  if [ "$url" != "$DISPLAY_TARGET" ]; then
+    open_url "$DISPLAY_TARGET"
+    sleep 12
+  fi
+  start_rec
   sleep 5
   shot opened
 else
+  start_rec
   log "Встановлюю $PACKAGE ($INSTALL_MODE)"
   if [ "$INSTALL_MODE" = apks ]; then
     java -jar "$WORK/bundletool.jar" install-apks --apks="$WORK/app/app.apks" > "$R/install.txt" 2>&1 && installed=1
@@ -127,7 +145,7 @@ if [ "$installed" = 1 ] && [ -n "${FLOW_PATH:-}" ] && [ -n "${MAESTRO_BIN:-}" ];
   ( cd "$R/maestro" && "$MAESTRO_BIN" test "$FLOW_PATH" \
       --format junit --output "$R/maestro/report.xml" \
       --test-output-dir "$R/maestro" \
-      -e "SIM_URL=$( [ "$KIND" = web ] && cat "$WORK/launch-url.txt")" \
+      -e "SIM_URL=$( [ "$KIND" = web ] && echo "$DISPLAY_TARGET")" \
       -e "SIM_PACKAGE=$PACKAGE" ) > "$R/maestro/maestro.log" 2>&1
   rc=$?
   scrub "$R/maestro/maestro.log"
@@ -165,7 +183,7 @@ fi
 touch "$WORK/.stop-rec"
 adb shell pkill -INT screenrecord >/dev/null 2>&1 || true
 sleep 4
-kill "$REC_PID" >/dev/null 2>&1 || true
+[ -n "$REC_PID" ] && kill "$REC_PID" >/dev/null 2>&1 || true
 for i in 1 2 3; do
   adb pull "/sdcard/sim-rec-$i.mp4" "$R/video/part-$i.mp4" >/dev/null 2>&1 || true
 done

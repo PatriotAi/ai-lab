@@ -69,9 +69,14 @@ def normalize(entry: dict, idx: int) -> dict:
     flow = (entry.get("flow") or "").strip()
     if flow and (".." in flow.split("/") or flow.startswith("/") or not re.fullmatch(r"(sim:)?[A-Za-z0-9._/-]+", flow)):
         raise PlanError(f"некоректний шлях до сценарію: {flow!r}")
-    # Перепустку до закритого сайту в план не беремо: план видно в журналі.
-    # Її дістане крок запуску прямо з поля вводу й одразу сховає (::add-mask::).
-    target = strip_secret((entry.get("target") or "").strip())
+    target = (entry.get("target") or "").strip()
+    # Перепустку до закритого сайту через поле форми НЕ приймаємо: поля форми
+    # GitHub друкує у відкритому журналі раніше, ніж їх можна сховати.
+    # Правильний шлях — секрет VERCEL_AUTOMATION_BYPASS_SECRET (див. README).
+    if strip_secret(target) != target:
+        raise PlanError("у посиланні є перепустка (_vercel_share / x-vercel-protection-bypass) — "
+                        "її не можна вставляти у форму, вона потрапить у публічний журнал. "
+                        "Збережіть ключ як секрет VERCEL_AUTOMATION_BYPASS_SECRET (див. README)")
     info = classify_target(target)
     kind_override = (entry.get("kind") or "auto").strip()
     if kind_override in {"app", "web"}:
