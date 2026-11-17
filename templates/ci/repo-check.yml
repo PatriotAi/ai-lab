@@ -10,7 +10,7 @@
 # користувача (як PatriotAi) — не потрібен.
 # Копія в репозиторії = .github/workflows/repo-check.yml; правити ШАБЛОН, копії оновлювати з нього.
 # Монітор (automations/repo-monitor) звіряє копії з шаблоном за рядком sync нижче.
-# sync: ai-lab templates/ci/repo-check.yml v6 (2026-11-03)
+# sync: ai-lab templates/ci/repo-check.yml v7 (2026-11-16)
 name: Repo check
 
 on:
@@ -79,7 +79,15 @@ jobs:
         id: detect
         run: |
           if [ -f package.json ]; then echo "node=true" >> "$GITHUB_OUTPUT"; else echo "node=false" >> "$GITHUB_OUTPUT"; fi
-      - if: steps.detect.outputs.node == 'true'
+          # engines.node є → CI збирає на тій самій версії, що й хостинг (Vercel бере її звідти);
+          # інакше зелений CI на lts/* не доводить, що збереться прод (v7, урок 2026-11-14).
+          if [ -f package.json ] && node -e 'process.exit(require("./package.json").engines?.node ? 0 : 1)'; then
+            echo "engines=true" >> "$GITHUB_OUTPUT"; else echo "engines=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.detect.outputs.node == 'true' && steps.detect.outputs.engines == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
+        with:
+          node-version-file: package.json
+      - if: steps.detect.outputs.node == 'true' && steps.detect.outputs.engines != 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4
         with:
           node-version: lts/*
