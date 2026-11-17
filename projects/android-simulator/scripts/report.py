@@ -16,6 +16,7 @@ import re
 import shlex
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 FATAL_RE = re.compile(r"FATAL EXCEPTION:.*?\n.*?Process: ([\w.:]+)", re.S)
 NATIVE_RE = re.compile(r">>> ([\w.:]+) <<<")
@@ -146,8 +147,8 @@ def summary(root: Path, base_url: str, title: str) -> str:
         shots = sorted((res / "shots").glob("*.png")) + sorted((res / "maestro").rglob("*.png"))
         if shots:
             imgs = " ".join(
-                f'<a href="{url}/results/{s.relative_to(res).as_posix()}">'
-                f'<img src="{url}/results/{s.relative_to(res).as_posix()}" width="160" alt="{s.stem}"></a>'
+                f'<a href="{url}/results/{quote(s.relative_to(res).as_posix())}">'
+                f'<img src="{url}/results/{quote(s.relative_to(res).as_posix())}" width="160" alt="{s.stem}"></a>'
                 for s in shots[:12])
             lines += [imgs, ""]
         links = []

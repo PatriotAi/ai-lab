@@ -320,12 +320,12 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          MATRIX: ${{ needs.plan.outputs.matrix }}
           REPO: ${{ github.repository }}
           RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
           SERVER_URL: ${{ github.server_url }}
         run: |
-          # Назви тек: sim-<label> → <label>
-          for d in runs/sim-*; do [ -d "$d" ] && mv "$d" "runs/${d#runs/sim-}"; done
+          bash "$SIM_PATH/scripts/arrange-runs.sh" runs
           base="$(SRC=runs bash "$SIM_PATH/scripts/publish-results.sh" | tail -1)"
           echo "base=$base" >> "$GITHUB_OUTPUT"
 
@@ -333,9 +333,10 @@ jobs:
         id: summary
         env:
           BASE: ${{ steps.album.outputs.base }}
+          MATRIX: ${{ needs.plan.outputs.matrix }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          for d in runs/sim-*; do [ -d "$d" ] && mv "$d" "runs/${d#runs/sim-}"; done
+          bash "$SIM_PATH/scripts/arrange-runs.sh" runs
           python3 "$SIM_PATH/scripts/report.py" summary runs "${BASE:-$RUN_URL}" > report.md
           {
             echo
