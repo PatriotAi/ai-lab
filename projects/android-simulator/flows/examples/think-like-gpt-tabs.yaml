@@ -1,0 +1,24 @@
+# Сценарій для сайту «Думай як GPT»: відкрити сайт і пройти по трьох вкладках
+# блоку «Звідки брати відповідь». Запускається в Chrome на віртуальному телефоні.
+# Посилання на сайт підставляє симулятор (змінна SIM_URL) — сайт уже відкритий.
+appId: com.android.chrome
+name: think-like-gpt — вкладки
+---
+- extendedWaitUntil:
+    visible: ".*Думай як GPT.*"
+    timeout: 30000
+- takeScreenshot: 01-home
+- scrollUntilVisible:
+    element: ".*Мої акаунти ШІ.*"
+    direction: DOWN
+    timeout: 15000
+- tapOn: ".*Мої акаунти ШІ.*"
+- waitForAnimationToEnd
+- takeScreenshot: 02-tab-my-ai-accounts
+- tapOn: ".*На моєму пристрої.*"
+- waitForAnimationToEnd
+- takeScreenshot: 03-tab-on-device
+- tapOn: ".*Сервіс.*"
+- waitForAnimationToEnd
+- assertVisible: ".*Зараз відповіді йдуть звідси.*"
+- takeScreenshot: 04-tab-service
