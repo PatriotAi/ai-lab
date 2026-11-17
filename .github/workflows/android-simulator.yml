@@ -249,11 +249,18 @@ jobs:
         continue-on-error: true
         run: |
           v="$WORK/results/video/part-1.mp4"
-          [ -s "$v" ] || exit 0
+          frames="$(ls "$WORK"/frames/*.png 2>/dev/null | wc -l)"
+          [ -s "$v" ] || [ "$frames" -gt 2 ] || { echo "немає ні відео, ні кадрів"; exit 0; }
           command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null; }
-          ffmpeg -loglevel error -y -t 90 -i "$v" \
-            -vf "fps=4,scale=240:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse" \
-            "$WORK/results/preview.gif"
+          pal="split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse"
+          if [ -s "$v" ]; then
+            ffmpeg -loglevel error -y -t 90 -i "$v" -vf "fps=4,scale=240:-2:flags=lanczos,$pal" "$WORK/results/preview.gif" || rm -f "$WORK/results/preview.gif"
+          fi
+          if [ ! -s "$WORK/results/preview.gif" ] && [ "$frames" -gt 2 ]; then
+            echo "відео недоступне — GIF із кадрів ($frames шт.)"
+            ffmpeg -loglevel error -y -framerate 2 -pattern_type glob -i "$WORK/frames/*.png" \
+              -vf "scale=240:-2:flags=lanczos,$pal" "$WORK/results/preview.gif"
+          fi
           ls -la "$WORK/results/preview.gif"
 
       - name: Розібрати результати

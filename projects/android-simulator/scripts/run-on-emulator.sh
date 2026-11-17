@@ -50,7 +50,7 @@ fi
   echo "api=$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
   echo "abi=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
   echo "screen=$(adb shell wm size | tr -d '\r' | sed 's/.*: //')"
-  echo "density=$(adb shell wm density | tr -d '\r' | sed 's/.*: //')"
+  echo "density=$(adb shell wm density | tr -d '\r' | tail -1 | sed 's/.*: //')"
 } > "$R/device.txt"
 cat "$R/device.txt"
 
@@ -59,15 +59,31 @@ adb logcat -v time > "$R/logcat.txt" 2>/dev/null &
 LOGCAT_PID=$!
 
 # Відео: Android пише максимум 3 хв за раз, тож пишемо шматками до 3 штук.
-REC_PID=""
+# Програмна відеокарта емулятора не завжди тягне запис у повному розмірі —
+# пишемо в половинному. Паралельно знімаємо кадр кожні ~2 с: із них зробимо
+# GIF, якщо відео не вдасться (запасний шлях).
+REC_PID=""; FRAMES_PID=""
 start_rec() {
+  local w h size
+  read -r w h < <(adb shell wm size | tr -d '\r' | sed -n 's/^Physical size: //p' | tail -1 | sed 's/x/ /')
+  if [ "${w:-0}" -gt 720 ]; then size="$(( w / 2 / 2 * 2 ))x$(( h / 2 / 2 * 2 ))"; else size="${w}x${h}"; fi
   (
     for i in 1 2 3; do
-      adb shell screenrecord --bit-rate 1200000 --time-limit 175 "/sdcard/sim-rec-$i.mp4" >/dev/null 2>&1 || break
+      adb shell screenrecord --size "$size" --bit-rate 1200000 --time-limit 175 "/sdcard/sim-rec-$i.mp4" >> "$R/video/record.log" 2>&1 || break
       [ -f "$WORK/.stop-rec" ] && break
     done
   ) &
   REC_PID=$!
+  mkdir -p "$WORK/frames"
+  (
+    n=0
+    while [ ! -f "$WORK/.stop-rec" ] && [ "$n" -lt 400 ]; do
+      n=$((n + 1))
+      adb exec-out screencap -p > "$WORK/frames/f$(printf '%04d' "$n").png" 2>/dev/null || break
+      sleep 1.5
+    done
+  ) &
+  FRAMES_PID=$!
   sleep 1
 }
 
@@ -181,12 +197,19 @@ fi
 
 # ── Зупинити запис і зібрати файли ─────────────────────────────────────────
 touch "$WORK/.stop-rec"
-adb shell pkill -INT screenrecord >/dev/null 2>&1 || true
-sleep 4
+adb shell pkill -INT screenrecord >> "$R/video/record.log" 2>&1 || true
+# Дати запису дописати файл: чекаємо, поки процес запису сам завершиться (до 20 с).
+for _ in $(seq 1 20); do
+  [ -n "$REC_PID" ] && kill -0 "$REC_PID" 2>/dev/null || break
+  sleep 1
+done
 [ -n "$REC_PID" ] && kill "$REC_PID" >/dev/null 2>&1 || true
+[ -n "$FRAMES_PID" ] && wait "$FRAMES_PID" 2>/dev/null || true
 for i in 1 2 3; do
   adb pull "/sdcard/sim-rec-$i.mp4" "$R/video/part-$i.mp4" >/dev/null 2>&1 || true
+  [ -s "$R/video/part-$i.mp4" ] || rm -f "$R/video/part-$i.mp4"
 done
+log "відео: $(ls "$R/video" | tr '\n' ' '); кадрів для GIF: $(ls "$WORK/frames" 2>/dev/null | wc -l)"
 adb logcat -d -b crash > "$R/crash.txt" 2>/dev/null || true
 kill "$LOGCAT_PID" >/dev/null 2>&1 || true
 scrub "$R/logcat.txt" "$R/crash.txt"
