@@ -345,6 +345,17 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", f"echo '{PUSHF}' | node tool.js -", "R2"),
     #   …а без файлу-скрипта (`-I lib` — каталог, не скрипт) stdin — програма.
     ("Bash", f"perl -I lib <<'EOF'\nsystem(\"{PUSHF}\")\nEOF", "R4"),
+    # Рев'ю Codex #130 (2026-11-18): три зниження R4→R2, внесені виправленням W-42.
+    #   значення `-I` з розширенням скрипта — каталог, а не файл-скрипт;
+    ("Bash", f"ruby -I lib.py <<'EOF'\nsystem('{PUSHF}')\nEOF", "R4"),
+    ("Bash", f"perl -I x.pl <<'EOF'\nsystem('{PUSHF}')\nEOF", "R4"),
+    #   шлях до секрету, поданий через `xargs` читачеві, — далі читання секрету;
+    ("Bash", f"printf '{ENV}' | xargs cat", "R4"),
+    ("Bash", f"echo {ENV} | xargs head -5", "R4"),
+    #   `proc_open` (PHP) і `Open3` (Ruby) запускають список аргументів без оболонки.
+    ("Bash", "php -r 'proc_open([\"git\",\"push\",\"--for" + "ce\",\"origin\",\"main\"], [], $p);'",
+     "R4"),
+    ("Bash", "ruby -e 'Open3.capture2(\"git\",\"push\",\"--for" + "ce\",\"origin\",\"main\")'", "R4"),
 ]
 
 

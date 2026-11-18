@@ -396,6 +396,9 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
     # дані для скрипта, а не програма. Лише за розширенням: `perl -I lib <<EOF` —
     # каталог, а не скрипт, і тіло heredoc там — програма.
     script = False
+    # Окремий прапорець, що може брати значення наступним словом (`ruby -I lib.py`,
+    # `perl -I x.pl`): це слово — значення, не файл-скрипт (рев'ю Codex #130).
+    valued_prev = False
     k = 0
     while k < len(args):
         tok = args[k]
@@ -427,6 +430,7 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
         # уже завершився б на операнді): `node script.js -e …` — теж код.
         if len(tok) > 1 and tok[0] in "-+":
             letters, n = tok[1:], 0
+            valued_prev = letters[-1] in spec.get("rest", "")
             while n < len(letters):
                 ch = letters[n]
                 if ch in spec.get("code", ""):
@@ -452,7 +456,7 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
             return True, operand, stdin
         if not operand:
             operand = True
-            script = bool(_SCRIPT_FILE.fullmatch(tok))
+            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev
             if spec.get("stop"):
                 break
         elif spec.get("stop"):
@@ -515,7 +519,9 @@ def _runs_text(body: str, raw: str) -> bool:
 # (`print(["rm","-r…","build"])`), ставав R4. Перелік навмисно широкий і
 # підрядковий: зайве слово дає хибну тривогу (як до W-42), пропущене — пропуск.
 _ARGV_EXEC = ("subprocess", "system", "exec", "spawn", "popen", "call", "run", "fork",
-              "pty", "process", "shell", "command", "`", "%x", "invoke", "start")
+              "pty", "process", "shell", "command", "`", "%x", "invoke", "start",
+              # `proc_open`, `Open3`, `open(…, "-|", …)` (рев'ю Codex #130)
+              "open", "capture", "pipe")
 
 
 def _code_words(command: str) -> str:
@@ -1116,6 +1122,12 @@ def _read_args(command: str) -> list[str]:
         return [t for t in re.split(r"[\s'\"`;|&<>(),=\[\]{}]+", command) if t]
     body = _strip_heredocs(command)
     out: list[str] = []
+    # `xargs` робить свій вхід аргументами-файлами: шлях, який подає конвеєр
+    # (`printf <шлях> | xargs cat`), не стоїть у жодному аргументі, тож кандидат —
+    # кожне слово команди разом із тілом heredoc (рев'ю Codex #130: виняток W-42
+    # для читачів зняв цей захист).
+    if any(_cmd_name(t) == "xargs" for t in re.split(r"[\s;|&()]+", body) if t):
+        out += [t for t in re.split(r"[\s'\"`;|&<>(),=\[\]{}]+", command) if t]
     for segment in [body] + _substitutions(body):
         out += _segment_read_args(segment)
     return out

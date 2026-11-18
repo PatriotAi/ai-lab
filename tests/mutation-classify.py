@@ -709,13 +709,13 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "файл-скрипт не розпізнається (поведінка до W-42)",
-        "            script = bool(_SCRIPT_FILE.fullmatch(tok))",
+        "            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev",
         "            script = False",
         "`perl tool.pl <<'EOF'` знову R4 — вхід скрипта вважається програмою",
     ),
     (
         "будь-який операнд — файл-скрипт",
-        "            script = bool(_SCRIPT_FILE.fullmatch(tok))",
+        "            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev",
         "            script = True",
         "`perl -I lib <<'EOF'` — тіло-програма вважається даними, пропуск",
     ),
@@ -724,6 +724,25 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "    if _SCRIPT_FILE.fullmatch(name):\n        return \"\", True",
         "    if False:\n        return \"\", True",
         "`php tool.php <<< …` знову R4 — `tool.php` як інтерпретатор",
+    ),
+    # ── Рев'ю Codex #130 (2026-11-18): три зниження R4→R2 від W-42 ──────────
+    (
+        "значення прапорця вважається файлом-скриптом",
+        "            valued_prev = letters[-1] in spec.get(\"rest\", \"\")",
+        "            valued_prev = False",
+        "`ruby -I lib.py <<'EOF'` — тіло-програма вважається даними, пропуск",
+    ),
+    (
+        "шляхи, подані через `xargs`, не перевіряються на читання",
+        "    if any(_cmd_name(t) == \"xargs\" for t in re.split(r\"[\\s;|&()]+\", body) if t):",
+        "    if False:",
+        "читання секрету через `xargs cat` — R2, пропуск",
+    ),
+    (
+        "`proc_open`/`Open3` не вважаються запуском списку",
+        "              \"open\", \"capture\", \"pipe\")",
+        "              )",
+        "`proc_open([\"git\",\"push\",…])` — R2, пропуск",
     ),
 ]
 
