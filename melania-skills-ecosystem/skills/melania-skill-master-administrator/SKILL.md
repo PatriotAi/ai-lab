@@ -34,7 +34,7 @@ metadata:
 ---
 
 # Melania — Skill Master Administrator — v2.24.1
-> **v2.24.1** · Master Administrator: Меланія · журнал — § Зміни нижче (архів до 2.23.1 — `references/CHANGELOG.md`)
+> **v2.24.1** · Master Administrator: Меланія · журнал версій — § Зміни нижче; `references/CHANGELOG.md` — пропозиції (Pending/Rejected) і записи версій до 2.23.1
 > Працює українською за замовчуванням (українською-перша); технічні поля/команди — як є.
 > Claude Code hooks (опційний патерн — діє лише там, де НАЛАШТОВАНО в settings; не вшитий факт): `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`. У лабораторії ai-lab еквівалент — `maintain.py verify` перед комітом.
 
@@ -115,7 +115,7 @@ metadata:
 | Delete | `видалити [element]` | Remove after confirmation |
 | Version bump | `версія → X.Y.Z` | Bump metadata + CHANGELOG entry |
 | Trigger self-dev | `самооновлення: [topic]` | Run focused Post-Use Assessment |
-| View changelog | `переглянути changelog` | Output `references/CHANGELOG.md` |
+| View changelog | `переглянути changelog` | Output § Зміни (SKILL.md) + `references/CHANGELOG.md` (пропозиції, версії до 2.23.1) |
 | Approve proposal | `затвердити пропозицію #N` | Apply proposal → CHANGELOG → bump |
 | Reject proposal | `відхилити пропозицію #N [reason]` | Move to Rejected with reason |
 | Repackage | `перепакувати skill` | validate → snapshot → `.skill` file |
@@ -349,7 +349,7 @@ melania-skill-master-administrator/
 │
 └── references/
     ├── full-guide.md              ←  patterns, templates, anti-patterns
-    ├── CHANGELOG.md               ←  version history + pending proposals
+    ├── CHANGELOG.md               ←  pending/rejected proposals + version history до 2.23.1 (новіші — § Зміни)
     ├── update-protocol.md        ←  MA workflow detail + guard script
     └── templates.md               ←  YAML frontmatter + body templates
 ```
@@ -397,7 +397,7 @@ semantic-router
 |------|-----------|
 | `references/full-guide.md` | Need full templates, patterns, or anti-patterns |
 | `references/templates.md` | Creating a new skill: YAML frontmatter + body templates |
-| `references/CHANGELOG.md` | Reviewing version history or pending proposals |
+| `references/CHANGELOG.md` | Pending/rejected proposals; version history до 2.23.1 (новіші — § Зміни в SKILL.md) |
 | `references/update-protocol.md` | Detailed MA workflow, guard script, packaging |
 
 > Never load references proactively — only when the specific condition is met.
@@ -413,7 +413,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
-- **v2.24.1** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): пакування — канон `maintain.py package` замість відсутнього `package_skill.py` (суперечило CLAUDE.md §8); банер вказує на основний журнал (§ Зміни), `references/CHANGELOG.md` позначено архівом до 2.23.1; правило тестів «≥4 evals»; Core Rule 11 — явний виняток для назв асистентів-ролей у `ai-dev-workflow` (рішення власника); DO NOT-межа з `skill-ecosystem-auditor`. Лише правила/межі/покажчики; поведінка незмінна.
+- **v2.24.1** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): пакування — канон `maintain.py package` замість відсутнього `package_skill.py` (суперечило CLAUDE.md §8); журнал версій — § Зміни; `references/CHANGELOG.md` — пропозиції (Pending/Rejected) і версії до 2.23.1 (узгоджено в банері, командах і структурі файлів); пакування — також у `update-protocol.md` і `full-guide.md`; «≥4» — і в `full-guide.md`; правило тестів «≥4 evals»; Core Rule 11 — явний виняток для назв асистентів-ролей у `ai-dev-workflow` (рішення власника); DO NOT-межа з `skill-ecosystem-auditor`. Лише правила/межі/покажчики; поведінка незмінна.
 - **v2.24.0** (2026-09-27) — **Core Rule 14 отримав четвертий стан `[?]`** («не виводиться з наявної специфікації»). Причина: три наявні теги не мали куди подіти твердження, правильна відповідь до якого зі специфікації не виводиться — `[C]` читається як «відповідь відома», `[S]` як «моя гіпотеза», тож такі місця ставали впевненими заявами. Маршрутизація НЕ за відчуттям упевненості (самооцінка цей клас не бачить), а за фактом «тест до [E] не будується». Два запобіжники, щоб тег не став театром: обов'язкове «бракує: …» і **guard проти над-абстенції** — `[?]` на твердженні з наявним доказом відхиляється. `[?]` не падає гейтом, а друкується видимим рядком «чекає рішення власника»: абстенція, що падає, не вживається. Операціоналізовано в `maintain.py verify`; канарки з обох боків — `tests/run-tests.sh` секція 8. Харвест із дослідження `open-gsd/gsd-core` (`docs/reviews/2026-07-31-gsd-core-harvest.md` §4.4) — ідея, не код. Лише додавання.
 - **v2.23.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v2.23.0** (2026-07-26) — **Core Rule 15 Self-verifying**: крок протоколу, який звітується словами, мусить мати машинну перевірку — інакше він порушується, а звіт цього не показує. Підстава емпірична: чотири дрейфи пережили попередню хвилю ПОПРИ чесні звіти про виконання (H1-синхрон заявлено — не зроблено; крос-посилання П.6/П.7/П.8 з'їхали; «8 дисциплін» при 10; виправлення канону про hooks не дійшло до копії). Друга половина правила: покриття перевірки визначає ПЕРЕЛІК ІНЦИДЕНТІВ, а не число — «canary ×3» дало три чесні канарки при чотирьох дірках. Операціоналізовано в `maintain.py verify` чотирма перевірками (версійна тріада · крос-посилання за ідентифікатором · лічильники про інший файл · текстова гігієна), кожну фальсифікаційно прогнано на зламаному стані. Виправлено успадкований омоглиф у слові `aдаптовано` (латинська `a` замість кириличної) у записі v2.6.0 — знайдено новою перевіркою. Лише додавання й корекція.

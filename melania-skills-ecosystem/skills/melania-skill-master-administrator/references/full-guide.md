@@ -392,7 +392,7 @@ Claude завантажує тільки одну папку — та що ві�
 | Happy path | Стандартний успішний сценарій | 2–3 |
 | Edge case | Відсутній інструмент, помилка, мобільний | 1–2 |
 | Negative | Чого НЕ має робити skill | 1 |
-| **Мінімум** | | **4–6** |
+| **Мінімум** | | **≥4** |
 
 ---
 
@@ -644,8 +644,9 @@ python my-skill/scripts/skill_guard.py --snapshot
 ### Крок 7: Пакування в .skill файл
 
 ```bash
-python -m scripts.package_skill my-skill/
+python3 melania-skills-ecosystem/scripts/maintain.py package my-skill   # канон у ai-lab (CLAUDE.md §8)
 # Результат: my-skill.skill — готовий до встановлення
+# (у чаті без репо — пакувальник зовнішньої навички skill-creator)
 ```
 
 ---
@@ -892,7 +893,7 @@ DO NOT use for [чітке виключення]."
 Формат файлу:  Markdown .md  ← мінімум токенів, максимум структури
 Розмір:        < 500 рядків SKILL.md (більше → references/)
 Тригер:        description з ALWAYS/NEVER + синоніми
-Тести:         4–6 evals з конкретними assertions
+Тести:         ≥4 evals з конкретними assertions
 Захист:        guard script → snapshot → validate перед кожним оновленням
 Skills:        skill-creator + validation-mesh + semantic-router
 ```

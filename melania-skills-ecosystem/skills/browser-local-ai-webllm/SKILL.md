@@ -99,7 +99,7 @@ const DeviceAnalyzer={
 ## Pattern 3 — Model ranking (найновіші + придатні вгорі)
 
 ```javascript
-const MODEL_FAMILY_RANK = SNAPSHOT.webllm.familyRank; // ранг родин — у знімку моделей (§ WebLLM)
+const MODEL_FAMILY_RANK = { /* підстав ранг родин із знімка моделей § WebLLM, напр. {"<найновіша родина>":100, …} */ };
 function rankModels(models, estVramMB, f16=true){ // f16 = DeviceAnalyzer.analyze().f16
   return models.map(m=>({...m, fam:familyOf(m.id), fits:DeviceAnalyzer.fits(m.vram,estVramMB), sizeB:parseFloat((m.id.match(/(\d+(?:\.\d+)?)B/)||[])[1]||999)}))
     .filter(m=>m.fam!=="other" && (f16 ? /q4f16/ : /q4f32/).test(m.id)
@@ -150,9 +150,9 @@ node -e "const w=require('@mlc-ai/web-llm');console.log('models:',w.prebuiltAppC
 
 **Авто-вибір по deviceMemory:**
 ```javascript
-// TIERS — ID із знімка моделей (§ WebLLM), не хардкод у навичці
-const TIERS = { quality: SNAPSHOT.webllm.quality, general: SNAPSHOT.webllm.general,
-                compact: SNAPSHOT.webllm.compact, micro: SNAPSHOT.webllm.micro };
+// TIERS — підстав ID із знімка моделей (multi-provider … model-snapshot-*.md § WebLLM)
+const TIERS = { quality: "<ID класу quality>", general: "<ID класу general>",
+                compact: "<ID класу compact>", micro: "<ID класу micro>" };
 const mem = navigator.deviceMemory || 4; // GB RAM
 const model = mem >= 8 ? TIERS.quality : mem >= 4 ? TIERS.general
             : mem >= 2 ? TIERS.compact : TIERS.micro;
@@ -221,7 +221,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
-- **v1.3.1** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: таблиця ID моделей WebLLM, ранг родин і розміри перенесено в датований знімок моделей (§ WebLLM); у навичці лишилось правило «RAM → клас», код читає ID зі знімка (рішення власника). Лише правила/межі/покажчики; поведінка незмінна.
+- **v1.3.1** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: таблиця ID моделей WebLLM, ранг родин і розміри перенесено в датований знімок моделей (§ WebLLM); у навичці лишилось правило «RAM → клас», приклади коду — з плейсхолдерами ID, які підставляються зі знімка (рішення власника); embed-модель теж у знімку; eval «device-fit-ranking» звіряє ранг зі знімком. Змінено приклади й один eval; логіка вибору незмінна.
 - **v1.3.0** (2026-11-07) — Вибір моделі під можливості відеочипа: Critical Facts — моделі q4f16 у WebLLM 0.2.87 вимагають `shader-f16`, якого на частині Android-GPU нема [E]; Pattern 2 читає `adapter.features`, Pattern 3 без f16 бере q4f32 без цієї вимоги; у таблиці — Gemma 4 E2B. Звірено за `config.ts` тега v0.2.87 і перевірено в ai-lab mobile-agent v0.3.2 (юніт + браузер з імітованим адаптером). Історичний запис про тест 0.2.84 не змінено. Лише додавання й уточнення шаблонів.
 - **v1.2.6** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.2.5** (2026-07-26) — Core Rule 14 Claim-evidence: 4 факти в Critical Facts отримали теги **[C]** (PocketPal без API-сервера, window.ai не на Android, cap deviceMemory 8GB, фіксований список моделей) — усі із зовнішніх джерел, власного прогону під них нема. Лише тегування, тіло незмінне.

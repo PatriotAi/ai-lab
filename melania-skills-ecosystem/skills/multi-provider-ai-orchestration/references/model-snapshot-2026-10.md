@@ -105,6 +105,7 @@ DeepSeek: `https://api.deepseek.com/anthropic`; Grok: див. docs xAI. Пате
 `general` = `Qwen2.5-7B-Instruct-q4f16_1-MLC` · `compact` = `Phi-3.5-mini-instruct-q4f16_1-MLC` ·
 `micro` = `Llama-3.2-1B-Instruct-q4f16_1-MLC`.
 `familyRank`: `{"Qwen3.5":100,"Qwen3":95,"Llama-3.2":90,"Phi-4":88,"gemma3":86,"Qwen2.5":82}`.
+Embedding-модель для RAG у браузері: `snowflake-arctic-embed-m-q0f32-MLC-b4`.
 Окремий вхід «текст + аудіо» — `gemma-4-E2B-it-q4f16_1-MLC` / `…q4f32_1-MLC` (з WebLLM 0.2.86).
 Вбудований AI браузера (`window.ai`) — Gemini Nano, лише desktop/ChromeOS.
 Розміри (звірено за `src/config.ts` WebLLM v0.2.87, 2026-11-07): Gemma 4 E2B q4f16 ≈ 3387 МБ, q4f32 ≈ 3863 МБ.

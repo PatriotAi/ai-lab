@@ -1,6 +1,6 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-11-17",
+ "built": "2026-11-18",
  "governance": "melania-skill-master-administrator v2.24.1",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
@@ -57,8 +57,8 @@
    "version": "1.3.1",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "6cf5d58a1fc31a65",
-    "evals/evals.json": "b78bf5d515e4d0bd"
+    "SKILL.md": "30d42234473e4407",
+    "evals/evals.json": "c6f04f7a26c9ecba"
    },
    "files": [
     "SKILL.md",
@@ -71,7 +71,7 @@
    "version": "3.3.1",
    "eval_cases": 8,
    "sha256_16": {
-    "SKILL.md": "e1a53c6cb25a7e20",
+    "SKILL.md": "2b6eb34cad0c71b0",
     "evals/evals.json": "6f7ed62b650202cf"
    },
    "files": [
@@ -142,7 +142,7 @@
    "version": "2.24.1",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "f3b03efe4e260d07",
+    "SKILL.md": "b77b3ccb41b001ae",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -217,7 +217,7 @@
    "version": "1.6.1",
    "eval_cases": 10,
    "sha256_16": {
-    "SKILL.md": "92979ef86fc4c922",
+    "SKILL.md": "84cfd574f036c38c",
     "evals/evals.json": "4a0a5b9d4ffa661f"
    },
    "files": [
@@ -296,8 +296,8 @@
    "version": "1.11.2",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "2002cba71b06ddbb",
-    "evals/evals.json": "12ea3914d2f9230d"
+    "SKILL.md": "df4bbdaae3efa501",
+    "evals/evals.json": "cb4eb790b03f42e0"
    },
    "files": [
     "SKILL.md",
@@ -309,10 +309,10 @@
    ]
   },
   "skill-ecosystem-auditor": {
-   "version": "1.8.1",
+   "version": "1.8.2",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "ecff0eb8d0c8e8de",
+    "SKILL.md": "2b043e565bbc75ae",
     "evals/evals.json": "0ce12a0832e6322e"
    },
    "files": [
@@ -414,7 +414,7 @@
    "version": "1.6.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "c4a2e7aecd5f969d",
+    "SKILL.md": "bd74ea178f0bb036",
     "evals/evals.json": "30257eca68d27e83"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "38bf0b0ea0be6b22"
+ "built_fingerprint": "d6ce00a4a902f217"
 }

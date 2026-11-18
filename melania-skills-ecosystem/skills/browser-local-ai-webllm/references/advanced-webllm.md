@@ -1,3 +1,5 @@
+> Приклади нижче використовують `TIERS` — об'єкт ID моделей за класами, визначений у SKILL.md («Авто-вибір по deviceMemory»); значення підставляй зі знімка моделей § WebLLM.
+
 # Advanced WebLLM
 
 ## Function Calling у браузері
@@ -41,7 +43,7 @@ if (toolCall) {
 ```javascript
 // Окремий embedding-движок
 const embEngine = new mlc.MLCEngine();
-await embEngine.reload("snowflake-arctic-embed-m-q0f32-MLC-b4");
+await embEngine.reload("<embed-модель — знімок моделей § WebLLM>");
 
 const embeddings = await embEngine.embeddings.create({
   input: ["текст 1", "текст 2", "текст 3"]

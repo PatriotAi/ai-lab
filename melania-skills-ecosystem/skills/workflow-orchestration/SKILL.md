@@ -10,7 +10,7 @@ description: >
   "розбий на агентів", "subagents", "agent team", "shared task list", "паралельно", "fan-out".
   DO NOT USE for: single simple Q&A or one-off snippet (use the specific skill); runtime
   kernel / agent-activation mechanics (ai-core-runtime); intent routing across skills (semantic-router);
-  building n8n workflows/JSON (n8n-orchestrator).
+  building n8n workflows/JSON (n8n-orchestrator). Provider routing/model choice — multi-provider-ai-orchestration.
 compatibility: Claude.ai (all plans) · Claude Code · Codex CLI · Cursor · Copilot. Core platform-neutral; subagent/Agent-Teams mechanics are Claude Code.
 license: MIT
 metadata:
@@ -197,7 +197,7 @@ Codex/Cursor: ті ж патерни тонким адаптером — пла�
 Read `references/topology-taxonomy.md` коли потрібно: повна таксономія 10+ топологій (swarm/handoff/blackboard/contract-net/group-chat), framework-мапінг (LangGraph/CrewAI/AutoGen-MAF/OpenAI-SDK/ADK/Bedrock), детальні shared-task реалізації, observability-стек.
 
 ## Зміни
-- **v1.6.2** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: `CLAUDE_CODE_SUBAGENT_MODEL=haiku` → клас із посиланням на знімок моделей. Лише правила/межі/покажчики; поведінка незмінна.
+- **v1.6.2** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: `CLAUDE_CODE_SUBAGENT_MODEL=haiku` → клас із посиланням на знімок моделей; DO NOT-межа з multi-provider-ai-orchestration (взаємна). Лише правила/межі/покажчики; поведінка незмінна.
 - **v1.6.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.6.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.5.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): DO NOT-межа з `n8n-orchestrator` (побудова n8n-workflow/JSON поза скоупом) [#5]; депт-леддер перевірено — це коректне делегування механіки в `ai-core-runtime`, не дубль (без зміни) [#6]; H1-банер з версією. Лише опис/межі.
