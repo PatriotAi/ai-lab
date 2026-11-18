@@ -1,4 +1,4 @@
-<!-- ВІДКРИТИХ ВІКОН: 26 -->
+<!-- ВІДКРИТИХ ВІКОН: 29 -->
 # Реєстр «розбитих вікон»
 
 Живий перелік **відомого боргу**: заглушки, TODO, пропущені перевірки, іменні межі
@@ -82,3 +82,6 @@ python3 scripts/check-windows.py --strict    # ненульовий код, як
 **Закрив борг** — стан `fixed`, дата й один рядок «як саме закрито»; рядок не
 видаляємо (історія боргу — це теж напрацювання). **Свідомо не закриваємо** — стан
 `waived` і причина, з якої це рішення, а не забудькуватість.
+| W-46 | **Тестова копія think-like-gpt не перевірена віртуальним телефоном:** вона закрита входом Vercel, потрібен ключ `VERCEL_AUTOMATION_BYPASS_SECRET` (секрет репо, у workflow вже передається в крок «Підготувати ціль»). Без нього запуск на тестовій копії зупиниться на екрані входу. **Дія власника:** створити ключ (Vercel → Settings → Deployment Protection → Protection Bypass for Automation) і додати секрет у репо; кроки — `projects/android-simulator/README.md`, розділ «Закриті тестові копії Vercel» | projects/android-simulator/README.md | open | — |
+| W-47 | **Шляхи AAB/APKS/XAPK, `artifact:` і виклик workflow з іншого репо (`workflow_call`) ще не проганялись.** Прогнані й підтверджені запусками: `fdroid:<пакет>` (APK), посилання на сайт, сценарій Maestro. Решта гілок коду в `scripts/prepare-target.sh` і workflow написані й покриті лише юніт-самоперевіркою `tests/`, не наживо | projects/android-simulator/scripts/prepare-target.sh | open | — |
+| W-48 | **Хеш `bundletool` не закріплений:** `BUNDLETOOL_SHA256` у workflow не задана (скрипт `prepare-target.sh` звіряє хеш лише коли змінна непорожня), тож jar-файл Google, що розпаковує AAB, береться за версією без перевірки sha256 (на відміну від Maestro: `MAESTRO_SHA256` + `sha256sum -c`, доведено двома запусками). Закрити: звірити хеш із журналу запуску з AAB (див. W-47) і додати перевірку | .github/workflows/android-simulator.yml | open | — |
