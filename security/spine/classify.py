@@ -229,6 +229,8 @@ _RUNNER_FLAGS: dict[str, dict] = {
     "c-flag": {"code": "c", "code_long": ("--command",)},
 }
 _STDIN_PATHS = ("-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0")
+_SCRIPT_FILE = re.compile(r"[^\s<>|&;]+\.(pl|pm|t|js|mjs|cjs|ts|mts|cts|jsx|tsx|rb|php|phar|py|"
+                          r"lua|R|r|jl)")
 # Команди, у сегменті яких назва виконавця — лише ДАНІ (аргумент читання):
 # `which python3`, `grep -rn bash docs`, `ls /bin/sh`. `find` — виняток, коли в
 # сегменті є маркер виконання (`find . -exec sh -c …` — це вже дія).
@@ -334,6 +336,8 @@ def _runner_kind(tok: str) -> tuple[str, bool]:
     kind = next((kind for rx, kind in _RUNNERS if rx.fullmatch(name)), "")
     if kind:
         return kind, False
+    if _SCRIPT_FILE.fullmatch(name):
+        return "", True                               # `tool.php` — скрипт, не виконавець (W-42)
     return next((kind for rx, kind in _LOOSE_RUNNERS if rx.fullmatch(name)), ""), True
 
 
@@ -388,6 +392,13 @@ def _data_segment(seg: list[str]) -> bool:
 def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
     """Прапорці виконавця → (код у прапорці, є операнд-файл, програма зі stdin)."""
     code, operand, stdin = False, False, False
+    # Операнд — ФАЙЛ-СКРИПТ (W-42): тоді stdin, heredoc, `-` і `<(…)` після нього —
+    # дані для скрипта, а не програма. Лише за розширенням: `perl -I lib <<EOF` —
+    # каталог, а не скрипт, і тіло heredoc там — програма.
+    script = False
+    # Окремий прапорець, що може брати значення наступним словом (`ruby -I lib.py`,
+    # `perl -I x.pl`): це слово — значення, не файл-скрипт (рев'ю Codex #130).
+    valued_prev = False
     k = 0
     while k < len(args):
         tok = args[k]
@@ -395,12 +406,12 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
         if tok.isdigit() and k < len(args) and _is_redirect(args[k]):
             continue                                  # `2>`: номер дескриптора, не операнд
         if tok in ("<<", "<<-", "<<<"):
-            stdin, k = True, k + 1                    # тіло heredoc / here-string — текст
+            stdin, k = stdin or not script, k + 1     # тіло heredoc / here-string — текст
             continue
         if _is_redirect(tok):
             k += tok in ("<", ">", ">>", ">|", "&>", "&>>", "<>", ">&", "<&")
             continue
-        if tok.startswith("<("):
+        if tok.startswith("<(") and not script:
             return True, operand, stdin               # програма з потоку процесу
         if tok == "--":
             if k < len(args) and not operand:
@@ -419,6 +430,7 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
         # уже завершився б на операнді): `node script.js -e …` — теж код.
         if len(tok) > 1 and tok[0] in "-+":
             letters, n = tok[1:], 0
+            valued_prev = letters[-1] in spec.get("rest", "")
             while n < len(letters):
                 ch = letters[n]
                 if ch in spec.get("code", ""):
@@ -439,9 +451,12 @@ def _scan_runner(spec: dict, args: list[str]) -> tuple[bool, bool, bool]:
                         n += 1
             continue
         if tok in _STDIN_PATHS:
+            if script:
+                continue                              # `node tool.js -` — вхід скрипта
             return True, operand, stdin
         if not operand:
             operand = True
+            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev
             if spec.get("stop"):
                 break
         elif spec.get("stop"):
@@ -498,10 +513,91 @@ def _runs_text(body: str, raw: str) -> bool:
     return False
 
 
+# Ознаки того, що код ЗАПУСКАЄ програму зі списку аргументів (W-42, 2026-11-14).
+# Розкриття списку (`['git','push',…]` → слова) потрібне лише тоді, коли цей
+# список хтось виконає. Без цієї умови код, що лише ДРУКУЄ список
+# (`print(["rm","-r…","build"])`), ставав R4. Перелік навмисно широкий і
+# підрядковий: зайве слово дає хибну тривогу (як до W-42), пропущене — пропуск.
+_ARGV_EXEC = ("subprocess", "system", "exec", "spawn", "popen", "call", "run", "fork",
+              "pty", "process", "shell", "command", "`", "%x", "invoke", "start",
+              # `proc_open`, `Open3`, `open(…, "-|", …)` (рев'ю Codex #130)
+              "open", "capture", "pipe")
+
+
+def _code_words(command: str) -> str:
+    """Код як слова: лапки — роздільники; коми й дужки списку — лише коли код
+    запускає програму (`subprocess.run([...])`), а не друкує її (W-42)."""
+    seps = (r"['\"\\,\[\]]" if any(h in command.lower() for h in _ARGV_EXEC)
+            else r"['\"\\]")
+    return re.sub(seps, " ", command)
+
+
+# `xargs` дописує свій вхід аргументами до команди. Якщо команда — читач, що
+# не вміє виконувати аргументи (W-42), вхід лишається даними. `find` (`-exec`),
+# `rg` (`--pre`), `git`, `sort -o`, `file -C` сюди свідомо не входять.
+_XARGS_READERS = frozenset({
+    "cat", "head", "tail", "wc", "ls", "echo", "printf", "grep", "egrep", "fgrep",
+    "stat", "readlink", "realpath", "basename", "dirname", "pwd", "which",
+})
+_XARGS_VALUED = set("InLPsdEa")         # `-n 1` / `-n1`
+_XARGS_ATTACHED = set("ile")            # значення лише злитно (`-i{}`)
+_XARGS_BOOL = set("0rtpxo")
+_XARGS_LONG = {"--null", "--no-run-if-empty", "--verbose", "--interactive", "--exit",
+               "--open-tty", "--replace", "--eof"}
+_XARGS_LONG_VALUED = {"--arg-file", "--delimiter", "--max-args", "--max-lines",
+                      "--max-procs", "--max-chars", "--process-slot-var"}
+
+
+def _xargs_command(args: list[str]) -> str | None:
+    """Команда, яку запустить `xargs` (`echo` за замовчуванням); None — прапорець
+    не розпізнано, і безпечніше вважати вхід кодом."""
+    k = 0
+    while k < len(args):
+        tok = args[k]
+        k += 1
+        if tok == "--":
+            break
+        if tok.startswith("--"):
+            flag = tok.split("=", 1)[0]
+            if flag in _XARGS_LONG_VALUED:
+                k += "=" not in tok
+            elif flag not in _XARGS_LONG:
+                return None
+            continue
+        if len(tok) > 1 and tok[0] == "-":
+            for n, ch in enumerate(tok[1:], 1):
+                if ch in _XARGS_VALUED:
+                    k += n == len(tok) - 1          # значення окремим словом
+                    break
+                if ch in _XARGS_ATTACHED:
+                    break
+                if ch not in _XARGS_BOOL:
+                    return None
+            continue
+        return tok
+    return args[k] if k < len(args) else "echo"
+
+
+def _xargs_feeds_readers(body: str) -> bool:
+    """Чи КОЖЕН `xargs` у команді подає вхід лише читачеві (W-42)."""
+    found = False
+    for text in [body, *_substitutions(body)]:
+        for seg, _prev in _sh_segments(_sh_tokens(text)):
+            for i, tok in enumerate(seg):
+                if _cmd_name(tok) != "xargs":
+                    continue
+                found = True
+                cmd = _xargs_command(seg[i + 1:])
+                if cmd is None or _cmd_name(cmd) not in _XARGS_READERS:
+                    return False
+    return found                        # `xargs` не знайдено словом — форма незвична
+
+
 def _invokes(command: str) -> bool:
     """Чи команда віддає ТЕКСТ на виконання: підрядком (`eval`, `xargs`) або розбором."""
     body = _strip_heredocs(command)
-    if any(inv in _drop_data_quotes(body).lower() for inv in SHELL_INVOKERS):
+    hits = [inv for inv in SHELL_INVOKERS if inv in _drop_data_quotes(body).lower()]
+    if hits and not (hits == ["xargs "] and _xargs_feeds_readers(body)):
         return True
     return _runs_text(body, command)
 
@@ -577,7 +673,7 @@ def _git_push_deletes(command: str) -> bool:
     code = _invokes(command)
     # Код: лапки, коми й дужки списку — лише роздільники аргументів
     # (`subprocess.run(['git','push','origin','--delete','x'])`, рев'ю #94).
-    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code \
+    texts = [_code_words(command)] if code \
         else [body, *_substitutions(body)]
     for text in texts:
         segs = _sh_segments(_sh_tokens(text))
@@ -793,7 +889,7 @@ def _flag_targets(command: str) -> list[str]:
     if _invokes(command):
         # Код: лапки — роздільники, а команда стоїть будь-де (`bash -c "git diff
         # --output=…"`), як у `_git_push_deletes`.
-        texts.append((re.sub(r"['\"\\,\[\]]", " ", command), True))
+        texts.append((_code_words(command), True))
     out: list[str] = []
     for text, code in texts:
         for seg, _prev in _sh_segments(_sh_tokens(text)):
@@ -1026,6 +1122,12 @@ def _read_args(command: str) -> list[str]:
         return [t for t in re.split(r"[\s'\"`;|&<>(),=\[\]{}]+", command) if t]
     body = _strip_heredocs(command)
     out: list[str] = []
+    # `xargs` робить свій вхід аргументами-файлами: шлях, який подає конвеєр
+    # (`printf <шлях> | xargs cat`), не стоїть у жодному аргументі, тож кандидат —
+    # кожне слово команди разом із тілом heredoc (рев'ю Codex #130: виняток W-42
+    # для читачів зняв цей захист).
+    if any(_cmd_name(t) == "xargs" for t in re.split(r"[\s;|&()]+", body) if t):
+        out += [t for t in re.split(r"[\s'\"`;|&<>(),=\[\]{}]+", command) if t]
     for segment in [body] + _substitutions(body):
         out += _segment_read_args(segment)
     return out
@@ -1323,7 +1425,7 @@ def _git_push_dests(command: str, root: Path, cwd: str | None) -> list[str]:
     # (`['git','push','origin','main']`) — лапки, коми й дужки там лише роздільники
     # (той самий прийом, що в F-26 і в сегментах правил-команд, рев'ю #94).
     if _invokes(command):
-        texts.append(re.sub(r"['\"\\,\[\]]", " ", command))
+        texts.append(_code_words(command))
     base = os.path.normpath(cwd) if cwd else str(root)
     dests: list[str] = []
     for text in texts:
@@ -1715,7 +1817,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     # У коді інтерпретатора аргументи бувають СПИСКОМ (`['git','push','--force',…]`):
     # лапки, коми й дужки там — лише роздільники (рев'ю #94).
     if command and _invokes(command):
-        segments += re.split(r"&&|\|\||[;&\n]", re.sub(r"['\"\\,\[\]]", " ", exec_part.lower()))
+        segments += re.split(r"&&|\|\||[;&\n]", _code_words(exec_part).lower())
     # Пробіли й табуляції — до одного пробілу (F-29, давня діра з `main`): підрядки
     # правил пишуться з одним, тож `push  --force` (два пробіли) чи табуляція
     # давали R2 на тій самій незворотній дії.
