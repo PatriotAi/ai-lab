@@ -2919,7 +2919,7 @@ def mut(name, fn):
     m = json.loads(json.dumps(c)); fn(m); json.dump(m, open(f"{s}/{name}.json", "w"))
 mut("mm_gone", lambda m: m["roles"]["worker"].update(model="claude-sonnet-4-0"))
 mut("mm_order", lambda m: m["roles"]["diagnosis"].update(model="claude-haiku-5-5", agent="haiku"))
-mut("mm_agent", lambda m: m["roles"]["home"].update(agent="opus"))
+mut("mm_agent", lambda m: m["roles"]["home"].update(agent="haiku"))
 mut("mm_class", lambda m: m["roles"]["worker"].update({"class": "вигаданий клас"}))
 mut("mm_classrow", lambda m: m["roles"]["worker"].update(model="claude-haiku-5-5", agent="haiku"))
 ' "$RHT" "$REPO/automations/repo-monitor/models.json"
