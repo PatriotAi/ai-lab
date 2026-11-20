@@ -10,6 +10,14 @@ repos:
       - id: end-of-file-fixer
         exclude: '^melania-skills-ecosystem/'
       - id: check-yaml
+        exclude: '^projects/android-simulator/flows/'
+      # Сценарії Maestro за форматом мають дві частини (налаштування --- кроки).
+      # Лише для цієї теки дозволено кілька частин; синтаксис кожної перевіряється.
+      # Згода власника 2026-11-17 (PR #128).
+      - id: check-yaml
+        name: check yaml (Maestro flows)
+        files: '^projects/android-simulator/flows/'
+        args: ["--allow-multiple-documents"]
       - id: check-json
       - id: check-added-large-files
         args: ["--maxkb=2048"]

@@ -1,0 +1,365 @@
+# Віртуальний смартфон Android у хмарі / Cloud Android phone simulator.
+# Запускає APK (також AAB/APKS/XAPK) або сайт на емуляторі Android і показує,
+# як воно виглядає й працює: знімки, відео, журнал, падіння.
+# Опис для людей — projects/android-simulator/README.md.
+name: Android simulator
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Що запустити: посилання на APK/AAB/сайт, fdroid:<пакет> або artifact:<назва>[@номер-запуску]"
+        required: true
+        type: string
+      device:
+        description: "Пристрій"
+        type: choice
+        options: [phone, small, tablet]
+        default: phone
+      android:
+        description: "Версія Android (номер API: 30=Android 11, 33=13, 34=14, 35=15)"
+        type: choice
+        options: ["30", "31", "33", "34", "35"]
+        default: "33"
+      flow:
+        description: "Сценарій дій Maestro (шлях у репо; sim:… — із симулятора). Порожньо — лише відкрити"
+        type: string
+        default: ""
+      monkey_events:
+        description: "Скільки випадкових дотиків зробити для пошуку падінь (0 — не робити)"
+        type: string
+        default: "300"
+      fail_on_crash:
+        description: "Вважати падіння застосунку провалом (червоний хрестик)"
+        type: boolean
+        default: true
+      pr_number:
+        description: "Номер PR для коментаря зі звітом (необов'язково)"
+        type: string
+        default: ""
+      kind:
+        description: "Тип цілі: auto (визначити самому), app (застосунок), web (сайт)"
+        type: choice
+        options: [auto, app, web]
+        default: auto
+      label:
+        description: "Коротка назва прогону для звіту (необов'язково)"
+        type: string
+        default: ""
+      simulator_ref:
+        description: "Для виклику з інших репо; тут ігнорується"
+        type: string
+        default: main
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+      kind:
+        description: "auto | app | web"
+        type: string
+        default: auto
+      device:
+        type: string
+        default: phone
+      android:
+        type: string
+        default: "33"
+      flow:
+        type: string
+        default: ""
+      monkey_events:
+        type: string
+        default: "300"
+      fail_on_crash:
+        type: boolean
+        default: true
+      pr_number:
+        type: string
+        default: ""
+      label:
+        type: string
+        default: ""
+      simulator_ref:
+        description: "Гілка/тег PatriotAi/ai-lab, з якої брати скрипти симулятора"
+        type: string
+        default: main
+    secrets:
+      VERCEL_AUTOMATION_BYPASS_SECRET:
+        description: "Ключ Vercel «Protection Bypass for Automation» — щоб відкрити закриту тестову копію сайту"
+        required: false
+  push:
+    paths:
+      - "projects/android-simulator/**"
+      - ".github/workflows/android-simulator.yml"
+
+permissions:
+  contents: read
+
+env:
+  SIM_REPO: PatriotAi/ai-lab
+  SIM_PATH: .sim/projects/android-simulator
+  RESULTS_BRANCH: android-sim-results
+  MAESTRO_VERSION: "2.12.1"
+  BUNDLETOOL_VERSION: "1.18.3"
+
+jobs:
+  plan:
+    name: План прогонів
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      sim_ref: ${{ steps.ref.outputs.sim_ref }}
+    steps:
+      - id: ref
+        env:
+          OWN: ${{ github.repository == 'PatriotAi/ai-lab' }}
+          SHA: ${{ github.sha }}
+          REQ: ${{ inputs.simulator_ref }}
+        run: |
+          if [ "$OWN" = true ]; then echo "sim_ref=$SHA" >> "$GITHUB_OUTPUT"; else echo "sim_ref=${REQ:-main}" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.SIM_REPO }}
+          ref: ${{ steps.ref.outputs.sim_ref }}
+          path: .sim
+          sparse-checkout: projects/android-simulator
+          persist-credentials: false
+      - name: Самоперевірка скриптів
+        run: python3 -m unittest discover -s "$SIM_PATH/tests" -v
+      - id: plan
+        name: Перевірити вхід і скласти план
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IN_TARGET: ${{ inputs.target }}
+          IN_KIND: ${{ inputs.kind }}
+          IN_DEVICE: ${{ inputs.device }}
+          IN_ANDROID: ${{ inputs.android }}
+          IN_FLOW: ${{ inputs.flow }}
+          IN_MONKEY: ${{ inputs.monkey_events }}
+          IN_LABEL: ${{ inputs.label }}
+        run: python3 "$SIM_PATH/scripts/plan.py"
+
+  simulate:
+    name: "📱 ${{ matrix.label }}"
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      WORK: ${{ github.workspace }}/.work
+      SIM_DIR: ${{ github.workspace }}/.sim/projects/android-simulator
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.SIM_REPO }}
+          ref: ${{ needs.plan.outputs.sim_ref }}
+          path: .sim
+          sparse-checkout: projects/android-simulator
+          persist-credentials: false
+
+      - name: Взяти сценарій з репозиторію, що викликав
+        if: matrix.flow != '' && !startsWith(matrix.flow, 'sim:')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: .caller
+          persist-credentials: false
+
+      - name: Завантажити артефакт зі збіркою
+        if: matrix.source == 'artifact'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ matrix.artifact_name }}
+          run-id: ${{ matrix.artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: .work/artifact
+
+      - name: Увімкнути апаратне прискорення (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Підготувати ціль
+        id: prepare
+        continue-on-error: true
+        env:
+          KIND: ${{ matrix.kind }}
+          SOURCE: ${{ matrix.source }}
+          TARGET: ${{ matrix.target }}
+          VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          ARTIFACT_DIR: ${{ github.workspace }}/.work/artifact
+        run: bash "$SIM_DIR/scripts/prepare-target.sh"
+
+      - name: Встановити Maestro (сценарії дій)
+        if: steps.prepare.outcome == 'success' && matrix.flow != ''
+        env:
+          FLOW: ${{ matrix.flow }}
+        run: |
+          curl --fail --location --silent --show-error --retry 3 -o "$RUNNER_TEMP/maestro.zip" \
+            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-${MAESTRO_VERSION}/maestro.zip"
+          sha256sum "$RUNNER_TEMP/maestro.zip"
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP/maestro"
+          echo "MAESTRO_BIN=$RUNNER_TEMP/maestro/maestro/bin/maestro" >> "$GITHUB_ENV"
+          case "$FLOW" in
+            sim:*) path="$SIM_DIR/${FLOW#sim:}" ;;
+            *) path="$GITHUB_WORKSPACE/.caller/$FLOW" ;;
+          esac
+          [ -e "$path" ] || { echo "::error::Сценарій не знайдено: $FLOW"; exit 1; }
+          echo "FLOW_PATH=$path" >> "$GITHUB_ENV"
+
+      - name: Параметри пристрою
+        id: dev
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          case "$DEVICE" in
+            tablet) echo "profile=pixel_c" >> "$GITHUB_OUTPUT"; echo "extra=" >> "$GITHUB_OUTPUT" ;;
+            small)  echo "profile=pixel_6" >> "$GITHUB_OUTPUT"; echo "extra=-skin 720x1280" >> "$GITHUB_OUTPUT" ;;
+            *)      echo "profile=pixel_6" >> "$GITHUB_OUTPUT"; echo "extra=" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Запустити на віртуальному телефоні
+        id: run
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          KIND: ${{ matrix.kind }}
+          DEVICE: ${{ matrix.device }}
+          MONKEY_EVENTS: ${{ matrix.monkey_events }}
+        with:
+          api-level: ${{ matrix.android }}
+          target: google_apis
+          arch: x86_64
+          profile: ${{ steps.dev.outputs.profile }}
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot ${{ steps.dev.outputs.extra }}
+          script: bash "$SIM_DIR/scripts/run-on-emulator.sh"
+
+      - name: Коротке відео (GIF) для перегляду з телефона
+        if: always() && steps.run.outcome != 'skipped'
+        continue-on-error: true
+        run: |
+          v="$WORK/results/video/part-1.mp4"
+          frames="$(ls "$WORK"/frames/*.png 2>/dev/null | wc -l)"
+          [ -s "$v" ] || [ "$frames" -gt 2 ] || { echo "немає ні відео, ні кадрів"; exit 0; }
+          command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null; }
+          pal="split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse"
+          if [ -s "$v" ]; then
+            ffmpeg -loglevel error -y -t 90 -i "$v" -vf "fps=4,scale=240:-2:flags=lanczos,$pal" "$WORK/results/preview.gif" || rm -f "$WORK/results/preview.gif"
+          fi
+          if [ ! -s "$WORK/results/preview.gif" ] && [ "$frames" -gt 2 ]; then
+            echo "відео недоступне — GIF із кадрів ($frames шт.)"
+            ffmpeg -loglevel error -y -framerate 2 -pattern_type glob -i "$WORK/frames/*.png" \
+              -vf "scale=240:-2:flags=lanczos,$pal" "$WORK/results/preview.gif"
+          fi
+          ls -la "$WORK/results/preview.gif"
+
+      - name: Розібрати результати
+        if: always()
+        run: |
+          mkdir -p "$WORK/results"
+          [ -f "$WORK/target.env" ] || : > "$WORK/target.env"
+          python3 "$SIM_DIR/scripts/report.py" analyze "$WORK/results"
+
+      - name: Зберегти результати (архів)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sim-${{ matrix.label }}
+          path: |
+            .work/results
+            .work/target.env
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Вердикт
+        if: always()
+        env:
+          FAIL_ON_CRASH: ${{ github.event_name == 'push' || inputs.fail_on_crash }}
+        run: |
+          flag=""; [ "$FAIL_ON_CRASH" = true ] && flag="--fail-on-crash"
+          python3 "$SIM_DIR/scripts/report.py" verdict "$WORK/results" $flag
+
+  publish:
+    name: Звіт
+    needs: [plan, simulate]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: android-sim-publish-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.SIM_REPO }}
+          ref: ${{ needs.plan.outputs.sim_ref }}
+          path: .sim
+          sparse-checkout: projects/android-simulator
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: sim-*
+          path: runs
+
+      - name: Покласти знімки в гілку-альбом
+        id: album
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+          REPO: ${{ github.repository }}
+          RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          bash "$SIM_PATH/scripts/arrange-runs.sh" runs
+          base="$(SRC=runs bash "$SIM_PATH/scripts/publish-results.sh" | tail -1)"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+
+      - name: Звіт на сторінці запуску
+        id: summary
+        env:
+          BASE: ${{ steps.album.outputs.base }}
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bash "$SIM_PATH/scripts/arrange-runs.sh" runs
+          python3 "$SIM_PATH/scripts/report.py" summary runs "${BASE:-$RUN_URL}" > report.md
+          {
+            echo
+            if [ -z "$BASE" ]; then echo "> Картинки не опубліковано (немає права запису) — вони в архіві запуску."; fi
+            echo "Повний архів (знімки, відео, журнали): [сторінка запуску]($RUN_URL) → Artifacts."
+          } >> report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Коментар у PR
+        if: inputs.pr_number != '' || github.event.pull_request.number
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr_number || github.event.pull_request.number }}
+        run: |
+          [[ "$PR" =~ ^[0-9]+$ ]] || { echo "::warning::некоректний номер PR"; exit 0; }
+          marker="<!-- android-simulator -->"
+          { echo "$marker"; cat report.md; } > comment.md
+          id="$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@comment.md >/dev/null
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@comment.md >/dev/null
+          fi
+          echo "Коментар оновлено в PR #$PR"

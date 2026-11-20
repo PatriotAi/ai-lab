@@ -1,0 +1,15 @@
+# Самоперевірка сценаріїв: на сайті F-Droid (уже відкритий у Chrome) натиснути
+# пункт меню «НОВИНИ» і переконатися, що сторінка змінилась.
+appId: com.android.chrome
+name: f-droid.org — меню
+---
+- extendedWaitUntil:
+    visible: ".*F-Droid.*"
+    timeout: 30000
+- takeScreenshot: 01-home
+- tapOn: "НОВИНИ"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*f-droid.org/uk/news.*"
+    timeout: 30000
+- takeScreenshot: 02-news

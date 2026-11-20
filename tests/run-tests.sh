@@ -2744,6 +2744,12 @@ n_rules=$(for v in stale stamped bare own; do $RH --canon "$K3" --json "$RHT/r-$
 check "repo-health RH12: CLAUDE.md відстала — medium; зі штампом — мовчить; без штампа — info; власний — мовчить" "medium - info - " "$n_rules"
 # scripts/run-ledger.py (реєстр дерева виконавців, session-tree): канарки на зламаних станах.
 # Тихий збій заборонено: без підсумкового рядка «усе гаразд» і 15 зелених випадків — провал.
+# scripts/local-continuity-pack.py (continuation-memory § «Локальна безперервність»): чистий пакет
+# відновлюється, а пошкоджений bundle, бракуюча гілка, зниклий файл і неглибокий клон — падають.
+lc_out=$(python3 "$REPO/tests/local-continuity-canary.py" 2>&1); lc_rc=$?
+lc_ok=$(grep -c '^✅' <<<"$lc_out")
+[[ $lc_rc -eq 0 && $lc_ok -eq 7 && "$lc_out" == *"усе гаразд"* ]] && ok "local-continuity: 7 канарок (відновлення, пошкодження, неповна історія, зниклий файл, неглибокий клон)" \
+  || bad "local-continuity канарки" "код 0, 7 ✅" "код $lc_rc, $lc_ok ✅"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
 [[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
