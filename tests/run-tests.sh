@@ -866,6 +866,20 @@ $WIN --strict "${win_strict_dir%/docs}" >/dev/null 2>&1; win_rc=$?
 check "у режимі --strict відкрите вікно дає код 1" "1" "$win_rc"
 $WIN "${win_strict_dir%/docs}" >/dev/null 2>&1; win_rc2=$?
 check "той самий реєстр у режимі обліку дає код 0" "0" "$win_rc2"
+# --fix-counter: злиття гілок тихо лишало неправильний лічильник (тричі за PR #94).
+# Зламаний лічильник → виправлено й код 0; битий рядок → лічильник НЕ чіпається.
+win_fix_dir="$TMPROOT/win-fix/docs"; mkdir -p "$win_fix_dir"; : > "$win_fix_dir/PLAN.md"
+{ printf '<!-- ВІДКРИТИХ ВІКОН: 7 -->\n'
+  printf '| id | вікно | де | стан | причина / дата |\n|---|---|---|---|---|\n'
+  printf '%s\n' '| W-1 | борг | docs/PLAN.md | open | — |' '| W-2 | борг | docs/PLAN.md | open | — |'; } > "$win_fix_dir/WINDOWS.md"
+$WIN --fix-counter "${win_fix_dir%/docs}" >/dev/null 2>&1; wf_rc=$?
+check "--fix-counter: 7 → факт 2, далі реєстр коректний" "0|2" \
+  "$wf_rc|$(sed -n 's/.*ВІДКРИТИХ ВІКОН: \([0-9]*\).*/\1/p' "$win_fix_dir/WINDOWS.md")"
+printf '%s\n' '| X-3 | битий номер | docs/PLAN.md | open | — |' '| W-4 | борг | docs/PLAN.md | maybe | — |' >> "$win_fix_dir/WINDOWS.md"
+sed -i '1s/.*/<!-- ВІДКРИТИХ ВІКОН: 9 -->/' "$win_fix_dir/WINDOWS.md"
+$WIN --fix-counter "${win_fix_dir%/docs}" >/dev/null 2>&1; wf_rc2=$?
+check "--fix-counter не чіпає лічильник зламаного реєстру" "2|9" \
+  "$wf_rc2|$(sed -n 's/.*ВІДКРИТИХ ВІКОН: \([0-9]*\).*/\1/p' "$win_fix_dir/WINDOWS.md")"
 
 # Директива не буває істинною чи хибною — тег там був би театром. Секція Critical Facts
 # у фікстурі присутня, щоб перевірялась саме ця властивість, а не наявність секції.
@@ -1845,9 +1859,12 @@ PY
 check "самооголошених хуків-сиріт немає" "0" "$orphans"
 
 # Стенд підключеності: по випадку на кожен спосіб, яким хук СЕРЕДОВИЩА може
-# тихо не працювати. Сам стенд доведено 11 мутантами (0 вижило) — 2026-09-29.
+# тихо не працювати. Стенд доводять 17 мутантів — у репо, з 2026-11-14 (W-31:
+# напис «11 мутантами» від 2026-09-29 не мав відтворюваного доказу).
 pw=$(cd "$REPO" && python3 tests/probe-wiring.py >/dev/null 2>&1; echo $?)
 check "хуки середовища: 18/18 випадків стенду (tests/probe-wiring.py)" "0" "$pw"
+pwm=$(cd "$REPO" && python3 tests/mutation-probe-wiring.py >/dev/null 2>&1; echo $?)
+check "хуки середовища: усі мутанти стенда спіймані (tests/mutation-probe-wiring.py)" "0" "$pwm"
 
 # Твердження README про підключеність (W-16): проза не має казати «підключено»
 # там, де реєстрації немає (інциденти g5-consolidate і g5-retrieve). Стенд
