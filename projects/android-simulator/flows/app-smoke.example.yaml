@@ -1,0 +1,12 @@
+# Приклад сценарію для застосунку (Maestro). Скопіюйте у свій репозиторій,
+# замініть appId і тексти кнопок на свої, і передайте шлях у поле «flow».
+appId: org.example.app          # назва пакета вашого застосунку
+---
+- launchApp
+- takeScreenshot: 01-start
+- tapOn:
+    text: "Далі"               # текст кнопки, як на екрані
+    optional: true              # не провалювати, якщо кнопки нема
+- scroll
+- takeScreenshot: 02-after-scroll
+- assertNotVisible: ".*has stopped.*"   # системне вікно «застосунок зупинився»
