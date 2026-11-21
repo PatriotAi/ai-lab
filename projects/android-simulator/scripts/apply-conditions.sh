@@ -54,9 +54,11 @@ for c in "${list[@]}"; do
       v="$(sh_ settings get system font_scale)"
       [ "$v" = 1.3 ] && rec big-font ok "масштаб шрифту 1.3" || rec big-font fail "font_scale=$v" ;;
     landscape)
-      sh_ settings put system accelerometer_rotation 0
-      sh_ settings put system user_rotation 1
-      sh_ wm user-rotation lock 1 >/dev/null || sh_ cmd window user-rotation lock 1 >/dev/null
+      # Повертаємо «датчиком» емулятора при увімкненому автоповороті — так, як
+      # повертав би людина. (Жорстке user_rotation=1 у живих запусках 44920677649
+      # і 44920675152 не повернуло ні F-Droid, ні Chrome.)
+      sh_ settings put system accelerometer_rotation 1
+      adb emu rotate >/dev/null 2>&1
       # Доказ — сам екран, а не налаштування. Головний екран телефона завжди
       # вертикальний, тож перевіряємо пізніше, по першому знімку цілі
       # (run-on-emulator.sh → check-landscape). Тут — лише позначка «чекає».
