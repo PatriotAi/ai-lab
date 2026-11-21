@@ -36,6 +36,17 @@ CASES: list[tuple[str, dict, str, str]] = [
     (M + "github__list_branches", {}, "R0", "перелік"),
     (M + "github__search_code", {}, "R0", "пошук"),
     (M + "github__create_branch", {}, "R2", "невідоме дієслово — не R0"),
+    # Рішення власника 2026-11-21: `add_repo` лише для читання (`[mcp].access_args`).
+    (M + "claude-code-remote__add_repo", {"owner": "o", "repo": "r", "access": "read"},
+     "R2", "підключення репо для читання — дозволено"),
+    (M + "claude-code-remote__add_repo", {"owner": "o", "repo": "r"},
+     "R2", "без access — типове читання"),
+    (M + "claude-code-remote__add_repo", {"owner": "o", "repo": "r", "access": "push"},
+     "R4", "підключення з правом запису — лише за згодою"),
+    (M + "claude-code-remote__add_repo", {"owner": "o", "repo": "r", "access": " PUSH "},
+     "R4", "регістр і пробіли не обходять межу"),
+    (M + "claude-code-remote__add_repo", {"owner": "o", "repo": "r", "access": "admin"},
+     "R4", "будь-яке не-читання — запис"),
     # Правило шляхів має бути СУВОРІШЕ за клас MCP.
     (M + "github__create_or_update_file",
      {"path": ".github/" + "workflows/x.yml"}, "R4", "шлях воркфлоу переважає"),
