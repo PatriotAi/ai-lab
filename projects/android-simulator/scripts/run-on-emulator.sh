@@ -7,7 +7,7 @@
 # крок за status.json, щоб результати вивантажились навіть після падіння.
 #
 # Вхід: $WORK/target.env (від prepare-target.sh) + змінні KIND, FLOW_PATH,
-# MONKEY_EVENTS, SIM_DIR, MAESTRO_BIN (необов'язково).
+# MONKEY_EVENTS, SIM_DIR, MAESTRO_BIN, CONDITIONS (необов'язково).
 set -uo pipefail
 
 : "${WORK:?}" "${KIND:?}" "${SIM_DIR:?}"
@@ -95,6 +95,7 @@ if [ "$KIND" = web ]; then
   adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device
   adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-signin-promo" > /data/local/tmp/chrome-command-line' >/dev/null 2>&1 || true
   adb shell am set-debug-app --persistent com.android.chrome >/dev/null 2>&1 || true
+  R="$R" PACKAGE="com.android.chrome" bash "$SIM_DIR/scripts/apply-conditions.sh"
   open_url() { # open_url <url>
     if [ -n "${HAS_CHROME:-}" ]; then
       adb shell am start -a android.intent.action.VIEW -n com.android.chrome/com.google.android.apps.chrome.Main -d "'$1'" >/dev/null 2>&1
@@ -145,6 +146,7 @@ else
   fi
   cat "$R/install.txt"
   if [ "$installed" = 1 ]; then
+    R="$R" PACKAGE="$PACKAGE" bash "$SIM_DIR/scripts/apply-conditions.sh"
     adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 && launched=1
     sleep 12
     shot launched

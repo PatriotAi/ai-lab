@@ -70,7 +70,15 @@ def analyze(results: Path) -> dict:
     package = tgt.get("PACKAGE", "")
     probs = find_problems(_txt(results / "crash.txt"), _txt(results / "logcat.txt"),
                           _txt(results / "monkey.txt"), package)
+    conditions = []
+    cf = results / "conditions.txt"
+    if cf.exists():
+        for line in cf.read_text(encoding="utf-8", errors="replace").splitlines():
+            parts = line.split("|", 2)
+            if len(parts) == 3:
+                conditions.append({"name": parts[0], "ok": parts[1] == "ok", "detail": parts[2]})
     v = {
+        "conditions": conditions,
         "target": tgt.get("DISPLAY_TARGET", ""),
         "package": package,
         "app_label": tgt.get("APP_LABEL", ""),
@@ -98,6 +106,9 @@ def failed(v: dict, fail_on_crash: bool) -> list[str]:
         why.append(f"не встановилось ({v.get('install_error') or 'див. install.txt'})")
     elif not v.get("launched"):
         why.append("не відкрилось")
+    not_applied = [c["name"] for c in v.get("conditions", []) if not c.get("ok")]
+    if not_applied:
+        why.append("умову не застосовано: " + ", ".join(not_applied))
     if v.get("flow_rc") not in ("", "0"):
         why.append("сценарій дій не пройшов")
     if fail_on_crash and (v.get("crashes") or v.get("anrs")):
@@ -137,6 +148,10 @@ def summary(root: Path, base_url: str, title: str) -> str:
             lines.append(f"- Код застосунку під процесори: {v['native_abis']} (пристрій: {d.get('abi', '?')})")
         if v.get("alive") != "":
             lines.append("- Наприкінці застосунок " + ("ще працював ✅" if v.get("alive") == "1" else "уже закрився ⚠️"))
+        if v.get("conditions"):
+            lines.append("- Умови: " + " · ".join(
+                ("✅ " if c["ok"] else "❌ ") + c["name"] + ("" if c["ok"] else f" ({c['detail']})")
+                for c in v["conditions"]))
         lines.append(f"- Падінь: {v.get('crashes', 0)} · зависань: {v.get('anrs', 0)}")
         if v.get("first_crash"):
             lines += ["", "<details><summary>Перше падіння (технічні деталі)</summary>", "", "```",

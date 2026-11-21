@@ -11,6 +11,7 @@ import plan  # noqa: E402
 import report  # noqa: E402
 import tap_text  # noqa: E402
 import urltools  # noqa: E402
+import redact_logs  # noqa: E402
 
 CRASH = """11-17 10:00:00.000 E/AndroidRuntime( 1234): FATAL EXCEPTION: main
 11-17 10:00:00.000 E/AndroidRuntime( 1234): Process: org.example.app, PID: 1234
@@ -89,6 +90,40 @@ class TapText(unittest.TestCase):
     def test_no_match_and_garbage(self):
         self.assertIsNone(tap_text.find(self.XML, ["Nope"]))
         self.assertIsNone(tap_text.find("<<<not xml", ["Got it"]))
+
+
+class Redact(unittest.TestCase):
+    def test_masks_secret_like_values(self):
+        line = "D/DhcpClient(  917): l2key: W3sP0k9xZ2Lm8QbT lease address: /10.0.2.16"
+        out, n = redact_logs.redact_text(line)
+        self.assertEqual(n, 1)
+        self.assertNotIn("W3sP0k9xZ2Lm8QbT", out)
+        self.assertIn("lease address", out)
+        out, n = redact_logs.redact_text('api_token="abcd1234efgh5678ijkl"')
+        self.assertEqual(n, 1)
+
+    def test_leaves_names_and_plain_text(self):
+        for line in ["Preferences: unsupported key: enable_feature_toggle_x",
+                     "initializeKeyboardTheme(): Apply keyboard theme 2026",
+                     "token count 42"]:
+            out, n = redact_logs.redact_text(line)
+            self.assertEqual((out, n), (line, 0), line)
+
+
+class Conditions(unittest.TestCase):
+    def test_valid_and_dedup(self):
+        run = plan.normalize({"target": "https://x.org", "conditions": "dark, big-font,dark"}, 0)
+        self.assertEqual(run["conditions"], "dark,big-font")
+
+    def test_rejects_unknown_and_conflict(self):
+        for bad in ["dark;reboot", "flood", "locale-uk,locale-en"]:
+            with self.assertRaises(plan.PlanError, msg=bad):
+                plan.normalize({"target": "https://x.org", "conditions": bad}, 0)
+
+    def test_condition_not_applied_fails_verdict(self):
+        ok = {"installed": True, "launched": True, "flow_rc": "", "crashes": 0, "anrs": 0}
+        self.assertEqual(report.failed({**ok, "conditions": [{"name": "dark", "ok": True, "detail": ""}]}, True), [])
+        self.assertTrue(report.failed({**ok, "conditions": [{"name": "offline", "ok": False, "detail": "x"}]}, True))
 
 
 class Scrub(unittest.TestCase):

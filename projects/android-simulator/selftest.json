@@ -13,6 +13,7 @@
     "device": "small",
     "android": "33",
     "flow": "",
-    "monkey_events": "0"
+    "monkey_events": "0",
+    "conditions": "dark,big-font"
   }
 ]
