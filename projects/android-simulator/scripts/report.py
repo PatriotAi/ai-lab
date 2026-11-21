@@ -92,6 +92,7 @@ def analyze(results: Path) -> dict:
         "flow_rc": st.get("FLOW_RC", ""),
         "browser": st.get("BROWSER", ""),
         "foreign_anr": st.get("FOREIGN_ANR", ""),
+        "hide_error_dialogs": st.get("HIDE_ERROR_DIALOGS") == "1",
         "device": device,
         **probs,
     }
@@ -154,6 +155,8 @@ def summary(root: Path, base_url: str, title: str) -> str:
                 ("✅ " if c["ok"] else "❌ ") + c["name"] + ("" if c["ok"] else f" ({c['detail']})")
                 for c in v["conditions"]))
         lines.append(f"- Падінь: {v.get('crashes', 0)} · зависань: {v.get('anrs', 0)}")
+        if v.get("hide_error_dialogs"):
+            lines.append("- ℹ️ Системні вікна помилок приховано (через поворот екрана); падіння й зависання рахуються з журналу")
         if v.get("foreign_anr"):
             lines.append(f"- ℹ️ Зависала не ціль, а система телефона: «{v['foreign_anr']}» — вікно закрито кнопкою «Wait»")
         if v.get("first_crash"):
