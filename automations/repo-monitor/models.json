@@ -1,7 +1,7 @@
 {
  "note": "Моделі за ролями монітора. Конкретика похідна від датованого знімка моделей лабораторії (закон не-старіння); змінився знімок — оновити тут і `checked`. Звіряє tests/run-tests.sh, секція 34.",
- "snapshot": "melania-skills-ecosystem/skills/multi-provider-ai-orchestration/references/model-snapshot-2026-10.md",
- "checked": "2026-11-02",
+ "snapshot": "melania-skills-ecosystem/skills/multi-provider-ai-orchestration/references/model-snapshot-2026-11.md",
+ "checked": "2026-11-21",
  "class_order": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"],
  "roles": {
   "home": {"class": "швидкий дешевий", "model": "claude-haiku-5-5", "agent": "haiku", "effort": "low",
