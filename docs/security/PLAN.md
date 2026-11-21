@@ -129,7 +129,7 @@ security/
 tests/                        # рівні доказовості — від прикладів до інваріантів
 ├── probe-classify.py         #   приклади: 198 випадків
 ├── probe-mcp-and-quotes.py   #   приклади: 43 випадки (MCP + точність збігу)
-├── probe-consent-scope.py    #   згода й ціль (F-17, W-12, F-24): 30 випадків, 13 мутантів
+├── probe-consent-scope.py    #   згода й ціль (F-17, W-12, F-24, W-34): 33 випадки, 13 мутантів
 ├── probe-readme-wiring.py    #   твердження README про підключеність (W-16): 18 випадків
 ├── mutation-readme-wiring.py #   гейт для того стенда: 13 мутантів
 ├── probe-wiring.py           #   хуки середовища (F-13): 18 випадків
