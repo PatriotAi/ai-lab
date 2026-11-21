@@ -1,16 +1,16 @@
 ---
 name: multi-provider-ai-orchestration
-description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved."
+description: "Patterns for routing requests across multiple AI providers (free + paid + local) with multi-key rotation, automatic failover on rate-limits, task-based routing, group orchestration (parallel/pipeline/synthesis), and user-extensible custom providers. ALWAYS use when building an app that chains multiple LLM providers, needs failover when tokens run out, rotates multiple API keys, runs several models together, or the user says: оркестрація моделей, мульти-ключ, failover між провайдерами, кілька AI разом, ротація ключів, безперервна робота на безкоштовних лімітах, group orchestration, multiple models cooperate, провайдери ланцюгом. Also triggers for: AI gateway, provider router, key rotation, parallel models, synthesis of model outputs, custom provider config. DO NOT use for single-provider simple API calls or when only one model is involved. Також НЕ для: архітектури AI-runtime (ai-core-runtime), підбору моделі під роль у важкому процесі (rlm-harness), топологій суб-агентів (workflow-orchestration)."
 license: MIT
 metadata:
-  version: 1.7.6
+  version: 1.7.7
   author: Melania (Master Administrator)
   category: provider-orchestration
   created: 2026-06-02
-  last_updated: 2026-10-24
+  last_updated: 2026-11-17
 ---
 
-# Multi-Provider AI Orchestration — v1.7.6
+# Multi-Provider AI Orchestration — v1.7.7
 > Напрацьовано на AI Gateway. Дозволяє безперервну роботу AI навіть на безкоштовних лімітах: ланцюг провайдерів + ротація багатьох ключів + перемикання при вичерпанні токенів + спільна робота моделей.
 > Українською-перша: пояснення й приклади — українською за замовчуванням; код та технічні ідентифікатори лишаються англійською. Перемикання мови лише слідом за користувачем.
 
@@ -316,6 +316,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v1.7.7** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): закон не-старіння: назви моделей у `references/advanced-orchestration.md` → класи; знімок моделей отримав § WebLLM (перенесено з browser-local-ai-webllm); DO NOT-межі з ai-core-runtime, rlm-harness, workflow-orchestration. Лише правила/межі/покажчики; поведінка незмінна.
 - **v1.7.6** (2026-10-24) — Критичний факт про `Retry-After` уточнено пробою справжніх серверів (`docs/reviews/2026-10-24-cors-probe.md`, [E]): Anthropic розкриває всі заголовки (`expose-headers: *`, діє для запитів без облікових даних), OpenAI — лише `CF-Ray`; раніше стояло «не перевірено». Pattern 2b: серверний `fallbacks: "default"` (Anthropic сам перезапускає відхилений політикою запит) відокремлено від клієнтського перекидання відмови іншим провайдерам, якого контур свідомо не робить; для браузера — лише після перевірки, що preflight пропускає `anthropic-beta`; `recommended_model` — ознака тимчасової відмови, а відповідь іншої моделі варто позначати; відмова не ставить вузол на паузу, повтор закріплено за вузлом (рев'ю Codex, PR #101). Лише уточнення й додавання.
 - **v1.7.5** (2026-10-23) — Pattern 2b, класифікація збою: **четверта річ — HTTP 200, що не є відповіддю.** Відмова моделі (`stop_reason: "refusal"` / `finish_reason: "content_filter"` / поле `message.refusal`) і обрізання лімітом (`"max_tokens"` / `"length"`, зокрема ще до першого тексту) приходять як успіх; відмова — не повторювати й не перекидати іншим провайдерам, обрізання — показувати з позначкою. Критичний факт [E] із доказом `tests/mobile-agent-browser.mjs` (на коді до зміни відмова показувалась як «провайдери недоступні»). Знайдено звіркою `projects/mobile-agent` з власним знімком 2026-10. Лише додавання.
 - **v1.7.4** (2026-10-16) — Вказівник на знімок моделей став не-старіючим: «поточний — найновіший файл» замість зашитого `model-snapshot-2026-07.md`. Сам знімок замінено на `model-snapshot-2026-10.md` (покоління Claude 5.5, GPT-6, Grok 4.7, Kimi K3; з'явився середній клас Sonnet; рейтинги AA Cyber Index і AA-3D) — дослідження `docs/reviews/2026-10-16-tools-harvest.md`, рішення власника. Логіка скіла не змінена.

@@ -146,7 +146,7 @@ jobs:
 | ARM-only застосунок, Android 33 | ❌ `INSTALL_FAILED_NO_MATCHING_ABIS` (межа, див. «Процесор») | [44377495901](https://github.com/PatriotAi/ai-lab/actions/runs/44377495901) |
 
 **Ще не перевірено** (облік у `docs/WINDOWS.md`): AAB/APKS/XAPK, `artifact:`, виклик з іншого
-репо (W-47); закрита тестова копія Vercel (W-46); хеш `bundletool` (W-48); завислий GIF-крок (W-50).
+репо (W-48); закрита тестова копія Vercel (W-47); хеш `bundletool` (W-49); завислий GIF-крок (W-51).
 
 ## План на потім
 `ROADMAP.md` — симулятори iOS, HarmonyOS і десктопних систем.

@@ -15,10 +15,10 @@
 | Видалити елемент | `видалити [елемент/секцію]` | Remove після підтвердження |
 | Версія | `версія → X.Y.Z` | Bump metadata.version + CHANGELOG |
 | Self-dev тригер | `самооновлення: [тема]` | Запустити Assessment на конкретну тему |
-| Changelog | `переглянути changelog` | Вивести references/CHANGELOG.md |
+| Changelog | `переглянути changelog` | Вивести § Зміни (SKILL.md) + references/CHANGELOG.md (пропозиції, версії до 2.23.1) |
 | Затвердити | `затвердити пропозицію #N` | Apply Proposal #N → CHANGELOG.md |
 | Відхилити | `відхилити пропозицію #N [причина]` | Move до Rejected з причиною |
-| Репакування | `перепакувати skill` | Запустити package_skill.py → новий .skill |
+| Репакування | `перепакувати skill` | Запустити `maintain.py package <skill>` → новий .skill |
 | Показати diff | `показати diff [секція]` | Вивести до/після без застосування |
 | Скинути версію | `rollback до v[X.Y.Z]` | Відновити зі snapshot (якщо є) |
 
@@ -268,10 +268,7 @@ python scripts/skill_guard.py --validate || exit 1
 
 ```bash
 # Перепакування після оновлення (з кореня workspace):
-PYTHONPATH=/path/to/skill-creation-guide-workspace \
-python -m scripts.package_skill \
-  /path/to/skill-creation-guide/ \
-  /output/directory/
+python3 melania-skills-ecosystem/scripts/maintain.py package skill-creation-guide   # канон, CLAUDE.md §8
 
 # Результат: skill-creation-guide.skill
 # Включає: SKILL.md + references/ (без evals/)

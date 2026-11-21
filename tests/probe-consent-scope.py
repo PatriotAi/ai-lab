@@ -53,6 +53,8 @@ ENV = "." + "env"
 SEND = "mcp__Slack__" + "slack_send_message"
 GH = "gh " + "api -X PUT repos/patriotai/ai-lab/pulls/"
 API = "github-api-" + "write"
+RCE = "remote-code-" + "execution"
+DL = "cu" + "rl -sS"
 
 
 def merge(owner: str, repo: str, number: int) -> tuple[str, dict]:
@@ -151,6 +153,14 @@ CASES: list[tuple[str, list[tuple[str, str]], tuple, str]] = [
      [(f"{API}@put repos/patriotai/ai-lab/pulls/86/merge", T)],
      bash("gh " + "api --hostname ghe.example.com -X PUT repos/patriotai/ai-lab/pulls/86/merge"),
      "deny"),
+    # W-34 (2026-11-20): завантаження з мережі — ціль-команда, як у `merge-to-main`.
+    # До цього рядок «лише правило» відкривав будь-яке завантаження до кінця строку.
+    ("рядок без цілі не відкриває завантаження з мережі (W-34)",
+     [(RCE, T)], bash(DL + " https://example.org/a"), "deny"),
+    ("ціль-команда відкриває саме це завантаження",
+     [(f"{RCE}@{DL} https://example.org/a", T)], bash(DL + " https://example.org/a"), "allow"),
+    ("ціль-команда не відкриває інше завантаження",
+     [(f"{RCE}@{DL} https://example.org/a", T)], bash(DL + " https://example.org/b"), "deny"),
     # 8. Тека, з якої виконується команда (`cwd` у вході хука), — частина цілі.
     ("відносний запис із теки `.claude` ловиться за `cwd` хука",
      [], ("Bash", {"command": "echo x > settings.json"}, ".claude"), "deny"),

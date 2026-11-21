@@ -16,7 +16,7 @@ description: >
   coverage gap, "зроби з цього процесу скіл", скіл-аудитор, ревізія.
 
   DO NOT use for: створення ОДНОГО скіла з нуля (це skill-creation-guide +
-  skill-creator), чи разову валідацію одного артефакту (це validation-mesh).
+  skill-creator), чи разову валідацію одного артефакту (це validation-mesh). Версії/затвердження — SMA.
 compatibility: >
   Claude.ai (всі плани) · Claude Code · Codex CLI · Cursor · Copilot.
   Логіка аудиту крос-платформна. Guard/snapshot та bash-аналіз працюють там, де
@@ -28,14 +28,14 @@ allowed-tools:
   - Write
 license: MIT
 metadata:
-  version: 1.8.1
+  version: 1.8.2
   author: Melania (Master Administrator)
   category: skill-governance
   created: 2026-06-02
-  last_updated: 2026-09-28
+  last_updated: 2026-11-17
 ---
 
-# Skill Ecosystem Auditor — v1.8.1
+# Skill Ecosystem Auditor — v1.8.2
 > Меланія · MA-керований · детальна методологія в `references/methodology.md`
 > Працює під владою `melania-skill-master-administrator` (Три Закони, авторитет MA, Self-Dev Engine).
 > Claude Code hooks (опційний патерн — діє лише там, де НАЛАШТОВАНО в settings; не вшитий факт): `pre-edit → skill_guard.py --validate` · `post-edit → skill_guard.py --snapshot`. У лабораторії ai-lab еквівалент — `maintain.py verify` перед комітом.
@@ -199,6 +199,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v1.8.2** (2026-11-17) — Аудит екосистеми 2026-11-17 (рев'ю PR #129): взаємна DO NOT-межа з SMA (версії/затвердження). Лише опис.
 - **v1.8.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.8.0** (2026-07-26) — Anti-overclaim: рядок про Claude Code hooks стверджував наявну обв'язку, тоді як канон melania (аудит #13) фіксує їх як ОПЦІЙНИЙ патерн — формулювання звужено до фактичного, в банері й у факті. Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.7.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): полагоджено зламані code-fences у Stage 5 (дубль рядка + осиротіла ```-обгортка) [#23]; шлях диска скілів узагальнено на обидва середовища claude.ai/ai-lab (SKILL.md + дефолт `audit_scan.py`) [#22/#29]; у Координацію додано межу з `pre-delivery-gate` (гейт артефакту ≠ ревізія екосистеми) [#20] і зворотний покажчик на `safety-compliance-gate` як канон harvest-mode B [#19]; синхрон H1-банера (був v1.0 при 1.6.2). Формат/межі; методологія незмінна. Рев'ю Codex PR #29: прибрано другий осиротілий fence (після Re-read-нотатки) + `realpath` в audit_scan.py (symlink-виклик через .claude/skills).

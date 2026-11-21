@@ -13,7 +13,7 @@ description: >
   Vercel — НЕ тригер (маршрутизуй за платформою наміру).
   DO NOT use for: загальний деплой не на Vercel, упаковку PWA/APK
   (pwa-to-android-app), механіку OAuth/сесій (auth-session-manager),
-  створення скіла (skill-creation-guide).
+  створення скіла (skill-creation-guide). Публікація готового тексту з Canva-карткою — publish.
 compatibility: >
   Claude.ai (Pro/Max/Team/Enterprise — remote MCP) · Claude Code · Cursor ·
   VS Code Copilot. Потрібен підключений Vercel MCP (OAuth, mcp.vercel.com).
@@ -21,14 +21,14 @@ allowed-tools:
   - Read
 license: MIT
 metadata:
-  version: 1.2.1
+  version: 1.2.2
   author: Melania (Master Administrator)
   category: connector
   created: 2026-06-12
-  last_updated: 2026-09-28
+  last_updated: 2026-11-17
 ---
 
-# Vercel MCP Connector — v1.2.1
+# Vercel MCP Connector — v1.2.2
 > Меланія · українською-перша · скіл-компаньйон для офіційного Vercel MCP (`mcp.vercel.com`).
 > ⚖️ Безпека та комплаєнс — `safety-compliance-gate` (обов'язково перед пакуванням/публікацією/комерціалізацією).
 >
@@ -121,6 +121,7 @@ metadata:
 ---
 
 ## Зміни
+- **v1.2.2** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): DO NOT-межа: публікація тексту з Canva-карткою → publish. Лише правила/межі/покажчики; поведінка незмінна.
 - **v1.2.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v1.2.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v1.1.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): голі тригери «deploy/хостинг» кваліфіковано контекстом Vercel — без згадки платформи скіл не перехоплює запит [#42]; синхрон H1-банера (був v1.0 при version 1.0.2) [#34-клас]. Лише опис/метадані.

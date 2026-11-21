@@ -6,10 +6,10 @@
       "id": 1,
       "name": "happy-path-create",
       "prompt": "Допоможи створити новий скіл і написати SKILL.md",
-      "expected_output": "Активує гайд: повний YAML frontmatter (з metadata/version), тіло в наказовому способі, 4–6 evals, координація через skill-creator/validation-mesh.",
+      "expected_output": "Активує гайд: повний YAML frontmatter (з metadata/version), тіло в наказовому способі, щонайменше 4 evals, координація через skill-creator/validation-mesh.",
       "assertions": [
         "Produces full YAML frontmatter including metadata.version and category",
-        "Requires 4–6 evals.json cases",
+        "Requires at least 4 evals.json cases",
         "Mentions skill-creator and validation-mesh in workflow"
       ]
     },

@@ -117,9 +117,9 @@ function healthyChain(chain) {
 ```
 Стратегія "найдешевший достатній":
 1. Класифікуй складність задачі (simple/medium/hard)
-2. simple → найдешевша модель (gemini-flash, deepseek)
-3. medium → середня (sonnet, gemini-pro)
-4. hard   → найкраща (opus з extended thinking)
+2. simple → найдешевший придатний клас (ID — model-snapshot)
+3. medium → середній клас (конкретні ID — model-snapshot)
+4. hard   → найсильніший клас (з extended thinking; ID — model-snapshot)
 
-Не плати за opus там де flash впорається.
+Не плати за найсильніший клас там, де впорається найдешевший придатний.
 ```
