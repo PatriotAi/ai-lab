@@ -1,7 +1,7 @@
 {
  "package": "melania-skills-ecosystem",
- "built": "2026-11-19",
- "governance": "melania-skill-master-administrator v2.24.0",
+ "built": "2026-11-21",
+ "governance": "melania-skill-master-administrator v2.24.1",
  "language_policy": "Ukrainian-first (code/APIs in English)",
  "skill_count": 28,
  "total_eval_cases": 145,
@@ -10,10 +10,10 @@
  "install_entrypoint": "README-FOR-AI.md",
  "skills": {
   "ai-core-runtime": {
-   "version": "3.13.1",
+   "version": "3.13.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "1a010343e468e658",
+    "SKILL.md": "5098d78038e1d682",
     "evals/evals.json": "929c037bb02ec4dc"
    },
    "files": [
@@ -54,11 +54,11 @@
    ]
   },
   "browser-local-ai-webllm": {
-   "version": "1.3.0",
+   "version": "1.3.1",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "9b4b3e0bfbbf5898",
-    "evals/evals.json": "b78bf5d515e4d0bd"
+    "SKILL.md": "30d42234473e4407",
+    "evals/evals.json": "c6f04f7a26c9ecba"
    },
    "files": [
     "SKILL.md",
@@ -68,10 +68,10 @@
    ]
   },
   "collaborative-browser": {
-   "version": "3.3.0",
+   "version": "3.3.1",
    "eval_cases": 8,
    "sha256_16": {
-    "SKILL.md": "c1cd4f5aa19afbc0",
+    "SKILL.md": "2b6eb34cad0c71b0",
     "evals/evals.json": "6f7ed62b650202cf"
    },
    "files": [
@@ -125,10 +125,10 @@
    ]
   },
   "llm-api-builder": {
-   "version": "1.5.2",
+   "version": "1.5.3",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "9f4e974dbc142a32",
+    "SKILL.md": "5c6ac0a64d6569ed",
     "evals/evals.json": "be05cc6c2d17e509"
    },
    "files": [
@@ -139,10 +139,10 @@
    ]
   },
   "melania-skill-master-administrator": {
-   "version": "2.24.0",
+   "version": "2.24.1",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "420ccdd4e3ef6e64",
+    "SKILL.md": "b77b3ccb41b001ae",
     "evals/evals.json": "c528bf6e32897513"
    },
    "files": [
@@ -156,10 +156,10 @@
    ]
   },
   "multi-provider-ai-orchestration": {
-   "version": "1.7.6",
+   "version": "1.7.7",
    "eval_cases": 5,
    "sha256_16": {
-    "SKILL.md": "8c9e23d80aac745a",
+    "SKILL.md": "4dba39f749934671",
     "evals/evals.json": "fd3caa98067b9885"
    },
    "files": [
@@ -171,10 +171,10 @@
    ]
   },
   "n8n-orchestrator": {
-   "version": "2.10.2",
+   "version": "2.10.3",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "1223d570343addc6",
+    "SKILL.md": "252895a41a3b2f4e",
     "evals/evals.json": "47b92f907915d091"
    },
    "files": [
@@ -214,10 +214,10 @@
    ]
   },
   "pre-delivery-gate": {
-   "version": "1.6.0",
+   "version": "1.6.1",
    "eval_cases": 10,
    "sha256_16": {
-    "SKILL.md": "e32bb7b8f6419451",
+    "SKILL.md": "84cfd574f036c38c",
     "evals/evals.json": "4a0a5b9d4ffa661f"
    },
    "files": [
@@ -265,10 +265,10 @@
    ]
   },
   "safety-compliance-gate": {
-   "version": "1.4.1",
+   "version": "1.4.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "cdadf47a5e508277",
+    "SKILL.md": "c9058624e6e8e4eb",
     "evals/evals.json": "e125b0560c380b0a"
    },
    "files": [
@@ -293,11 +293,11 @@
    ]
   },
   "skill-creation-guide": {
-   "version": "1.11.1",
+   "version": "1.11.2",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "0c263b9997546391",
-    "evals/evals.json": "12ea3914d2f9230d"
+    "SKILL.md": "df4bbdaae3efa501",
+    "evals/evals.json": "cb4eb790b03f42e0"
    },
    "files": [
     "SKILL.md",
@@ -309,10 +309,10 @@
    ]
   },
   "skill-ecosystem-auditor": {
-   "version": "1.8.1",
+   "version": "1.8.2",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "ecff0eb8d0c8e8de",
+    "SKILL.md": "2b043e565bbc75ae",
     "evals/evals.json": "0ce12a0832e6322e"
    },
    "files": [
@@ -383,10 +383,10 @@
    ]
   },
   "vercel-mcp-connector": {
-   "version": "1.2.1",
+   "version": "1.2.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "707842ceee656f09",
+    "SKILL.md": "77423feca28d5ec5",
     "evals/evals.json": "7781da98ac897965"
    },
    "files": [
@@ -411,10 +411,10 @@
    ]
   },
   "workflow-orchestration": {
-   "version": "1.6.1",
+   "version": "1.6.2",
    "eval_cases": 4,
    "sha256_16": {
-    "SKILL.md": "91d514849bea74b1",
+    "SKILL.md": "bd74ea178f0bb036",
     "evals/evals.json": "30257eca68d27e83"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "f92e65aa32bfe78c"
+ "built_fingerprint": "d38453f8b1bc3389"
 }

@@ -15,16 +15,16 @@ description: >
   "connect APIs automatically", "AI automation", "CRM automation",
   "Telegram bot workflow", "n8n JSON", "workflow nodes".
 
-  ALWAYS use this skill for anything n8n-related, even if it seems simple. DO NOT use for: non-n8n automation, plain code scripts, or single API calls without a workflow; оркестрація суб-агентів/топологій виконання БЕЗ n8n (workflow-orchestration).
+  ALWAYS use this skill for anything n8n-related, even if it seems simple. DO NOT use for: non-n8n automation, plain code scripts, or single API calls without a workflow; оркестрація суб-агентів/топологій виконання БЕЗ n8n (workflow-orchestration). AI-runtime без n8n — ai-core-runtime.
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 2.10.2
+  version: 2.10.3
   category: automation
-  last_updated: 2026-10-16
+  last_updated: 2026-11-17
 ---
 
-# N8N Orchestrator — v2.10.2
+# N8N Orchestrator — v2.10.3
 > Працює українською за замовчуванням (українською-перша): пояснення, нотатки й приклади — українською; перемикання лише слідом за користувачем.
 >
 > **Неофіційний.** Не пов'язаний з, не схвалений і не спонсорований n8n GmbH. «n8n» — торгова марка n8n GmbH; назва вжита суто референційно (опис сумісності).
@@ -334,6 +334,7 @@ Load only on demand — not proactively.
 
 ## Зміни
 _⚠ Історична примітка: окремі ранні записи нижче мають дубльовані номери версій (артефакт злиттів). Усі записи збережено; нумерацію НЕ переписано без верифікації джерел._
+- **v2.10.3** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): DO NOT-межа: AI-runtime без n8n → ai-core-runtime. Лише правила/межі/покажчики; поведінка незмінна.
 - **v2.10.2** (2026-10-16) — Приклад AI Agent Node більше не зашиває конкретну модель (`claude-opus-4-8` застаріла): місце моделі — посилання на клас із датованого знімка `multi-provider-ai-orchestration/references/model-snapshot-*.md` (закон не-старіння, Core Rule 11). Знайдено дослідженням `docs/reviews/2026-10-16-tools-harvest.md`.
 - **v2.10.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v2.10.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.

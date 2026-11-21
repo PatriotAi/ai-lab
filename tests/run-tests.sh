@@ -2277,7 +2277,10 @@ out.append(len(build_date_problems(man, d)))                # довідкови
 e = fresh(); bump(e / 'pre-delivery-gate/evals/evals.json', ' ')
 out.append(len(build_date_problems(man, e)))                # evals
 v = fresh(); sk = v / 'pre-delivery-gate/SKILL.md'
-sk.write_text(sk.read_text(encoding='utf-8').replace('version: 1.6.0', 'version: 9.9.9', 1), encoding='utf-8')
+_src = sk.read_text(encoding='utf-8')            # версію беремо з файлу, не хардкодимо (bump ламав тест мовчки)
+_mut = __import__('re').sub(r'(?m)^(\s*version:\s*)[\d.]+', r'\g<1>9.9.9', _src, count=1)
+assert _mut != _src, 'мутація версії нічого не змінила — тест недійсний'
+sk.write_text(_mut, encoding='utf-8')
 out.append(len(build_date_problems(man, v)))                # версія у frontmatter
 s = fresh()                                                 # службове — не вміст
 (s / 'pre-delivery-gate/.snapshots/x.json').write_text('{}', encoding='utf-8')

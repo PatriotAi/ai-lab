@@ -1,4 +1,5 @@
 # CHANGELOG — melania-skill-master-administrator
+> **Записи версій після v2.23.1 — у `SKILL.md` § Зміни** (там основний журнал версій; тут не дублюються). Пропозиції Self-Dev (Pending/Rejected) ведуться тут, як і раніше.
 > Автор: Меланія (Master Administrator)  
 > Формат версій: `major.minor.patch`  
 > major = breaking change · minor = нова функція · patch = виправлення

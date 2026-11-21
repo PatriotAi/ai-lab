@@ -11,16 +11,16 @@ description: >
   orchestration, multi-agent frameworks, or bounded reasoning systems.
 
   Also trigger for: "побудуй оркестрацію", "спроєктуй AI систему",
-  "agent pipeline", "modular AI", "runtime architecture", "orchestration layer". DO NOT use for: single simple Q&A, one-off code snippets, or tasks needing no orchestration (use the specific skill directly); маршрутизація наміру в один скіл (semantic-router); мета-оркестрація важких процесів (rlm-harness); механіка топологій виконання (workflow-orchestration).
+  "agent pipeline", "modular AI", "runtime architecture", "orchestration layer". DO NOT use for: single simple Q&A, one-off code snippets, or tasks needing no orchestration (use the specific skill directly); маршрутизація наміру в один скіл (semantic-router); мета-оркестрація важких процесів (rlm-harness); механіка топологій виконання (workflow-orchestration). Провайдери/ротація ключів — multi-provider-ai-orchestration; n8n — n8n-orchestrator.
 license: MIT
 metadata:
   author: Prompt Ingeniero Ecosystem
-  version: 3.13.1
+  version: 3.13.2
   category: orchestration
-  last_updated: 2026-09-28
+  last_updated: 2026-11-17
 ---
 
-# AI Core Runtime — v3.13.1
+# AI Core Runtime — v3.13.2
 > Працює українською за замовчуванням (українською-перша): тригери, відповіді й приклади — українською; перемикання лише слідом за користувачем.
 
 
@@ -209,6 +209,7 @@ Load only on demand — not proactively.
 ---
 
 ## Зміни
+- **v3.13.2** (2026-11-17) — Аудит екосистеми 2026-11-17 (партії 1–3): DO NOT-межі: провайдери/ротація ключів → multi-provider-ai-orchestration; n8n → n8n-orchestrator. Лише правила/межі/покажчики; поведінка незмінна.
 - **v3.13.1** (2026-09-28) — Ліцензія скіла уніфікована до **MIT** разом з усією екосистемою (директива власника). Зміна лише метаданих; поведінка й артефакт незмінні.
 - **v3.13.0** (2026-07-26) — Секція **Critical Facts**: фактичні твердження скіла винесено окремо й протеговано [C] за Core Rule 14 (claim-evidence). Лише додавання.
 - **v3.12.0** (2026-07-19) — Self-Dev Wave 2 (аудит 2026-07-18): взаємні DO NOT-межі в описі — semantic-router (intent→скіл), rlm-harness (мета-оркестрація), workflow-orchestration (механіка топологій) [#8]; +`last_updated` у metadata (був відсутній) [#21/#45]. Лише опис/метадані.

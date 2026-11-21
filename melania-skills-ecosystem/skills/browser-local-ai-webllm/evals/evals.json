@@ -45,7 +45,7 @@
       "assertions": [
         "Analyzes device memory and WebGPU availability",
         "Estimates available VRAM (~45% RAM)",
-        "Ranks models by fit and family recency (Qwen3.5 highest)",
+        "Ranks models by fit and family recency (family rank taken from the model snapshot § WebLLM)",
         "Separates fitting from too-large models"
       ]
     },
