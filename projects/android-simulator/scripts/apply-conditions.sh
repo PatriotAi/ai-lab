@@ -7,9 +7,24 @@
 # людині, тож «умову ввімкнено» — це перевірений факт, а не обіцянка.
 #
 # Вхід: CONDITIONS (через кому), PACKAGE (для мови застосунку), R (тека результатів).
+# check-landscape <png> — оновити рядок landscape за розміром знімка.
 # Умови: offline · slow-net · dark · big-font · landscape · low-battery · locale-uk · locale-en
 set -uo pipefail
 : "${R:?}"
+if [ "${1:-}" = check-landscape ]; then
+  dims="$(python3 -c 'import sys,struct; d=open(sys.argv[1],"rb").read(24); print("%dx%d" % struct.unpack(">II", d[16:24]) if d[:8]==b"\x89PNG\r\n\x1a\n" else "?")' "$2" 2>/dev/null)"
+  w="${dims%x*}"; h="${dims#*x}"
+  if [[ "$w" =~ ^[0-9]+$ ]] && [ "$w" -gt "$h" ]; then line="landscape|ok|екран $dims"
+  else line="landscape|fail|екран $dims — ціль лишилась вертикальною (застосунок міг заблокувати поворот)"; fi
+  python3 - "$R/conditions.txt" "$line" <<'PY'
+import sys
+p, line = sys.argv[1], sys.argv[2]
+rows = [l for l in open(p, encoding="utf-8").read().splitlines() if not l.startswith("landscape|")]
+open(p, "w", encoding="utf-8").write("\n".join(rows + [line]) + "\n")
+PY
+  echo "умова ${line//|/ }"
+  exit 0
+fi
 OUT="$R/conditions.txt"
 : > "$OUT"
 [ -n "${CONDITIONS:-}" ] || exit 0
@@ -41,8 +56,11 @@ for c in "${list[@]}"; do
     landscape)
       sh_ settings put system accelerometer_rotation 0
       sh_ settings put system user_rotation 1
-      v="$(sh_ settings get system user_rotation)"
-      [ "$v" = 1 ] && rec landscape ok "альбомна орієнтація" || rec landscape fail "user_rotation=$v" ;;
+      sh_ wm user-rotation lock 1 >/dev/null || sh_ cmd window user-rotation lock 1 >/dev/null
+      # Доказ — сам екран, а не налаштування. Головний екран телефона завжди
+      # вертикальний, тож перевіряємо пізніше, по першому знімку цілі
+      # (run-on-emulator.sh → check-landscape). Тут — лише позначка «чекає».
+      rec landscape pending "перевірка по знімку після запуску" ;;
     low-battery)
       sh_ dumpsys battery unplug >/dev/null
       sh_ dumpsys battery set level 5 >/dev/null

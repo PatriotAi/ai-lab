@@ -32,6 +32,10 @@ shot() { # shot <назва>
   local f; f="$R/shots/$(printf '%02d' "$shot_n")-$1.png"
   adb exec-out screencap -p > "$f" 2>/dev/null || rm -f "$f"
   log "знімок: $(basename "$f")"
+  # Перший знімок цілі — доказ для умови landscape.
+  if [ "$shot_n" = 1 ] && [ -f "$f" ] && grep -q '^landscape|pending' "$R/conditions.txt" 2>/dev/null; then
+    R="$R" bash "$SIM_DIR/scripts/apply-conditions.sh" check-landscape "$f"
+  fi
 }
 
 # ── Пристрій ────────────────────────────────────────────────────────────────

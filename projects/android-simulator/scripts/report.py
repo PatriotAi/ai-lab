@@ -76,7 +76,7 @@ def analyze(results: Path) -> dict:
         for line in cf.read_text(encoding="utf-8", errors="replace").splitlines():
             parts = line.split("|", 2)
             if len(parts) == 3:
-                conditions.append({"name": parts[0], "ok": parts[1] == "ok", "detail": parts[2]})
+                conditions.append({"name": parts[0], "ok": parts[1] == "ok", "detail": parts[2]})  # pending = не доведено
     v = {
         "conditions": conditions,
         "target": tgt.get("DISPLAY_TARGET", ""),
