@@ -91,6 +91,7 @@ def analyze(results: Path) -> dict:
         "install_error": st.get("INSTALL_ERROR", ""),
         "flow_rc": st.get("FLOW_RC", ""),
         "browser": st.get("BROWSER", ""),
+        "foreign_anr": st.get("FOREIGN_ANR", ""),
         "device": device,
         **probs,
     }
@@ -153,6 +154,8 @@ def summary(root: Path, base_url: str, title: str) -> str:
                 ("✅ " if c["ok"] else "❌ ") + c["name"] + ("" if c["ok"] else f" ({c['detail']})")
                 for c in v["conditions"]))
         lines.append(f"- Падінь: {v.get('crashes', 0)} · зависань: {v.get('anrs', 0)}")
+        if v.get("foreign_anr"):
+            lines.append(f"- ℹ️ Зависала не ціль, а система телефона: «{v['foreign_anr']}» — вікно закрито кнопкою «Wait»")
         if v.get("first_crash"):
             lines += ["", "<details><summary>Перше падіння (технічні деталі)</summary>", "", "```",
                       v["first_crash"], "```", "</details>"]

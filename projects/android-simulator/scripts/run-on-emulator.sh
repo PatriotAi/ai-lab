@@ -26,6 +26,26 @@ scrub() {
   python3 "$SIM_DIR/scripts/urltools.py" scrub "$WORK/launch-url.txt" "$@"
 }
 
+# Системне вікно «<чужий застосунок> isn't responding» (напр. робочий стіл
+# зависає після повороту на програмній відеокарті) закриває знімок цілі.
+# Закриваємо кнопкою «Wait» лише коли вікно НЕ про ціль, і пишемо це у звіт.
+dismiss_foreign_anr() {
+  local i xml="$WORK/ui-anr.xml"
+  for i in 1 2 3; do
+    adb shell uiautomator dump /sdcard/ui-anr.xml >/dev/null 2>&1 && adb pull /sdcard/ui-anr.xml "$xml" >/dev/null 2>&1 || return 0
+    local title
+    title="$(grep -oE "text=\"[^\"]*(isn(&apos;|.)t responding|не відповідає)[^\"]*\"" "$xml" | head -1 | sed 's/^text="//; s/"$//')"
+    [ -n "$title" ] || return 0
+    case "$title" in *"${APP_LABEL:-@@none@@}"*) return 0 ;; esac
+    local xy; xy="$(python3 "$SIM_DIR/scripts/tap_text.py" "$xml" "Wait" "Зачекати")" || return 0
+    log "закриваю чуже системне вікно: $title"
+    st FOREIGN_ANR "$title"
+    # shellcheck disable=SC2086
+    adb shell input tap $xy
+    sleep 3
+  done
+}
+
 shot_n=0
 shot() { # shot <назва>
   shot_n=$((shot_n + 1))
@@ -134,6 +154,7 @@ if [ "$KIND" = web ]; then
   fi
   start_rec
   sleep 5
+  dismiss_foreign_anr
   shot opened
 else
   start_rec
@@ -153,6 +174,7 @@ else
     R="$R" PACKAGE="$PACKAGE" bash "$SIM_DIR/scripts/apply-conditions.sh"
     adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 && launched=1
     sleep 12
+    dismiss_foreign_anr
     shot launched
   else
     st INSTALL_ERROR "$(grep -o 'INSTALL_[A-Z_]*' "$R/install.txt" | head -1)"
