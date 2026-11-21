@@ -9,10 +9,9 @@ on:
     - cron: "0 6 * * 1" # щопонеділка / every Monday 06:00 UTC
   workflow_dispatch:
 
-# Скасовуємо застарілі прогони того ж ref / cancel superseded runs of the same ref
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# Свідомо БЕЗ `concurrency` (W-37, 2026-11-20; як у templates/ci/repo-check.yml v6+): у групі
+# GitHub тримає лише один очікуваний прогін і витісняє його новішим, а кожен push сканує лише
+# свій діапазон — коміти витісненого прогону лишились би неперевіреними на секрети.
 
 permissions:
   contents: read
@@ -34,6 +33,31 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # W-37 (2026-11-20): дія на push/PR сканує лише `--no-merges --first-parent base^..head` —
+      # коміт, що прийшов злиттям іншої гілки, і дифа самого злиття пропускаються. Тому той самий
+      # gitleaks (дія кладе його в PATH) — по ВСІХ комітах діапазону плюс дифи злиттів; крок
+      # перенесено з templates/ci/repo-check.yml v7. Працює й після падіння дії (`!cancelled()`).
+      - name: gitleaks — усі коміти діапазону і дифи злиттів
+        if: ${{ !cancelled() }}
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="origin/$BASE_REF..HEAD"
+          elif [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..HEAD"
+          elif [ "$EVENT" = "push" ] && [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            range="origin/$DEFAULT_BRANCH..HEAD"   # нова гілка: її коміти поверх гілки за замовчуванням
+          else
+            range="--all"   # розклад, ручний запуск, перше заливання; force-push без попереднього коміту
+          fi
+          echo "діапазон: $range ($(git rev-list --count "$range") комітів)"
+          gitleaks detect --redact --no-banner --log-opts="--diff-merges=first-parent $range"
 
   trivy:
     name: Vulnerabilities & misconfig (Trivy)
