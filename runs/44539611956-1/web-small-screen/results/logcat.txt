@@ -1,0 +1,10 @@
+--------- beginning of main
+11-19 14:05:43.641 I/Bugle   ( 3176): TelephonySyncManager: setting full sync. inProgress: true, before: true
+11-19 14:05:43.643 I/Bugle   ( 3176): TelephonySyncManager: Starting full sync, reason: 2
+11-19 14:05:43.652 W/Bugle   ( 3176): TelephonySyncManager: Resuming full sync but no sync id was found.
+--------- beginning of system
+11-19 14:05:43.711 W/PackageParser( 1285): Unknown element under <manifest>: queries at /data/user_de/0/com.google.android.gms/app_chimera/m/00000000/AdsDynamite.apk Binary XML file line #15
+11-19 14:05:43.741 I/AstreaHttpConnection( 1587): Started download from url='https://gstatic.com/matchmaker/tclib_models/annotator/v803/en-us/superpacks_manifest.zip'
+11-19 14:05:43.762 I/adbd    (  385): adbd restarting as root
+--------- beginning of kernel
+11-19 14:05:43.967 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3423 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns

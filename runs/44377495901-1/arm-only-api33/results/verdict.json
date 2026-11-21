@@ -1,0 +1,25 @@
+{
+  "target": "fdroid:chat.simplex.app",
+  "package": "chat.simplex.app",
+  "app_label": "SimpleX",
+  "app_version": "7.1.3",
+  "native_abis": "arm64-v8a",
+  "prepare_error": "",
+  "installed": false,
+  "launched": false,
+  "alive": "",
+  "install_error": "INSTALL_FAILED_NO_MATCHING_ABIS",
+  "flow_rc": "",
+  "browser": "",
+  "device": {
+    "model": "sdk_gphone64_x86_64",
+    "android": "13",
+    "api": "33",
+    "abi": "x86_64",
+    "screen": "1080x2400",
+    "density": "420"
+  },
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

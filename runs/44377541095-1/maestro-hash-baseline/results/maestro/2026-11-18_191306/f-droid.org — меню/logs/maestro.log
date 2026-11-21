@@ -1,0 +1,9 @@
+19:13:21.480 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Define variables RUNNING
+19:13:21.487 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Define variables COMPLETED
+19:13:21.493 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Apply configuration RUNNING
+19:13:21.494 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Apply configuration COMPLETED
+19:13:21.495 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*F-Droid.*" is visible RUNNING
+19:13:51.922 [ERROR] maestro.orchestra.Orchestra.executeCommands: [Command execution] CommandFailed: Assertion is false: ".*F-Droid.*" is visible
+19:13:53.310 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+19:13:53.314 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+19:13:54.058 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*F-Droid.*" is visible FAILED

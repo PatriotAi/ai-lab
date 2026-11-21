@@ -1,0 +1,18 @@
+{
+  "target": "https://f-droid.org/uk/",
+  "package": "com.android.chrome",
+  "app_label": "",
+  "app_version": "",
+  "native_abis": "",
+  "prepare_error": "",
+  "installed": false,
+  "launched": false,
+  "alive": "",
+  "install_error": "",
+  "flow_rc": "",
+  "browser": "",
+  "device": {},
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="0" time="9.659" timestamp="2026-11-18T19:32:58">
+    <testcase id="f-droid.org — меню" name="f-droid.org — меню" classname="f-droid.org — меню" file="/home/runner/work/ai-lab/ai-lab/.sim/projects/android-simulator/flows/examples/fdroid-web-nav.yaml" time="9.648" timestamp="2026-11-18T19:32:58" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

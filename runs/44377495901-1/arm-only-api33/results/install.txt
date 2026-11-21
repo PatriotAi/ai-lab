@@ -1,0 +1,3 @@
+Performing Streamed Install
+adb: failed to install /home/runner/work/ai-lab/ai-lab/.work/app/app.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]
+

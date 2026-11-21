@@ -1,0 +1,2 @@
+dark|ok|Night mode: yes
+big-font|ok|масштаб шрифту 1.3

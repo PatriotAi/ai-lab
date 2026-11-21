@@ -1,0 +1,29 @@
+--------- beginning of main
+11-21 15:45:42.508 D/ImsResolver(  995): maybeAddedImsService, packageName: com.google.android.as
+11-21 15:45:42.509 D/ImsResolver(  995): maybeAddedImsService, packageName: com.google.android.permissioncontroller
+11-21 15:45:42.510 D/ImsResolver(  995): maybeAddedImsService, packageName: com.google.android.setupwizard
+11-21 15:45:42.529 D/AvrcpTargetJni(  966): sendMediaUpdateNative
+--------- beginning of system
+11-21 15:45:42.546 D/PackageManager(  432): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+11-21 15:45:42.546 D/PackageManager(  432): Clear ephemeral installer activity
+11-21 15:45:42.546 I/CarrierServices( 2808): [40] fzg.o: (Sim): Processing an intent
+11-21 15:45:42.546 I/CarrierServices( 2808): [40] fzg.z: (Sim): SIM state LOADED
+11-21 15:45:42.547 W/system_server(  432): Long monitor contention with owner binder:432_B (1091) at boolean com.android.server.job.JobServiceContext.executeRunnableJob(com.android.server.job.controllers.JobStatus, int)(JobServiceContext.java:382) waiters=1 in android.app.job.JobInfo com.android.server.job.JobSchedulerService.getPendingJob(int, int) for 223ms
+11-21 15:45:42.550 W/A       ( 1732): Task d[Initialize worker conversation] was queued for 1223ms before starting on executor EventBus
+11-21 15:45:42.555 I/bt_stack(  966): [INFO:avrcp_service.cc(423)] virtual void bluetooth::avrcp::AvrcpService::SendMediaUpdate(bool, bool, bool) track_changed=1 :  play_state=1 :  queue=1
+11-21 15:45:42.557 W/system_server(  432): Long monitor contention with owner binder:432_B (1091) at boolean com.android.server.job.JobServiceContext.executeRunnableJob(com.android.server.job.controllers.JobStatus, int)(JobServiceContext.java:382) waiters=3 in void com.android.server.job.JobServiceContext.doJobFinished(com.android.server.job.JobServiceContext$JobCallback, int, boolean) for 201ms
+11-21 15:45:42.584 D/QSPanel (  768): setUsingHorizontalLayout: false, true
+--------- beginning of kernel
+11-21 15:45:42.860 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3140 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-21 15:45:42.591 W/bwft    ( 1064): Succeeded but not registered: com.google.android.contacts#com.google.android.contacts [CONTEXT service_id=51 ]
+11-21 15:45:42.598 W/bwft    ( 1064): Succeeded but not registered: com.google.android.libraries.internal.growth.growthkit#com.google.android.contacts [CONTEXT service_id=51 ]
+11-21 15:45:42.601 W/bwft    ( 1064): Succeeded but not registered: com.google.android.libraries.notifications.platform#com.google.android.contacts [CONTEXT service_id=51 ]
+11-21 15:45:42.602 W/system_server(  432): Long monitor contention with owner binder:432_B (1091) at boolean com.android.server.job.JobServiceContext.executeRunnableJob(com.android.server.job.controllers.JobStatus, int)(JobServiceContext.java:382) waiters=2 in int com.android.server.job.JobSchedulerService.scheduleAsPackage(android.app.job.JobInfo, android.app.job.JobWorkItem, int, java.lang.String, int, java.lang.String) for 321ms
+11-21 15:45:42.609 D/PackageManager(  432): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+11-21 15:45:42.609 D/PackageManager(  432): Clear ephemeral installer activity
+11-21 15:45:42.610 W/Looper  (  432): Slow dispatch took 109ms main h=com.android.server.job.controllers.PrefetchController$PcHandler c=null m=1
+11-21 15:45:42.611 W/bwft    ( 1064): Succeeded but not registered: com.google.android.libraries.performance.primes#com.google.android.contacts [CONTEXT service_id=51 ]
+11-21 15:45:42.614 D/SharedPreferencesImpl( 1064): Time required to fsync /data/user/0/com.google.android.gms/shared_prefs/nearbysharing:service:state.xml: [<1: 0, <2: 0, <4: 0, <8: 0, <16: 0, <32: 0, <64: 0, <128: 0, <256: 1, <512: 0, <1024: 1, <2048: 0, <4096: 0, <8192: 0, <16384: 0, >=16384: 0]
+11-21 15:45:42.617 I/SuperpacksManagerImpl( 2349): SuperpacksManagerImpl.initializeInternal():471 initializeInternal()
+11-21 15:45:42.637 I/SP.AiAi ( 1610): Scheduling: download registered, 0 started, 0 paused, 1 scheduled, 8 pending: manifests:webref-2-en-us-19071200 {m:b:u:l, bg}, manifests:spelling_correction-21080420 {W:b:I:l, bg}, manifests:kg_collections_table-21051103 {W:b:u:l, bg}, manifests:actions-ranking-table-211005 {W:b:u:l, bg}, manifests:text-classifier-annotator-1687347939 {W:b:u:l, bg}, manifests:text-classifier-actions-1140547708 {W:b:u:l, bg}, manifests:text-classifier-langid-1941001461 {W:b:u:l, bg}, manifests:captions_i18n_v0_background-20210623 * {W:b:u:l, bg}
+11-21 15:45:42.639 I/adbd    (  398): adbd restarting as root

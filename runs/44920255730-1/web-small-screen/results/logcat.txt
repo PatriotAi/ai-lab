@@ -1,0 +1,497 @@
+--------- beginning of main
+11-21 15:40:55.878 D/CompatibilityChangeReporter( 2897): Compat change id reported: 183155436; UID 10120; state: ENABLED
+11-21 15:40:55.879 I/GmsApplication( 2897): [gms_startup_benchmark] Static start time (ms): 54421, Startup latency (ms): 2740, Is system user: true
+11-21 15:40:55.880 I/cuir    ( 2897): Primes not initialized, returning default (no-op) Primes instance which will ignore all calls. Please call Primes.initialize(...) before using any Primes API.
+11-21 15:40:55.882 D/PhenotypeContext( 3223): Application doesn't implement PhenotypeApplication interface, falling back to globally set context. See go/phenotype-flag#process-stable-init for more info.
+11-21 15:40:55.885 I/SnapshotHandler( 3223): Unable to retrieve flag snapshot for com.google.android.deskclock#com.google.android.deskclock, using defaults.
+11-21 15:40:55.885 I/AlarmClock( 3223): Connected Dock: null
+11-21 15:40:55.891 I/.apps.messaging( 2819): WaitForGcToComplete blocked RunEmptyCheckpoint on ClassLinker for 1.025s
+11-21 15:40:55.891 I/.apps.messaging( 2819): Waiting for a blocking GC ClassLinker
+11-21 15:40:55.891 I/RcsClientLib( 2819): Disconnecting ChatSessionService
+11-21 15:40:55.891 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.chatsession.IChatSession: Service not registered: bwbs@16425a9
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@16425a9
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting EventService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.events.IEvent: Service not registered: bwbs@1ffe45c
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@1ffe45c
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.rcs.client.events.EventService.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting ContactsService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.contacts.IContactsManagement: Service not registered: bwbs@f68183a
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@f68183a
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:3)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting FileTransferService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.filetransfer.IFileTransfer: Service not registered: bwbs@cd4ea48
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@cd4ea48
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting LocationSharingService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.locationsharing.ILocationSharing: Service not registered: bwbs@daf7e06
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@daf7e06
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting ImsConnectionTrackerService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.ims.IImsConnectionTracker: Service not registered: bwbs@e7262f4
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@e7262f4
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:6)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting RcsProfileService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.profile.IRcsProfile: Service not registered: bwbs@6b57492
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@6b57492
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:7)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting BusinessInfoService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.businessinfo.IBusinessInfo: Service not registered: bwbs@4ccba60
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@4ccba60
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:8)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting RcsMessagingService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.rcs.client.messaging.IMessaging: Service not registered: bwbs@4b247de
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@4b247de
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:9)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 I/RcsClientLib( 2819): Disconnecting TransportControlService
+11-21 15:40:55.892 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.transportcontrol.ITransportControl: Service not registered: bwbs@6b31c8c
+11-21 15:40:55.892 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@6b31c8c
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at aphs.p(PG:10)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.892 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.892 W/BugleRcs( 2819): disconnecting from all Rcs Services
+11-21 15:40:55.894 W/.apps.messaging( 2819): Long monitor contention with owner Blocking Thread #8 (3046) at java.lang.Object cldz.b()(PG:2) waiters=0 in java.lang.Object cldz.b() for 1.262s
+11-21 15:40:55.894 I/Bugle   ( 2819): RcsAvailabilityUtilForProvisioningEngineV2: updateAvailabilityAsync, hint: SINGLE_REGISTRATION_CAPABILITY_UPDATE
+11-21 15:40:55.894 I/BugleRcs( 2819): RcsAvailabilityUpdaterRemote: postUpdateRcsAvailability, hint: SINGLE_REGISTRATION_CAPABILITY_UPDATE
+11-21 15:40:55.895 W/.apps.messaging( 2819): Long monitor contention with owner Blocking Thread #8 (3046) at java.lang.Object cldz.b()(PG:2) waiters=1 in java.lang.Object cldz.b() for 1.173s
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting ChatSessionService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.chatsession.IChatSession: Service not registered: bwbs@16425a9
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@16425a9
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting EventService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.events.IEvent: Service not registered: bwbs@1ffe45c
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@1ffe45c
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.rcs.client.events.EventService.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting ContactsService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.contacts.IContactsManagement: Service not registered: bwbs@f68183a
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@f68183a
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:3)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting FileTransferService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.filetransfer.IFileTransfer: Service not registered: bwbs@cd4ea48
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@cd4ea48
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting LocationSharingService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.locationsharing.ILocationSharing: Service not registered: bwbs@daf7e06
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@daf7e06
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting ImsConnectionTrackerService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.ims.IImsConnectionTracker: Service not registered: bwbs@e7262f4
+11-21 15:40:55.895 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@e7262f4
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at aphs.p(PG:6)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.895 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.895 I/RcsClientLib( 2819): Disconnecting RcsProfileService
+11-21 15:40:55.895 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.profile.IRcsProfile: Service not registered: bwbs@6b57492
+11-21 15:40:55.896 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@6b57492
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at aphs.p(PG:7)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.896 I/RcsClientLib( 2819): Disconnecting BusinessInfoService
+11-21 15:40:55.896 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.businessinfo.IBusinessInfo: Service not registered: bwbs@4ccba60
+11-21 15:40:55.896 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@4ccba60
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at aphs.p(PG:8)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.896 I/RcsClientLib( 2819): Disconnecting RcsMessagingService
+11-21 15:40:55.896 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.rcs.client.messaging.IMessaging: Service not registered: bwbs@4b247de
+11-21 15:40:55.896 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@4b247de
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at aphs.p(PG:9)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.896 I/RcsClientLib( 2819): Disconnecting TransportControlService
+11-21 15:40:55.896 W/RcsClientLib( 2819): Unexpected error when trying to unbind com.google.android.ims.rcsservice.transportcontrol.ITransportControl: Service not registered: bwbs@6b31c8c
+11-21 15:40:55.896 W/RcsClientLib( 2819): java.lang.IllegalArgumentException: Service not registered: bwbs@6b31c8c
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1991)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.app.ContextImpl.unbindService(ContextImpl.java:2076)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:889)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.g(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bwbp.disconnect(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at aphs.p(PG:10)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at com.google.android.apps.messaging.rcsmigration.RcsStateProvider.lambda$onMigrationComplete$0$com-google-android-apps-messaging-rcsmigration-RcsStateProvider(PG:5)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at vdm.run(Unknown Source:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at byyc.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:463)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceby.a(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at ceav.run(PG:4)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at cebz.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkac.run(PG:1)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bjzg.run(PG:2)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at java.lang.Thread.run(Thread.java:1012)
+11-21 15:40:55.896 W/RcsClientLib( 2819): 	at bkam.run(PG:5)
+11-21 15:40:55.896 W/BugleRcs( 2819): disconnecting from all Rcs Services
+11-21 15:40:55.897 I/BugleBackup( 2819): Registering preference change listener for "bugle".
+11-21 15:40:55.898 I/BugleRcs( 2819): RcsAvailabilityUpdaterRemote: updateRcsAvailability, hint: SINGLE_REGISTRATION_CAPABILITY_UPDATE
+11-21 15:40:55.902 I/SnapshotHandler( 2465): Unable to retrieve flag snapshot for com.google.android.libraries.performance.primes#com.google.android.ims, using defaults.
+11-21 15:40:55.923 I/AiAiEcho( 1599): Predicting[0]: 
+11-21 15:40:55.923 I/AiAiEcho( 1599): Ranked targets strategy: SORT, count: 0, ranking metadata: 
+11-21 15:40:55.924 I/AiAiEcho( 1599): Predicting[0]: 
+11-21 15:40:55.924 I/AiAiEcho( 1599): Ranked targets strategy: SORT, count: 0, ranking metadata: 
+11-21 15:40:55.924 I/AiAiEcho( 1599): AppPredictionInputConnectorImpl#createPredictionSession
+11-21 15:40:55.935 I/AiAiEcho( 1599): SearchContextManagerImpl::setSearchContext resultTypes=[141151] extras=[Bundle[mParcelledData.dataSize=608]] sessionId=[com.google.android.apps.nexuslauncher:cb5b104f-bde2-42c4-8df9-3ad7d16ec409,0]
+11-21 15:40:55.935 I/CarrierServices( 2465): [54] fhf.b: Config state is not ACCEPTED, provisioning still in progress
+11-21 15:40:55.946 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/policy_tests session_name:policy_tests
+11-21 15:40:55.948 I/CarrierServices( 2465): [54] fhf.b: RcsAvailabilityManager: Updating Rcs Availability to DISABLED_VIA_GSERVICES (RCS is disabled for this carrier by Google), sim id changed: true
+11-21 15:40:55.949 W/CarrierServices( 2465): [54] fld.h: No config URL source available.
+11-21 15:40:55.951 I/CarrierServices( 2465): [54] fbo.b: Sending ProvisioningEvent to Bugle [Availability updated (12)], redacted-pii:[chars:144]
+11-21 15:40:55.951 I/CarrierServices( 2465): [54] ghj.b: EngineBroadcaster: Broadcasting provisioning intent com.google.android.ims.provisioning.engine.provisioningEventAction to Bugle with extras redacted-pii:[chars:302] from source PROVISIONING_EVENT
+11-21 15:40:55.951 W/CarrierServices( 2465): [48] dta.w: Unable to send diagnostic log
+11-21 15:40:55.967 D/CompatibilityChangeReporter( 2662): Compat change id reported: 194532703; UID 10115; state: DISABLED
+11-21 15:40:55.970 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecanlatencyanalyticsevents session_name:pecanlatencyanalyticsevents
+11-21 15:40:55.970 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecanscrollingevents session_name:pecanscrollingevents
+11-21 15:40:55.978 I/AiAiEcho( 1599): AppPredictionInputConnectorImpl#createPredictionSession
+11-21 15:40:55.979 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecanusageevents session_name:pecanusageevents
+--------- beginning of system
+11-21 15:40:55.980 D/CompatibilityChangeReporter(  482): Compat change id reported: 194532703; UID 10115; state: DISABLED
+11-21 15:40:55.984 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecandau session_name:pecandau
+11-21 15:40:55.986 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecandaupackage session_name:pecandaupackage
+11-21 15:40:55.989 I/BugleRcsEngine( 2819): [2] vgs.b: [SR]: Scheduling OPERATION_TYPE_TERMINATE_VENDOR_IMS task. Trigger: TRIGGER_SINGLE_REGISTRATION_CAPABILITY_UPDATE_INTENT
+11-21 15:40:55.990 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecanwau session_name:pecanwau
+11-21 15:40:55.994 I/TrainerClient( 1599): Preparing to schedule training for population:aiai/sysimg/t/pecanwaupackage session_name:pecanwaupackage
+11-21 15:40:56.010 I/AiAiEcho( 1599): AppPredictionInputConnectorImpl#createPredictionSession
+11-21 15:40:56.014 I/AiAiEcho( 1599): Predicting[0]: 
+11-21 15:40:56.014 I/AiAiEcho( 1599): Ranked targets strategy: SORT, count: 0, ranking metadata: 
+11-21 15:40:56.020 W/BroadcastQueue(  482): Background execution not allowed: receiving Intent { act=android.intent.action.DROPBOX_ENTRY_ADDED flg=0x10 (has extras) } to com.google.android.gms/.stats.service.DropBoxEntryAddedReceiver
+11-21 15:40:56.021 W/BroadcastQueue(  482): Background execution not allowed: receiving Intent { act=android.intent.action.DROPBOX_ENTRY_ADDED flg=0x10 (has extras) } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+11-21 15:40:56.024 W/ActivityThread( 1420): getPackageInfo() called with an older ApplicationInfo than the cached version for package com.google.android.dialer
+--------- beginning of kernel
+11-21 15:40:56.227 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3309 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-21 15:40:56.033 I/.apps.messaging( 2819): WaitForGcToComplete blocked ClassLinker on RunEmptyCheckpoint for 141.930ms
+11-21 15:40:56.044 I/CarrierServices( 2465): [54] fhf.b: Sending ProvisioningEvent Internal [Availability updated (12)], redacted-pii:[chars:144]
+11-21 15:40:56.044 I/adbd    (  370): adbd restarting as root
+11-21 15:40:56.045 I/CarrierServices( 2465): [54] fcw.d: (PEv2-SM-254120930): transitionViaMessage, srcState=EnabledState, destState = DisabledState [c0e7bd0c-21bf-4f3d-ba2f-3d0ea66f7c46]

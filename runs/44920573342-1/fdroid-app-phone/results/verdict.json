@@ -1,0 +1,25 @@
+{
+  "target": "fdroid:org.fdroid.fdroid",
+  "package": "org.fdroid.fdroid",
+  "app_label": "F-Droid",
+  "app_version": "2.0.3",
+  "native_abis": "arm64-v8a armeabi-v7a x86 x86_64",
+  "prepare_error": "",
+  "installed": true,
+  "launched": true,
+  "alive": "1",
+  "install_error": "",
+  "flow_rc": "",
+  "browser": "",
+  "device": {
+    "model": "sdk_gphone64_x86_64",
+    "android": "13",
+    "api": "33",
+    "abi": "x86_64",
+    "screen": "1080x2400",
+    "density": "420"
+  },
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

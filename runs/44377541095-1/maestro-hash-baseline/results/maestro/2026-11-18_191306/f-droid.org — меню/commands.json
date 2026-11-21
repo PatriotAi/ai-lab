@@ -1,0 +1,108 @@
+[ {
+  "command" : {
+    "defineVariablesCommand" : {
+      "env" : {
+        "SIM_URL" : "https://f-droid.org/",
+        "SIM_PACKAGE" : "com.android.chrome",
+        "MAESTRO_BIN" : "/home/runner/work/_temp/maestro/maestro/bin/maestro",
+        "MAESTRO_VERSION" : "2.12.1",
+        "MAESTRO_FILENAME" : "fdroid-web-nav",
+        "MAESTRO_DEVICE_UDID" : "emulator-5554",
+        "MAESTRO_SHARD_ID" : "1",
+        "MAESTRO_SHARD_INDEX" : "0"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1795029201478,
+    "duration" : 8,
+    "sequenceNumber" : 0,
+    "depth" : 0,
+    "evaluatedCommand" : {
+      "defineVariablesCommand" : {
+        "env" : {
+          "SIM_URL" : "https://f-droid.org/",
+          "SIM_PACKAGE" : "com.android.chrome",
+          "MAESTRO_BIN" : "/home/runner/work/_temp/maestro/maestro/bin/maestro",
+          "MAESTRO_VERSION" : "2.12.1",
+          "MAESTRO_FILENAME" : "fdroid-web-nav",
+          "MAESTRO_DEVICE_UDID" : "emulator-5554",
+          "MAESTRO_SHARD_ID" : "1",
+          "MAESTRO_SHARD_INDEX" : "0"
+        },
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "applyConfigurationCommand" : {
+      "config" : {
+        "appId" : "com.android.chrome",
+        "name" : "f-droid.org — меню"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1795029201493,
+    "duration" : 1,
+    "sequenceNumber" : 1,
+    "depth" : 0,
+    "evaluatedCommand" : {
+      "applyConfigurationCommand" : {
+        "config" : {
+          "appId" : "com.android.chrome",
+          "name" : "f-droid.org — меню"
+        },
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "assertConditionCommand" : {
+      "condition" : {
+        "visible" : {
+          "textRegex" : ".*F-Droid.*",
+          "optional" : false
+        }
+      },
+      "timeout" : "30000",
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "FAILED",
+    "timestamp" : 1795029201494,
+    "duration" : 30428,
+    "error" : {
+      "message" : "Assertion is false: \".*F-Droid.*\" is visible",
+      "debugMessage" : "Assertion '\".*F-Droid.*\" is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.\n\nPossible causes:\n- Element selector may be incorrect - check if there are similar elements with slightly different names/properties.\n- Element may be temporarily unavailable due to loading state\n- This could be a real regression that needs to be addressed"
+    },
+    "sequenceNumber" : 2,
+    "depth" : 0,
+    "evaluatedCommand" : {
+      "assertConditionCommand" : {
+        "condition" : {
+          "visible" : {
+            "textRegex" : ".*F-Droid.*",
+            "optional" : false
+          }
+        },
+        "timeout" : "30000",
+        "optional" : false
+      }
+    },
+    "artifacts" : [ {
+      "type" : "SCREEN_HIERARCHY",
+      "path" : "screen-hierarchy/step-003-assertCondition-F-Droid.json"
+    }, {
+      "type" : "SCREENSHOT",
+      "path" : "screenshots/step-003-assertCondition-F-Droid.png"
+    } ]
+  }
+} ]

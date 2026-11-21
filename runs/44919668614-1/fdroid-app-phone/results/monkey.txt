@@ -1,0 +1,129 @@
+  bash arg: -p
+  bash arg: org.fdroid.fdroid
+  bash arg: -s
+  bash arg: 42
+  bash arg: --throttle
+  bash arg: 250
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --pct-anyevent
+  bash arg: 0
+  bash arg: --ignore-security-exceptions
+  bash arg: -v
+  bash arg: 300
+args: [-p, org.fdroid.fdroid, -s, 42, --throttle, 250, --pct-syskeys, 0, --pct-anyevent, 0, --ignore-security-exceptions, -v, 300]
+ arg: "-p"
+ arg: "org.fdroid.fdroid"
+ arg: "-s"
+ arg: "42"
+ arg: "--throttle"
+ arg: "250"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--pct-anyevent"
+ arg: "0"
+ arg: "--ignore-security-exceptions"
+ arg: "-v"
+ arg: "300"
+data="org.fdroid.fdroid"
+data="42"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="250"
+data="250"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=7 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--pct-anyevent" mCurArgData="null" mNextArg=9 argwas="--pct-anyevent" nextarg="0"
+data="0"
+arg="--ignore-security-exceptions" mCurArgData="null" mNextArg=11 argwas="--ignore-security-exceptions" nextarg="-v"
+:Monkey: seed=42 count=300
+:AllowPackage: org.fdroid.fdroid
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 17.64706%
+//   1: 11.764707%
+//   2: 2.3529413%
+//   3: 17.64706%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 29.411766%
+//   7: 17.64706%
+//   8: -0.0%
+//   9: 2.3529413%
+//   10: 1.1764706%
+//   11: -0.0%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=org.fdroid.fdroid/org.fdroid.IconActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=org.fdroid.fdroid/org.fdroid.IconActivity } in package org.fdroid.fdroid
+:Sending Touch (ACTION_DOWN): 0:(1008.0,648.0)
+:Sending Touch (ACTION_UP): 0:(1005.35004,663.643)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(493.0,1501.0)
+:Sending Touch (ACTION_UP): 0:(485.73264,1508.1746)
+:Sending Touch (ACTION_DOWN): 0:(815.0,1483.0)
+:Sending Touch (ACTION_UP): 0:(815.39667,1487.7261)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,3.0)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(303.0,218.0)
+:Sending Touch (ACTION_UP): 0:(298.04688,216.06187)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(323.0,1092.0)
+:Sending Touch (ACTION_UP): 0:(322.28046,1091.4708)
+:Sending Touch (ACTION_DOWN): 0:(1030.0,304.0)
+:Sending Touch (ACTION_UP): 0:(1069.5045,278.23203)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-5.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(54.0,674.0)
+:Sending Touch (ACTION_UP): 0:(56.09434,691.6124)
+:Sending Touch (ACTION_DOWN): 0:(1018.0,944.0)
+:Sending Touch (ACTION_UP): 0:(1011.3074,931.0327)
+:Sending Touch (ACTION_DOWN): 0:(129.0,2204.0)
+    //[calendar_time:2026-11-21 15:34:51.137  system_uptime:92432]
+    // Sending event #100
+:Sending Touch (ACTION_UP): 0:(236.50232,2209.0)
+:Sending Touch (ACTION_DOWN): 0:(616.0,213.0)
+:Sending Touch (ACTION_UP): 0:(618.4194,218.68668)
+:Sending Touch (ACTION_DOWN): 0:(510.0,1802.0)
+:Sending Touch (ACTION_UP): 0:(536.5505,1784.0858)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-5.0)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=org.fdroid.fdroid/org.fdroid.IconActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=org.fdroid.fdroid/org.fdroid.IconActivity } in package org.fdroid.fdroid
+:Sending Touch (ACTION_DOWN): 0:(738.0,1082.0)
+:Sending Touch (ACTION_UP): 0:(734.5878,1082.3274)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=org.fdroid.fdroid/org.fdroid.IconActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=org.fdroid.fdroid/org.fdroid.IconActivity } in package org.fdroid.fdroid
+:Sending Trackball (ACTION_MOVE): 0:(0.0,3.0)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,2.0)
+:Sending Touch (ACTION_DOWN): 0:(660.0,303.0)
+:Sending Touch (ACTION_UP): 0:(674.12726,341.23343)
+:Sending Touch (ACTION_DOWN): 0:(432.0,426.0)
+:Sending Touch (ACTION_UP): 0:(441.4081,429.82324)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,1.0)
+    //[calendar_time:2026-11-21 15:35:00.108  system_uptime:101383]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(613.0,2060.0)
+:Sending Touch (ACTION_UP): 0:(641.9991,2056.3296)
+:Sending Touch (ACTION_DOWN): 0:(751.0,1196.0)
+:Sending Touch (ACTION_UP): 0:(703.23553,1181.3156)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(810.0,437.0)
+:Sending Touch (ACTION_UP): 0:(816.7869,435.26205)
+:Sending Touch (ACTION_DOWN): 0:(721.0,1043.0)
+:Sending Touch (ACTION_UP): 0:(710.871,1033.3916)
+:Sending Touch (ACTION_DOWN): 0:(691.0,1730.0)
+:Sending Touch (ACTION_UP): 0:(698.60974,1730.0616)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(607.0,734.0)
+:Sending Touch (ACTION_UP): 0:(610.75507,738.2084)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(636.0,1986.0)
+:Sending Touch (ACTION_UP): 0:(629.0353,1975.3516)
+:Sending Touch (ACTION_DOWN): 0:(813.0,2121.0)
+:Sending Touch (ACTION_UP): 0:(790.81824,2116.1023)
+:Sending Touch (ACTION_DOWN): 0:(565.0,2118.0)
+:Sending Touch (ACTION_UP): 0:(627.6952,2048.3599)
+:Sending Touch (ACTION_DOWN): 0:(521.0,459.0)
+Events injected: 300
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=21396ms (0ms mobile, 0ms wifi, 21396ms not connected)
+// Monkey finished

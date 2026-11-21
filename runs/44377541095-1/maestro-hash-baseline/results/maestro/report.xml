@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="1" time="34.984" timestamp="2026-11-18T19:13:20">
+    <testcase id="f-droid.org — меню" name="f-droid.org — меню" classname="f-droid.org — меню" file="/home/runner/work/ai-lab/ai-lab/.sim/projects/android-simulator/flows/examples/fdroid-web-nav.yaml" time="34.968" timestamp="2026-11-18T19:13:20" status="ERROR">
+      <failure>Assertion is false: ".*F-Droid.*" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

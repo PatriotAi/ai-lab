@@ -1,0 +1,29 @@
+19:32:58.550 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Define variables RUNNING
+19:32:58.553 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Define variables COMPLETED
+19:32:58.554 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Apply configuration RUNNING
+19:32:58.554 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Apply configuration COMPLETED
+19:32:58.554 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*F-Droid.*" is visible RUNNING
+19:32:58.807 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*F-Droid.*" is visible COMPLETED
+19:32:58.808 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 01-home RUNNING
+19:32:58.814 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+19:32:58.817 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+19:32:59.387 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 01-home COMPLETED
+19:32:59.388 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on "НОВИНИ" RUNNING
+19:32:59.608 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=НОВИНИ, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[362,756][519,800], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=false, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=362, y=756, width=157, height=44))
+19:33:01.614 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+19:33:01.619 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (440, 778) using hierarchy based logic for wait
+19:33:05.094 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+19:33:05.095 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on "НОВИНИ" COMPLETED
+19:33:05.095 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Wait for animation to end RUNNING
+19:33:05.097 [ INFO] maestro.Maestro.waitForAnimationToEnd$lambda$54: Waiting for animation to end with timeout 15000
+19:33:05.098 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to byte array
+19:33:05.098 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+19:33:06.155 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to byte array
+19:33:06.156 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+19:33:06.677 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Wait for animation to end COMPLETED
+19:33:06.678 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*f-droid.org/uk/news.*" is visible RUNNING
+19:33:06.880 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*f-droid.org/uk/news.*" is visible COMPLETED
+19:33:06.881 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 02-news RUNNING
+19:33:06.882 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+19:33:06.883 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+19:33:07.139 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 02-news COMPLETED
