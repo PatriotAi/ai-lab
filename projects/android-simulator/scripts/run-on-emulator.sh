@@ -7,7 +7,7 @@
 # крок за status.json, щоб результати вивантажились навіть після падіння.
 #
 # Вхід: $WORK/target.env (від prepare-target.sh) + змінні KIND, FLOW_PATH,
-# MONKEY_EVENTS, SIM_DIR, MAESTRO_BIN (необов'язково).
+# MONKEY_EVENTS, SIM_DIR, MAESTRO_BIN, CONDITIONS (необов'язково).
 set -uo pipefail
 
 : "${WORK:?}" "${KIND:?}" "${SIM_DIR:?}"
@@ -26,12 +26,36 @@ scrub() {
   python3 "$SIM_DIR/scripts/urltools.py" scrub "$WORK/launch-url.txt" "$@"
 }
 
+# Системне вікно «<чужий застосунок> isn't responding» (напр. робочий стіл
+# зависає після повороту на програмній відеокарті) закриває знімок цілі.
+# Закриваємо кнопкою «Wait» лише коли вікно НЕ про ціль, і пишемо це у звіт.
+dismiss_foreign_anr() {
+  local i xml="$WORK/ui-anr.xml"
+  for i in 1 2 3; do
+    adb shell uiautomator dump /sdcard/ui-anr.xml >/dev/null 2>&1 && adb pull /sdcard/ui-anr.xml "$xml" >/dev/null 2>&1 || return 0
+    local title
+    title="$(grep -oE "text=\"[^\"]*(isn(&apos;|.)t responding|не відповідає)[^\"]*\"" "$xml" | head -1 | sed 's/^text="//; s/"$//')"
+    [ -n "$title" ] || return 0
+    case "$title" in *"${APP_LABEL:-@@none@@}"*) return 0 ;; esac
+    local xy; xy="$(python3 "$SIM_DIR/scripts/tap_text.py" "$xml" "Wait" "Зачекати")" || return 0
+    log "закриваю чуже системне вікно: $title"
+    st FOREIGN_ANR "$title"
+    # shellcheck disable=SC2086
+    adb shell input tap $xy
+    sleep 3
+  done
+}
+
 shot_n=0
 shot() { # shot <назва>
   shot_n=$((shot_n + 1))
   local f; f="$R/shots/$(printf '%02d' "$shot_n")-$1.png"
   adb exec-out screencap -p > "$f" 2>/dev/null || rm -f "$f"
   log "знімок: $(basename "$f")"
+  # Перший знімок цілі — доказ для умови landscape.
+  if [ "$shot_n" = 1 ] && [ -f "$f" ] && grep -q '^landscape|pending' "$R/conditions.txt" 2>/dev/null; then
+    R="$R" bash "$SIM_DIR/scripts/apply-conditions.sh" check-landscape "$f"
+  fi
 }
 
 # ── Пристрій ────────────────────────────────────────────────────────────────
@@ -95,6 +119,7 @@ if [ "$KIND" = web ]; then
   adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device
   adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-signin-promo" > /data/local/tmp/chrome-command-line' >/dev/null 2>&1 || true
   adb shell am set-debug-app --persistent com.android.chrome >/dev/null 2>&1 || true
+  R="$R" PACKAGE="com.android.chrome" bash "$SIM_DIR/scripts/apply-conditions.sh"
   open_url() { # open_url <url>
     if [ -n "${HAS_CHROME:-}" ]; then
       adb shell am start -a android.intent.action.VIEW -n com.android.chrome/com.google.android.apps.chrome.Main -d "'$1'" >/dev/null 2>&1
@@ -129,6 +154,7 @@ if [ "$KIND" = web ]; then
   fi
   start_rec
   sleep 5
+  dismiss_foreign_anr
   shot opened
 else
   start_rec
@@ -145,8 +171,10 @@ else
   fi
   cat "$R/install.txt"
   if [ "$installed" = 1 ]; then
+    R="$R" PACKAGE="$PACKAGE" bash "$SIM_DIR/scripts/apply-conditions.sh"
     adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 && launched=1
     sleep 12
+    dismiss_foreign_anr
     shot launched
   else
     st INSTALL_ERROR "$(grep -o 'INSTALL_[A-Z_]*' "$R/install.txt" | head -1)"
