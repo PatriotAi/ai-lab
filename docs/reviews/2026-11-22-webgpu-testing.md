@@ -38,3 +38,24 @@ Android 12+ і графіці Qualcomm/ARM ([Chrome 121](https://developer.chrom
 ## Межі цього дослідження
 - Програмний WebGPU прогнано в хмарній сесії (4 ядра, 15 ГБ), не на раннері GitHub [E лише для сесії].
 - Чи падіння процесу графіки — обмеження SwiftShader чи конкретних ядер WebLLM, не з'ясовано [S].
+
+## Рецепт автотесту без відеокарти (перевірено в цій сесії)
+
+Що перевіряє: WebGPU є · модель завантажується на WebGPU · (окремо) повідомлення про нестачу
+пам'яті. **Не** перевіряє генерацію відповіді — для неї потрібна справжня відеокарта.
+
+```js
+// Playwright, Chromium 139+. Сторінку відкривати з http://localhost:… (безпечний контекст).
+const browser = await chromium.launch({ args: [
+  '--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-features=Vulkan',
+  '--enable-unsafe-swiftshader', '--enable-dawn-features=allow_unsafe_apis' ] });
+const ctx = await browser.newContext();
+// Імітація «телефона з ~3 ГБ» — ДО завантаження сторінки:
+await ctx.addInitScript(() => {
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => 3 });
+  const orig = GPUAdapter.prototype.requestDevice;   // за потреби — менші ліміти адаптера
+  GPUAdapter.prototype.requestDevice = function (d) { return orig.call(this, d); };
+});
+// Модель — лише варіант q4f32 (SwiftShader не має shader-f16), напр. Qwen3-0.6B-q4f32_1-MLC.
+// Ознака успіху завантаження: текст прогресу «Finish loading on WebGPU».
+```
