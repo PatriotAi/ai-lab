@@ -323,6 +323,27 @@ CASES: list[tuple[str, str, str]] = [
     ("Bash", "cat <<'EOF'\ngit branch -D x\nEOF", "R0"),
     # №10 (давнє): `command -v` лише шукає шлях, нічого не запускає.
     ("Bash", f'command -v bash && git commit -m "x {PUSHF}"', "R2"),
+    # ── W-42 (2026-11-13): хибні тривоги PR #94 — на `1be990d` R2, на `375e0ea` R4.
+    # Клас 1: код, що лише ДРУКУЄ список аргументів, — не запуск.
+    ("Bash", f"python3 -c \"print(['git','push','origin','{DEL}','x'])\"", "R2"),
+    ("Bash", "python3 -c \"print(['git','push','--for" + "ce','origin','br2'])\"", "R2"),
+    ("Bash", f"node -e \"console.log(['git','push','origin','{DEL}','x'])\"", "R2"),
+    ("Bash", f"python3 -c \"x=['gh','pr','{MERGE_WORD}','5']; print(x)\"", "R2"),
+    ("Bash", "python3 -c \"print(['rm','-" + "rf','/tmp/x'])\"", "R2"),
+    # Клас 2: `xargs` подає дані команді-ЧИТАЧУ (з окремим значенням опції теж).
+    ("Bash", f"echo 'git push origin {DEL} x' | xargs echo", "R2"),
+    ("Bash", f"echo 'git push origin {DEL} x' | xargs -n 1 echo", "R2"),
+    ("Bash", f"echo 'git push origin {DEL} x' | xargs -I{{}} grep -n {{}} f", "R2"),
+    # Сторожа: `xargs` у ВИКОНАВЦЯ лишається кодом.
+    ("Bash", f"echo 'git push origin {DEL} x' | xargs sh -c", "R4"),
+    # Клас 3: виконавець із файлом-скриптом — heredoc / here-string лише дані скрипта.
+    ("Bash", f"bash script.sh <<'EOF'\ngit push origin {DEL} x\nEOF", "R2"),
+    ("Bash", f"bash script.sh <<< 'git push origin {DEL} x'", "R2"),
+    # Сторожа: схожа назва БЕЗ виконавця перед нею лишається виконавцем.
+    ("Bash", f"ipython <<'EOF'\ngit push origin {DEL} x\nEOF", "R4"),
+    # Сторожа межі хвилі: звуження класу 3 діє лише на правило видалення гілки.
+    # Ця форма на `1be990d` теж була R4 (збіг підрядка) — у цій хвилі не міняємо.
+    ("Bash", "bash run.sh <<'EOF'\nrm -" + "rf /tmp/x\nEOF", "R4"),
 ]
 
 

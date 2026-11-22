@@ -92,7 +92,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "розбір виконавців тексту вимкнено",
-        "    return _runs_text(body, command)",
+        "    return _runs_text(body, command, script_args)",
         "    return False",
         "`bash -c`, `bash -lc`, `python3 <<PY`, `echo … | python3` знову проходять як дані",
     ),
@@ -477,7 +477,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "код у лапках не розкривається для `git push`",
-        r'''    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code''',
+        "    texts = [_code_view(command)] if code",
         "    texts = [command] if code",
         "`bash -lc \"git push origin --delete x\"` знову R2",
     ),
@@ -586,8 +586,8 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "список аргументів у коді не розкривається для git push",
-        r'''    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code''',
-        r'''    texts = [re.sub(r"['\"\\]", " ", command)] if code''',
+        "    texts = [_code_view(command)] if code",
+        "    texts = [_QUOTE_SEP.sub(\" \", command)] if code",
         "видалення гілки списком аргументів `[\"git\",\"push\",…]` знову R2",
     ),
     (
@@ -676,9 +676,58 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "код у лапках не дає сегментів для правил-команд",
-        r'''        segments += re.split(r"&&|\|\||[;&\n]", re.sub(r"['\"\\,\[\]]", " ", exec_part.lower()))''',
+        r'''        segments += re.split(r"&&|\|\||[;&\n]", _code_view(exec_part.lower()))''',
         "        pass",
         "правило-команда не бачить дії всередині коду в лапках",
+    ),
+    # ── W-42 (2026-11-13): хибні тривоги PR #94 — по мутанту на кожен механізм.
+    (
+        "список аргументів розкривається й у коді, що нічого не запускає (поведінка PR #94)",
+        "    sep = _LIST_SEP if any(h in low for h in _LAUNCH_HINTS) else _QUOTE_SEP",
+        "    sep = _LIST_SEP",
+        "`python3 -c \"print(['git','push',…])\"` знову R4 — хибна тривога",
+    ),
+    (
+        "список аргументів не розкривається навіть у коді із запуском",
+        "    sep = _LIST_SEP if any(h in low for h in _LAUNCH_HINTS) else _QUOTE_SEP",
+        "    sep = _QUOTE_SEP",
+        "`subprocess.run(['git','push',…])` знову R2 — пропуск",
+    ),
+    (
+        "`xargs` у читача вважається кодом (поведінка PR #94)",
+        "    code = _invokes(command, script_args=True) and not _xargs_only_reads(command)",
+        "    code = _invokes(command, script_args=True)",
+        "`… | xargs echo` із видаленням гілки в лапках знову R4 — хибна тривога",
+    ),
+    (
+        "`xargs` у будь-яку команду вважається читанням",
+        "                    if not _data_segment(_xargs_target(seg[i + 1:])):",
+        "                    if False:",
+        "`… | xargs sh -c` стає даними — пропуск",
+    ),
+    (
+        "окреме значення опції `xargs` вважається командою",
+        "            k += 2 if tok in _XARGS_ARG or tok in _XARGS_ARG_LONG else 1",
+        "            k += 1",
+        "`xargs -n 1 echo` — ціль «1», не читач: хибна тривога",
+    ),
+    (
+        "файл-скрипт після виконавця вважається новим виконавцем (поведінка PR #94)",
+        "                if not kind or (loose and script and script_args):",
+        "                if not kind:",
+        "`bash script.sh <<<…` із видаленням гілки знову R4 — хибна тривога",
+    ),
+    (
+        "файл-скрипт вважається аргументом і без виконавця перед ним",
+        "            script = False                            # уже був виконавець із файлом-скриптом",
+        "            script = True",
+        "`ipython <<EOF` стає даними — пропуск",
+    ),
+    (
+        "звуження W-42 діє на всі правила, а не лише на видалення гілки",
+        "def _invokes(command: str, script_args: bool = False) -> bool:",
+        "def _invokes(command: str, script_args: bool = True) -> bool:",
+        "незаплановані зміни рівня поза W-42 (форма зі старого `main`)",
     ),
 ]
 

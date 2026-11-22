@@ -475,11 +475,15 @@ def _kind_runs_text(kind: str, args: list[str], raw: str, infer_stdin: bool = Tr
     return infer_stdin and kind != "c-flag" and not operand
 
 
-def _runs_text(body: str, raw: str) -> bool:
+def _runs_text(body: str, raw: str, script_args: bool = False) -> bool:
     """Чи якийсь виконавець у команді виконає ТЕКСТ із самої команди.
 
     `body` — команда з відкинутими тілами heredoc (відкривач і решта рядка
     лишаються), `raw` — повна команда (для `awk`: чи є `system(` у програмі).
+    `script_args` — схожа назва ПІСЛЯ виконавця з файлом-скриптом є його
+    аргументом, а не новим виконавцем (`bash run.sh <<<…`: stdin — дані скрипта).
+    Вмикає лише правило видалення гілки (W-42): решта правил на `main` до PR #94
+    ловила таку форму збігом підрядка, і цю поведінку не міняємо в цій хвилі.
     """
     for text in [body, *_substitutions(body)]:
         for seg, prev in _sh_segments(_sh_tokens(text)):
@@ -490,20 +494,28 @@ def _runs_text(body: str, raw: str) -> bool:
             # його й тоді, коли стоїть за обгорткою поза переліком `_WRAPPERS`
             # (`| strace bash`, `| sudo --user root bash`, рев'ю 2026-10-23).
             fed = prev in ("|", "|&")
+            script = False                            # уже був виконавець із файлом-скриптом
             for i, tok in enumerate(seg):
                 kind, loose = _runner_kind(tok)
-                if kind and _kind_runs_text(kind, seg[i + 1:], raw,
-                                            infer_stdin=(i == head or fed) and not loose):
+                # Схожа назва ПІСЛЯ виконавця з операндом — це його файл-скрипт чи
+                # аргумент (`bash run.sh <<<…`), а не новий виконавець: stdin тоді —
+                # дані скрипта (W-42, 2026-11-13).
+                if not kind or (loose and script and script_args):
+                    continue
+                if _kind_runs_text(kind, seg[i + 1:], raw,
+                                   infer_stdin=(i == head or fed) and not loose):
                     return True
+                if not loose and kind in _RUNNER_FLAGS:
+                    script = script or _scan_runner(_RUNNER_FLAGS[kind], seg[i + 1:])[1]
     return False
 
 
-def _invokes(command: str) -> bool:
+def _invokes(command: str, script_args: bool = False) -> bool:
     """Чи команда віддає ТЕКСТ на виконання: підрядком (`eval`, `xargs`) або розбором."""
     body = _strip_heredocs(command)
     if any(inv in _drop_data_quotes(body).lower() for inv in SHELL_INVOKERS):
         return True
-    return _runs_text(body, command)
+    return _runs_text(body, command, script_args)
 
 
 def _write_flag_hit(link: str, write_flags: dict) -> bool:
@@ -567,6 +579,65 @@ def _push_args_delete(args: list[str]) -> bool:
     return False
 
 
+# Ознаки ЗАПУСКУ процесу в коді інтерпретатора (W-42, 2026-11-13). Список
+# аргументів (`['git','push',…]`) — команда лише тоді, коли код щось запускає;
+# інакше це дані (`print([...])`), і розкривати кому як пробіл — хибна тривога.
+# Перелік навмисно широкий (підрядки, нижній регістр): зайвий збіг дає лише
+# стару поведінку (R4), а пропуск — лише для коду БЕЗ жодного слова запуску
+# (обфускація `getattr(__import__(…))` — межа W-29).
+_LAUNCH_HINTS = ("subprocess", "child_process", "spawn", "exec", "system", "popen",
+                 "call", "run", "command", "plumbum", "local[", "sh.", "open3",
+                 "proc_open", "passthru", "`", "%x", "qx")
+_QUOTE_SEP = re.compile(r"['\"\\]")
+_LIST_SEP = re.compile(r"['\"\\,\[\]]")
+
+
+def _code_view(command: str) -> str:
+    """Код як слова: лапки — роздільники; коми й дужки списку — лише якщо код
+    щось ЗАПУСКАЄ (`subprocess.run(['git','push',…])`, рев'ю #94; W-42)."""
+    low = command.lower()
+    sep = _LIST_SEP if any(h in low for h in _LAUNCH_HINTS) else _QUOTE_SEP
+    return sep.sub(" ", command)
+
+
+# Опції `xargs` з ОКРЕМИМ значенням: `-n 1`, `-I {}` (прилипле `-n1`, `-I{}` —
+# одне слово). `-e`/`-i`/`-l` значення беруть лише прилиплим.
+_XARGS_ARG = frozenset({"-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s"})
+_XARGS_ARG_LONG = frozenset({"--arg-file", "--delimiter", "--max-args", "--max-procs",
+                             "--max-chars", "--process-slot-var"})
+
+
+def _xargs_target(args: list[str]) -> list[str]:
+    """Команда, яку запустить `xargs`, з аргументами (без неї — `echo`, тобто [])."""
+    k = 0
+    while k < len(args):
+        tok = args[k]
+        if tok == "--":
+            return args[k + 1:]
+        if tok.startswith("-") and len(tok) > 1:
+            k += 2 if tok in _XARGS_ARG or tok in _XARGS_ARG_LONG else 1
+            continue
+        return args[k:]
+    return []
+
+
+def _xargs_only_reads(command: str) -> bool:
+    """Чи єдина ознака виконання — `xargs`, що подає дані команді-ЧИТАЧУ
+    (`… | xargs echo`, `… | xargs grep -n`). Тоді текст у лапках — дані (W-42)."""
+    body = _strip_heredocs(command)
+    if "eval " in _drop_data_quotes(body).lower() or _runs_text(body, command, True):
+        return False
+    seen = False
+    for text in [body, *_substitutions(body)]:
+        for seg, _prev in _sh_segments(_sh_tokens(text)):
+            for i, tok in enumerate(seg):
+                if _cmd_name(tok) == "xargs":
+                    seen = True
+                    if not _data_segment(_xargs_target(seg[i + 1:])):
+                        return False
+    return seen
+
+
 def _git_push_deletes(command: str) -> bool:
     """Чи `git push` у команді видаляє гілку на сервері (F-26, 2026-10-18).
 
@@ -574,10 +645,10 @@ def _git_push_deletes(command: str) -> bool:
     розбирається; згадка (`echo "…"`, повідомлення коміту) — ні.
     """
     body = _strip_heredocs(command)
-    code = _invokes(command)
-    # Код: лапки, коми й дужки списку — лише роздільники аргументів
-    # (`subprocess.run(['git','push','origin','--delete','x'])`, рев'ю #94).
-    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code \
+    code = _invokes(command, script_args=True) and not _xargs_only_reads(command)
+    # Код: лапки (а в коді, що щось запускає, — й коми та дужки списку) — лише
+    # роздільники аргументів (`subprocess.run(['git','push',…])`, рев'ю #94).
+    texts = [_code_view(command)] if code \
         else [body, *_substitutions(body)]
     for text in texts:
         segs = _sh_segments(_sh_tokens(text))
@@ -793,7 +864,7 @@ def _flag_targets(command: str) -> list[str]:
     if _invokes(command):
         # Код: лапки — роздільники, а команда стоїть будь-де (`bash -c "git diff
         # --output=…"`), як у `_git_push_deletes`.
-        texts.append((re.sub(r"['\"\\,\[\]]", " ", command), True))
+        texts.append((_code_view(command), True))
     out: list[str] = []
     for text, code in texts:
         for seg, _prev in _sh_segments(_sh_tokens(text)):
@@ -1323,7 +1394,7 @@ def _git_push_dests(command: str, root: Path, cwd: str | None) -> list[str]:
     # (`['git','push','origin','main']`) — лапки, коми й дужки там лише роздільники
     # (той самий прийом, що в F-26 і в сегментах правил-команд, рев'ю #94).
     if _invokes(command):
-        texts.append(re.sub(r"['\"\\,\[\]]", " ", command))
+        texts.append(_code_view(command))
     base = os.path.normpath(cwd) if cwd else str(root)
     dests: list[str] = []
     for text in texts:
@@ -1715,7 +1786,7 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
     # У коді інтерпретатора аргументи бувають СПИСКОМ (`['git','push','--force',…]`):
     # лапки, коми й дужки там — лише роздільники (рев'ю #94).
     if command and _invokes(command):
-        segments += re.split(r"&&|\|\||[;&\n]", re.sub(r"['\"\\,\[\]]", " ", exec_part.lower()))
+        segments += re.split(r"&&|\|\||[;&\n]", _code_view(exec_part.lower()))
     # Пробіли й табуляції — до одного пробілу (F-29, давня діра з `main`): підрядки
     # правил пишуться з одним, тож `push  --force` (два пробіли) чи табуляція
     # давали R2 на тій самій незворотній дії.
