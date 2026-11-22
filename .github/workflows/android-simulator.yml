@@ -29,6 +29,10 @@ on:
         description: "Скільки випадкових дотиків зробити для пошуку падінь (0 — не робити)"
         type: string
         default: "300"
+      conditions:
+        description: "Умови через кому: offline, slow-net, dark, big-font, landscape, low-battery, locale-uk, locale-en (порожньо — ідеальний телефон)"
+        type: string
+        default: ""
       fail_on_crash:
         description: "Вважати падіння застосунку провалом (червоний хрестик)"
         type: boolean
@@ -71,6 +75,10 @@ on:
       monkey_events:
         type: string
         default: "300"
+      conditions:
+        description: "Умови через кому (див. README)"
+        type: string
+        default: ""
       fail_on_crash:
         type: boolean
         default: true
@@ -140,6 +148,7 @@ jobs:
           IN_ANDROID: ${{ inputs.android }}
           IN_FLOW: ${{ inputs.flow }}
           IN_MONKEY: ${{ inputs.monkey_events }}
+          IN_CONDITIONS: ${{ inputs.conditions }}
           IN_LABEL: ${{ inputs.label }}
         run: python3 "$SIM_PATH/scripts/plan.py"
 
@@ -238,6 +247,7 @@ jobs:
           KIND: ${{ matrix.kind }}
           DEVICE: ${{ matrix.device }}
           MONKEY_EVENTS: ${{ matrix.monkey_events }}
+          CONDITIONS: ${{ matrix.conditions }}
         with:
           api-level: ${{ matrix.android }}
           target: google_apis
