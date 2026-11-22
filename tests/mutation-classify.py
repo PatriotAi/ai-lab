@@ -86,8 +86,9 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "ознака виконання ігнорується (підрядкова частина)",
         # Ціль оновлено 2026-10-18 (F-27): ознаку виконання зведено в `_invokes`;
         # підрядками лишились `eval`/`xargs`, оболонки й інтерпретатори — розбором.
-        "    if any(inv in _drop_data_quotes(body).lower() for inv in SHELL_INVOKERS):",
-        "    if False:",
+        # Ціль оновлено 2026-11-14 (W-42): підрядки збираються в `hits`.
+        "    hits = [inv for inv in SHELL_INVOKERS if inv in _drop_data_quotes(body).lower()]",
+        "    hits = []",
         "`eval \"rm -rf …\"` стає невидимим — справжній пропуск",
     ),
     (
@@ -354,7 +355,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "код інтерпретатора не розбирається на пуш",
-        "        texts.append(re.sub(r\"['\\\"\\\\,\\[\\]]\", \" \", command))",
+        "        texts.append(_code_words(command))",           # ціль — W-42
         "        pass",
         "`python3 -c \"subprocess.run(['git','push','origin','main'])\"` знову R2",
     ),
@@ -477,7 +478,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "код у лапках не розкривається для `git push`",
-        r'''    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code''',
+        "    texts = [_code_words(command)] if code",           # ціль — W-42
         "    texts = [command] if code",
         "`bash -lc \"git push origin --delete x\"` знову R2",
     ),
@@ -585,9 +586,10 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
         "неоднозначне `--pr` вважається видаленням — хибна тривога",
     ),
     (
-        "список аргументів у коді не розкривається для git push",
-        r'''    texts = [re.sub(r"['\"\\,\[\]]", " ", command)] if code''',
-        r'''    texts = [re.sub(r"['\"\\]", " ", command)] if code''',
+        "список аргументів у коді не розкривається",
+        # Ціль оновлено 2026-11-14 (W-42): розкриття списку — у `_code_words`.
+        r'''    seps = (r"['\"\\,\[\]]" if any(''',
+        r'''    seps = (r"['\"\\]" if any(''',
         "видалення гілки списком аргументів `[\"git\",\"push\",…]` знову R2",
     ),
     (
@@ -676,9 +678,71 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     ),
     (
         "код у лапках не дає сегментів для правил-команд",
-        r'''        segments += re.split(r"&&|\|\||[;&\n]", re.sub(r"['\"\\,\[\]]", " ", exec_part.lower()))''',
+        r'''        segments += re.split(r"&&|\|\||[;&\n]", _code_words(exec_part).lower())''',
         "        pass",
         "правило-команда не бачить дії всередині коду в лапках",
+    ),
+    # ── W-42 (2026-11-14): кожен новий механізм — свій мутант ───────────────
+    (
+        "список розкривається й у коді, що лише друкує (поведінка до W-42)",
+        "if any(h in command.lower() for h in _ARGV_EXEC)",
+        "if True",
+        "`print([\"rm\", \"-r…\", …])` знову R4 — хибна тривога на друк",
+    ),
+    (
+        "`xargs` у читача — завжди код (поведінка до W-42)",
+        "    if hits and not (hits == [\"xargs \"] and _xargs_feeds_readers(body)):",
+        "    if hits:",
+        "`cat <<'EOF' | xargs grep …` знову R4 — тіло heredoc лише дані",
+    ),
+    (
+        "`xargs` не код незалежно від команди",
+        "                if cmd is None or _cmd_name(cmd) not in _XARGS_READERS:",
+        "                if False:",
+        "дані через `xargs` стають аргументами git, а рівень R2 — пропуск",
+    ),
+    (
+        "невідомий прапорець `xargs` пропускається",
+        "                if ch not in _XARGS_BOOL:\n                    return None\n",
+        "",
+        "значення невідомого прапорця вважається командою-читачем — пропуск",
+    ),
+    (
+        "файл-скрипт не розпізнається (поведінка до W-42)",
+        "            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev",
+        "            script = False",
+        "`perl tool.pl <<'EOF'` знову R4 — вхід скрипта вважається програмою",
+    ),
+    (
+        "будь-який операнд — файл-скрипт",
+        "            script = bool(_SCRIPT_FILE.fullmatch(tok)) and not valued_prev",
+        "            script = True",
+        "`perl -I lib <<'EOF'` — тіло-програма вважається даними, пропуск",
+    ),
+    (
+        "файл-скрипт вважається схожою назвою виконавця",
+        "    if _SCRIPT_FILE.fullmatch(name):\n        return \"\", True",
+        "    if False:\n        return \"\", True",
+        "`php tool.php <<< …` знову R4 — `tool.php` як інтерпретатор",
+    ),
+    # ── Рев'ю Codex #130 (2026-11-18): три зниження R4→R2 від W-42 ──────────
+    (
+        "значення прапорця вважається файлом-скриптом",
+        "            valued_prev = letters[-1] in spec.get(\"rest\", \"\")",
+        "            valued_prev = False",
+        "`ruby -I lib.py <<'EOF'` — тіло-програма вважається даними, пропуск",
+    ),
+    (
+        "шляхи, подані через `xargs`, не перевіряються на читання",
+        "    if any(_cmd_name(t) == \"xargs\" for t in re.split(r\"[\\s;|&()]+\", body) if t):",
+        "    if False:",
+        "читання секрету через `xargs cat` — R2, пропуск",
+    ),
+    (
+        "`proc_open`/`Open3` не вважаються запуском списку",
+        "              \"open\", \"capture\", \"pipe\")",
+        "              )",
+        "`proc_open([\"git\",\"push\",…])` — R2, пропуск",
     ),
 ]
 
