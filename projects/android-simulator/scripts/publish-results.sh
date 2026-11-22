@@ -30,6 +30,10 @@ cp -R "$SRC"/. "$dir/runs/$RUN_KEY/"
 # Завеликі файли (довгі відео) лишаються лише в архіві запуску.
 find "$dir/runs/$RUN_KEY" -type f -size +"${MAX_FILE_MB}"M -print -delete | sed 's/^/завеликий, пропущено: /'
 
+# Значення, схожі на секрети (напр. DHCP `l2key: …`), — замаскувати в УСІХ
+# прогонах альбому, не лише в новому: так виправляються й старі записи (W-52).
+python3 "$(dirname "$0")/redact_logs.py" "$dir/runs"
+
 # Лишити тільки останні KEEP_RUNS прогонів.
 mapfile -t old < <(ls -1t "$dir/runs" | tail -n +"$((KEEP_RUNS + 1))")
 for o in "${old[@]}"; do rm -rf "${dir:?}/runs/$o"; done
