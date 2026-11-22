@@ -30,7 +30,8 @@ from pathlib import Path
 BLOCK_RE = re.compile(r'(<script type="application/json" id="monitor-data">)(.*?)(</script>)', re.S)
 SEV = ("high", "medium", "low", "info")
 ICON = {"high": "🔴", "medium": "🟠", "low": "🟡", "info": "⚪"}
-RED = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
+RED = {"failure", "timed_out", "startup_failure", "action_required"}
+# cancelled — не червоний: найчастіше concurrency скасовує застарілий прогін (рішення власника 2026-11-22); лишається видимим як сірий статус
 STALE_DAYS = 14
 MAX_HISTORY = 120
 
