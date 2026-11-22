@@ -29,6 +29,10 @@ on:
         description: "Скільки випадкових дотиків зробити для пошуку падінь (0 — не робити)"
         type: string
         default: "300"
+      conditions:
+        description: "Умови через кому: offline, slow-net, dark, big-font, landscape, low-battery, locale-uk, locale-en (порожньо — ідеальний телефон)"
+        type: string
+        default: ""
       fail_on_crash:
         description: "Вважати падіння застосунку провалом (червоний хрестик)"
         type: boolean
@@ -71,6 +75,10 @@ on:
       monkey_events:
         type: string
         default: "300"
+      conditions:
+        description: "Умови через кому (див. README)"
+        type: string
+        default: ""
       fail_on_crash:
         type: boolean
         default: true
@@ -101,6 +109,8 @@ env:
   SIM_PATH: .sim/projects/android-simulator
   RESULTS_BRANCH: android-sim-results
   MAESTRO_VERSION: "2.12.1"
+  # sha256 архіву maestro.zip для cli-2.12.1 (звірено з журналом запуску 2026-11-18); змінюється разом із версією
+  MAESTRO_SHA256: "54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7"
   BUNDLETOOL_VERSION: "1.18.3"
 
 jobs:
@@ -138,6 +148,7 @@ jobs:
           IN_ANDROID: ${{ inputs.android }}
           IN_FLOW: ${{ inputs.flow }}
           IN_MONKEY: ${{ inputs.monkey_events }}
+          IN_CONDITIONS: ${{ inputs.conditions }}
           IN_LABEL: ${{ inputs.label }}
         run: python3 "$SIM_PATH/scripts/plan.py"
 
@@ -205,6 +216,8 @@ jobs:
           curl --fail --location --silent --show-error --retry 3 -o "$RUNNER_TEMP/maestro.zip" \
             "https://github.com/mobile-dev-inc/maestro/releases/download/cli-${MAESTRO_VERSION}/maestro.zip"
           sha256sum "$RUNNER_TEMP/maestro.zip"
+          echo "${MAESTRO_SHA256}  $RUNNER_TEMP/maestro.zip" | sha256sum -c - \
+            || { echo "::error::sha256 архіву Maestro ${MAESTRO_VERSION} не збігається з закріпленим (MAESTRO_SHA256) — крок зупинено"; exit 1; }
           unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP/maestro"
           echo "MAESTRO_BIN=$RUNNER_TEMP/maestro/maestro/bin/maestro" >> "$GITHUB_ENV"
           case "$FLOW" in
@@ -234,6 +247,7 @@ jobs:
           KIND: ${{ matrix.kind }}
           DEVICE: ${{ matrix.device }}
           MONKEY_EVENTS: ${{ matrix.monkey_events }}
+          CONDITIONS: ${{ matrix.conditions }}
         with:
           api-level: ${{ matrix.android }}
           target: google_apis

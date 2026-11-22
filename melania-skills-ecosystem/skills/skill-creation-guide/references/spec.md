@@ -19,7 +19,7 @@
 4. **Decision Gate застосовано:** за замовчуванням онова наявного; новий скіл — лише коли інакше нелогічно/неможливо.
 5. **Координація явна:** посилання на власників механіки (routing→`semantic-router`, validation→`validation-mesh`,
    governance→`melania`, safety→`safety-compliance-gate`, стан→`continuation-memory`), без дублювання.
-6. **Pre-save gate (канон `melania`)** — обов'язковий перед збереженням: re-read → diff → validation-mesh →
+6. **Протокол Збереження Перед Оновленням (канон `melania`)** — обов'язковий перед збереженням: re-read → diff → validation-mesh →
    safety-compliance-gate → backup → merge-not-replace → bump+CHANGELOG → show diff + явне схвалення (Закон II).
 7. **≥1 eval-кейс** на бажану поведінку; guard-снапшот для регресій (`skill_guard.py`).
 8. **UA-first (P9):** робоча мова — українська; фінал/статус — українською де доречно.

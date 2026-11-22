@@ -1919,6 +1919,27 @@ def classify(tool_name: str, tool_input: dict, root: Path | None = None,
         if suffix.replace("-", "_") in excepted:
             return Verdict("R2", f"MCP-інструмент у переліку винятків ({tool_name})",
                            target=tool_name, resolved_target=tool_name, notes=notes)
+        # Запис в аргументі доступу (`[mcp].access_args`, рішення власника 2026-11-21):
+        # `add_repo` з `access: push` назвою не відрізняється від читання, тож дивимось
+        # на аргумент. Відсутній аргумент = значення за замовчуванням інструмента.
+        acc = (mcp.get("access_args") or {}).get(suffix.replace("-", "_"))
+        if isinstance(acc, dict):
+            arg = str(acc.get("arg") or "access")
+            value = str(tool_input.get(arg) or acc.get("default") or "").strip().lower()
+            if value not in {str(v).strip().lower() for v in acc.get("read", [])}:
+                owner = str(tool_input.get("owner") or "").strip()
+                repo = str(tool_input.get("repo") or "").strip()
+                scope = f"{owner}/{repo}".lower() if owner and repo and "|" not in owner + repo else ""
+                return Verdict(
+                    "R4", f"MCP-інструмент із доступом на запис ({tool_name} · {arg}={value or '?'})",
+                    rule_id=f"mcp-{suffix}-write",
+                    why="Це підключення репозиторію з правом запису: після нього сесія може змінювати код "
+                        "без окремого питання. Власник дозволив монітору лише читання.",
+                    alternatives="Підключи з `access: read` — читання досить для скану. Для запису потрібна "
+                                 "іменна згода власника на конкретне репо.",
+                    target=tool_name, resolved_target=tool_name, notes=notes,
+                    scope=scope, require_target=True,
+                )
         # Дієслово — у назві (з дефісами нарівні з підкресленнями) АБО в
         # аргументі `method`: один інструмент може і читати, і видаляти, а дія
         # тоді живе в аргументі (F-20: `actions_run_trigger` з

@@ -23,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from urltools import strip as strip_secret  # noqa: E402
 
 DEVICES = {"phone", "small", "tablet"}
+# Умови середовища (fault injection): чим «реальний» телефон відрізняється від ідеального.
+CONDITIONS = {"offline", "slow-net", "dark", "big-font", "landscape", "low-battery", "locale-uk", "locale-en"}
 LABEL_RE = re.compile(r"[^a-z0-9-]+")
 
 
@@ -66,6 +68,13 @@ def normalize(entry: dict, idx: int) -> dict:
     monkey = (entry.get("monkey_events") or "0").strip()
     if not monkey.isdigit() or int(monkey) > 5000:
         raise PlanError("кількість випадкових дотиків — число 0–5000")
+    raw_cond = (entry.get("conditions") or "").replace(" ", "")
+    conds = [c for c in raw_cond.split(",") if c]
+    bad = [c for c in conds if c not in CONDITIONS]
+    if bad:
+        raise PlanError(f"невідомі умови: {', '.join(bad)} (є: {', '.join(sorted(CONDITIONS))})")
+    if "locale-uk" in conds and "locale-en" in conds:
+        raise PlanError("оберіть одну мову: locale-uk або locale-en")
     flow = (entry.get("flow") or "").strip()
     if flow and (".." in flow.split("/") or flow.startswith("/") or not re.fullmatch(r"(sim:)?[A-Za-z0-9._/-]+", flow)):
         raise PlanError(f"некоректний шлях до сценарію: {flow!r}")
@@ -91,6 +100,7 @@ def normalize(entry: dict, idx: int) -> dict:
         "android": android,
         "flow": flow,
         "monkey_events": monkey,
+        "conditions": ",".join(dict.fromkeys(conds)),
         **info,
     }
 
@@ -106,6 +116,7 @@ def build(event: str, env: dict, selftest_path: Path) -> list[dict]:
             "android": env.get("IN_ANDROID", "33"),
             "flow": env.get("IN_FLOW", ""),
             "monkey_events": env.get("IN_MONKEY", "300"),
+            "conditions": env.get("IN_CONDITIONS", ""),
             "label": env.get("IN_LABEL", ""),
         }]
     runs = [normalize(e, i) for i, e in enumerate(entries)]

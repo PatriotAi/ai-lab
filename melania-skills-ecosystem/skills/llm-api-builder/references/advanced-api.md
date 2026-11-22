@@ -5,7 +5,7 @@
 ```python
 # Кешуй великий стабільний контекст (system prompt, документи)
 response = client.messages.create(
-    model="claude-opus-4-5",
+    model=MODEL,  # ID — з model-snapshot (multi-provider), не хардкод
     max_tokens=1024,
     system=[
         {"type": "text", "text": "You are an expert assistant."},
@@ -28,7 +28,7 @@ response = client.messages.create(
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-5",
+    model=MODEL,  # ID — з model-snapshot (multi-provider), не хардкод
     max_tokens=1024,
     messages=[{
         "role": "user",
@@ -56,7 +56,7 @@ with open("chart.png", "rb") as f:
     img_data = base64.standard_b64encode(f.read()).decode()
 
 response = client.messages.create(
-    model="claude-opus-4-5",
+    model=MODEL,  # ID — з model-snapshot (multi-provider), не хардкод
     max_tokens=1024,
     messages=[{
         "role": "user",
@@ -79,7 +79,7 @@ with open("report.pdf", "rb") as f:
     pdf_data = base64.standard_b64encode(f.read()).decode()
 
 response = client.messages.create(
-    model="claude-opus-4-5",
+    model=MODEL,  # ID — з model-snapshot (multi-provider), не хардкод
     max_tokens=2048,
     messages=[{
         "role": "user",
@@ -103,7 +103,7 @@ response = client.messages.create(
 uploaded = client.files.upload(file=open("large_dataset.pdf", "rb"))
 
 response = client.messages.create(
-    model="claude-opus-4-5",
+    model=MODEL,  # ID — з model-snapshot (multi-provider), не хардкод
     max_tokens=1024,
     messages=[{
         "role": "user",

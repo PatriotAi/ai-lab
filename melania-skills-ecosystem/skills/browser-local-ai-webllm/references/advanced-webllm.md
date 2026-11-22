@@ -1,10 +1,12 @@
+> Приклади нижче використовують `TIERS` — об'єкт ID моделей за класами, визначений у SKILL.md («Авто-вибір по deviceMemory»); значення підставляй зі знімка моделей § WebLLM.
+
 # Advanced WebLLM
 
 ## Function Calling у браузері
 
 ```javascript
 const engine = new mlc.MLCEngine();
-await engine.reload("Llama-3.1-8B-Instruct-q4f32_1-MLC");
+await engine.reload(TIERS.quality); // ID — у знімку моделей (§ WebLLM)
 
 const tools = [{
   type: "function",
@@ -32,7 +34,7 @@ if (toolCall) {
 }
 ```
 
-Підтримка function calling залежить від моделі (Llama 3.1+, Qwen2.5 — так).
+Підтримка function calling залежить від моделі — перелік придатних у знімку моделей (§ WebLLM).
 
 ---
 
@@ -41,7 +43,7 @@ if (toolCall) {
 ```javascript
 // Окремий embedding-движок
 const embEngine = new mlc.MLCEngine();
-await embEngine.reload("snowflake-arctic-embed-m-q0f32-MLC-b4");
+await embEngine.reload("<embed-модель — знімок моделей § WebLLM>");
 
 const embeddings = await embEngine.embeddings.create({
   input: ["текст 1", "текст 2", "текст 3"]
@@ -73,8 +75,8 @@ async function getEngine(modelId) {
   return engines[modelId];
 }
 // Маленька модель для класифікації, велика для генерації
-const classifier = await getEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC");
-const generator  = await getEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC");
+const classifier = await getEngine(TIERS.micro);
+const generator  = await getEngine(TIERS.quality);
 ```
 
 ⚠️ Увага на VRAM — дві великі моделі можуть не поміститись. Вивантажуй: `engine.unload()`.
