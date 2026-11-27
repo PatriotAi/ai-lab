@@ -48,10 +48,13 @@ c=(-c user.email="${GIT_AUTHOR_EMAIL:-$(git -C "$DIR" config user.email || echo 
 OLD="$(git rev-parse --short HEAD)"
 
 if ! git merge-base --is-ancestor origin/main HEAD; then
-  if ! git "${c[@]}" merge -q --no-edit origin/main >/dev/null 2>&1; then
+  # Звичайний стиль конфліктів примусово: з diff3 у файлі лишилися б `|||||||` і базові рядки.
+  if ! git "${c[@]}" -c merge.conflictStyle=merge merge -q --no-edit origin/main >/dev/null 2>&1; then
     bad=""
     for f in $(git diff --name-only --diff-filter=U); do
-      case " $UNION_OK " in *" $f "*) sed -i '/^<<<<<<< /d;/^=======$/d;/^>>>>>>> /d' "$f"; git add "$f" ;;
+      # Без `sed -i` (у BSD/macOS інший синтаксис): фільтр у тимчасовий файл і заміна.
+      case " $UNION_OK " in *" $f "*) grep -v -E '^(<<<<<<< |=======$|>>>>>>> |\|\|\|\|\|\|\| )' "$f" > "$f.mp.tmp" || true
+          mv "$f.mp.tmp" "$f"; git add "$f" ;;
         *) bad="$bad $f" ;; esac
     done
     if [ -n "$bad" ]; then
@@ -64,8 +67,24 @@ else
   MERGED="main уже в гілці"
 fi
 
+# Довіра: скрипт виконує перевірки й гейт із дерева гілки. Це безпечно лише тоді, коли гілка
+# НЕ змінює цей виконуваний код відносно main (інакше автор PR підмінив би перевірку). Змінює —
+# зупинка: таку гілку готують вручну, перевірки — з довіреної копії.
+EXEC_RE='^(security/|melania-skills-ecosystem/scripts/|scripts/check-windows\.py$|scripts/merge-prep\.sh$)'
+touched="$(git diff --name-only origin/main HEAD | grep -E "$EXEC_RE" | grep -vx 'security/consent.md' || true)"
+if [ -n "$touched" ]; then
+  echo "ГІЛКА ЗМІНЮЄ КОД ПЕРЕВІРОК: $(echo $touched) — автоматична підготовка заборонена, нічого не відправлено"; exit 3
+fi
+if [ -L security ] || [ -L security/consent.md ]; then
+  echo "security/consent.md — посилання або поза копією: запис заборонено"; exit 2
+fi
+
 TOKEN="mcp-merge_pull_request@$REPO#$PR"
-if [ -f security/consent.md ] && ! grep -qF "| $TOKEN |" security/consent.md; then
+today="$(date -u +%F)"
+# Чинний рядок = той самий токен і строк ≥ сьогодні; прострочений не рахується (гейт його теж ігнорує).
+valid="$( [ -f security/consent.md ] && awk -F'|' -v t="$TOKEN" -v d="$today" \
+  '{g=$2; gsub(/^ +| +$/,"",g); u=$3; gsub(/^ +| +$/,"",u); if (tolower(g)==tolower(t) && u>=d) print "y"}' security/consent.md )"
+if [ -f security/consent.md ] && [ -z "$valid" ]; then
   until="$(date -u -d '+1 day' +%F 2>/dev/null || date -u -v+1d +%F)"
   printf '| %s | %s | Власник %s у чаті: «%s». Запис скриптом merge-prep: голова до запису %s, %s; злиття — лише після зеленого CI на новій голові. Ціль — лише цей PR; строк — до завтра. |\n' \
     "$TOKEN" "$until" "$(date -u +%F)" "$QUOTE" "$OLD" "$MERGED" >> security/consent.md
@@ -96,4 +115,5 @@ fi
 echo "NEW_HEAD=$NEW"
 echo "GATE=$GATE"
 echo "ДАЛІ: дочекатися зеленого CI на $NEW, тоді merge_pull_request з expectedHeadSha=$NEW"
-[ "$GATE" = "ВІДМОВА" ] && exit 2 || exit 0
+# Код 0 — лише за явного дозволу або коли гейта в репо нема; «ask», помилка, порожньо — не успіх.
+case "$GATE" in "дозволено записаною згодою"|"нема гейта в репо") exit 0 ;; *) exit 2 ;; esac

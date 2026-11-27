@@ -2775,7 +2775,7 @@ lc_ok=$(grep -c '^✅' <<<"$lc_out")
 MP="$(mktemp -d)"; g(){ git -c user.email=t@e -c user.name=t "$@"; }
 git init -q --bare -b main "$MP/o.git"; g clone -q "$MP/o.git" "$MP/w" 2>/dev/null
 ( cd "$MP/w" && mkdir -p security/spine && printf '| правило | до | причина |\n' > security/consent.md && echo a > f.txt \
-  && printf 'import sys\nsys.stderr.write("🔓 записана згода (тест)\\n")\n' > security/spine/pretooluse.py \
+  && printf 'import sys\nd=sys.stdin.read()\nif "\\"pullNumber\\":9" in d: print("{\\"permissionDecision\\": \\"ask\\"}")\nelse: sys.stderr.write("🔓 записана згода (тест)\\n")\n' > security/spine/pretooluse.py \
   && g add -A && g commit -q -m 0 && g push -q origin HEAD:main \
   && g switch -q -c pr1 && echo pr >> security/consent.md && g commit -qam pr1 && g push -q origin pr1 \
   && g switch -q -c pr2 main && echo b > f.txt && g commit -qam pr2 && g push -q origin pr2 \
@@ -2791,6 +2791,25 @@ g -C "$MP/w" fetch -q origin
    && $mp2rc -eq 3 && "$mp2" == *"f.txt"* && "$(git -C "$MP/w" rev-parse origin/pr2)" == "$pr2_before" ]] \
   && ok "merge-prep: append-only конфлікт об'єднано й згоду записано один раз; чужий конфлікт — вихід 3, нічого не відправлено" \
   || bad "merge-prep" "union+згода×1; конфлікт f.txt → 3 без push" "rc1=$mp1rc rc2=$mp2rc | ${mp1:0:120} | ${mp2:0:120}"
+# Рев'ю #150: diff3-маркери, прострочена згода, симлінк consent.md, гілка змінює код перевірок,
+# гейт «ask» — кожен має або спрацювати правильно, або зупинити без успіху.
+( cd "$MP/w" && g config merge.conflictStyle diff3 && g switch -q -c pr3 origin/main~1 \
+  && echo "| mcp-merge_pull_request@t/r#3 | 2000-01-01 | стара згода, давно прострочена |" >> security/consent.md \
+  && echo pr3 >> security/consent.md && g commit -qam pr3 && g push -q origin pr3 \
+  && g switch -q -c pr4 origin/main && rm security/consent.md && echo keep > "$MP/outside.txt" \
+  && ln -s "$MP/outside.txt" security/consent.md && g add -A && g commit -qm pr4 && g push -q origin pr4 \
+  && g switch -q -c pr5 origin/main && echo "# змінено" >> security/spine/pretooluse.py && g commit -qam pr5 && g push -q origin pr5 \
+  && g switch -q -c pr9 origin/main && echo z > z.txt && g add -A && g commit -qm pr9 && g push -q origin pr9 && g switch -q main ) 2>/dev/null
+mp3=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr3 --pr 3 --repo T/r --quote "Погоджую злиття r#3" 2>&1); mp3rc=$?
+g -C "$MP/w" fetch -q origin 2>/dev/null; mp3c=$(git -C "$MP/w" show origin/pr3:security/consent.md)
+mp4=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr4 --pr 4 --repo T/r --quote "Погоджую злиття r#4" 2>&1); mp4rc=$?
+mp5=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr5 --pr 5 --repo T/r --quote "Погоджую злиття r#5" 2>&1); mp5rc=$?
+mp9=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr9 --pr 9 --repo T/r --quote "Погоджую злиття r#9" 2>&1); mp9rc=$?
+[[ $mp3rc -eq 0 && "$mp3c" != *"|||||||"* && $(grep -c "mcp-merge_pull_request@t/r#3" <<<"$mp3c") -eq 2 \
+   && $mp4rc -eq 2 && "$(cat "$MP/outside.txt")" == "keep" \
+   && $mp5rc -eq 3 && "$mp5" == *"КОД ПЕРЕВІРОК"* && $mp9rc -eq 2 && "$mp9" == *"GATE=без рішення"* ]] \
+  && ok "merge-prep: diff3 чистий, прострочену згоду поновлено, симлінк consent.md і зміна коду перевірок зупиняють, «ask» гейта — не успіх" \
+  || bad "merge-prep рев'ю #150" "rc 0/2/3/2" "rc3=$mp3rc rc4=$mp4rc rc5=$mp5rc rc9=$mp9rc | ${mp3:0:100} | ${mp4:0:80} | ${mp9:0:80}"
 rm -rf "$MP"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
