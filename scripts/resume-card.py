@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Картка відновлення: «де ми зупинились» без жодного токена моделі на збирання.
+
+Навіщо: після паузи, вичерпаного ліміту чи стиснення контексту сесія починала з того,
+що перечитувала файли, щоб зрозуміти стан, — і робила це найдорожчою моделлю сесії.
+Картку збирає скрипт (git + файли репо, без мережі), а модель читає лише її —
+кілька сотень токенів замість дослідження. Протокол — `continuation-memory`
+§ «Дешеве відновлення».
+
+  resume-card.py [REPO_DIR ...]      # за замовчуванням — поточний репозиторій
+
+Друкує ≤ ~30 рядків: для кожного репо — гілка, незбережені зміни, невідправлені коміти,
+відставання від main; для репо з docs/ — останній висновок, відкриті вікна боргу й
+найсвіжіший пакет продовження (`docs/continuation/*.md`, перші рядки). Лише stdlib + git.
+"""
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+def git(repo: Path, *args: str) -> str:
+    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=10)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def count(repo: Path, rng: str) -> str:
+    out = git(repo, "rev-list", "--count", rng)
+    return out or "?"
+
+
+def repo_line(repo: Path) -> str:
+    branch = git(repo, "branch", "--show-current") or f"(detached @ {git(repo, 'rev-parse', '--short', 'HEAD')})"
+    dirty = len([l for l in git(repo, "status", "--porcelain").splitlines() if l])
+    parts = [f"`{repo.name}` · {branch}"]
+    if dirty:
+        parts.append(f"незбережених файлів: {dirty}")
+    if git(repo, "rev-parse", "--abbrev-ref", "@{upstream}"):
+        ahead = count(repo, "@{upstream}..HEAD")
+        if ahead not in ("0", "?"):
+            parts.append(f"невідправлених комітів: {ahead}")
+    main = "refs/remotes/origin/main"
+    if git(repo, "rev-parse", "--verify", "-q", main):
+        behind = count(repo, f"HEAD..{main}")
+        if behind not in ("0", "?"):
+            parts.append(f"main попереду на {behind}")
+    return "- " + " · ".join(parts)
+
+
+def docs_lines(repo: Path) -> list[str]:
+    out = []
+    learn = repo / "docs" / "learnings.md"
+    if learn.is_file():
+        heads = re.findall(r"^## (\d{4}-\d{2}-\d{2} .+)$", learn.read_text(encoding="utf-8"), re.M)
+        if heads:
+            out.append(f"- останній висновок: {heads[-1][:140]}")
+    win = repo / "docs" / "WINDOWS.md"
+    if win.is_file():
+        m = re.search(r"ВІДКРИТИХ ВІКОН:\s*(\d+)", win.read_text(encoding="utf-8"))
+        if m:
+            out.append(f"- відкритих вікон боргу: {m.group(1)} (`docs/WINDOWS.md`)")
+    cont = sorted((repo / "docs" / "continuation").glob("*.md"), key=lambda p: p.name)
+    if cont:
+        latest = cont[-1]
+        out.append(f"- пакет продовження: `{latest.relative_to(repo)}`")
+        body = [l for l in latest.read_text(encoding="utf-8").splitlines() if l.strip()][:6]
+        out += [f"  > {l[:160]}" for l in body]
+    return out
+
+
+def main(argv: list[str]) -> int:
+    repos = [Path(a) for a in argv] or [Path(git(Path.cwd(), "rev-parse", "--show-toplevel") or ".")]
+    lines = ["## Картка відновлення (зібрано скриптом, без моделі)"]
+    for repo in repos:
+        if not (repo / ".git").exists():
+            continue
+        lines.append(repo_line(repo))
+        lines += docs_lines(repo)
+    lines.append("_Протокол: спершу ця картка; дочитати більше — лише найдешевшим виконавцем-читачем "
+                 "з підсумком ≤500 токенів; довга розмова → пакет продовження й нова сесія._")
+    print("\n".join(lines))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

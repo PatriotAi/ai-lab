@@ -2753,6 +2753,18 @@ lc_out=$(python3 "$REPO/tests/local-continuity-canary.py" 2>&1); lc_rc=$?
 lc_ok=$(grep -c '^✅' <<<"$lc_out")
 [[ $lc_rc -eq 0 && $lc_ok -eq 7 && "$lc_out" == *"усе гаразд"* ]] && ok "local-continuity: 7 канарок (відновлення, пошкодження, неповна історія, зниклий файл, неглибокий клон)" \
   || bad "local-continuity канарки" "код 0, 7 ✅" "код $lc_rc, $lc_ok ✅"
+# scripts/resume-card.py (continuation-memory § «Дешеве відновлення»): картка без моделі показує
+# незбережені файли, невідправлені коміти й пакет продовження; на чистому репо — лише рядок гілки.
+RC="$(mktemp -d)"; git -C "$RC" init -q -b main; git -C "$RC" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 0
+git clone -q "$RC" "$RC/c" 2>/dev/null; CL="$RC/c"; mkdir -p "$CL/docs/continuation"
+c_clean=$(python3 "$REPO/scripts/resume-card.py" "$CL" | grep -c -E "незбережених|невідправлених|^- пакет продовження")
+printf 'Ціль: тест\nДалі: крок 2\n' > "$CL/docs/continuation/2026-11-27-t.md"
+git -C "$CL" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 1; echo x > "$CL/dirty.txt"
+c_dirty=$(python3 "$REPO/scripts/resume-card.py" "$CL")
+[[ "$c_clean" == 0 && "$c_dirty" == *"незбережених файлів: 2"* && "$c_dirty" == *"невідправлених комітів: 1"* && "$c_dirty" == *"Далі: крок 2"* ]] \
+  && ok "resume-card: зміни, невідправлене й пакет продовження видно; чисте репо — без зайвого" \
+  || bad "resume-card" "clean=0 + dirty/unpushed/pack" "clean=$c_clean | ${c_dirty:0:200}"
+rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
 [[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
