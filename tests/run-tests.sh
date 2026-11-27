@@ -833,6 +833,40 @@ abr_case "другий коміт у знімку (історія протіка
   git -C repo -c user.email=t@t -c user.name=t commit -q --allow-empty -m x
 abr_case "підмінений CLAUDE.md (не той варіант)" "варіант контексту підмінено" bash -c 'printf "інше\n" > repo/CLAUDE.md'
 abr_case "підмінена стартова вставка" "варіант вставки підмінено" bash -c 'printf "інше\n" > session-insert.md'
+abr_case "підмінене завдання (prompt.txt)" "завдання агента підмінено" bash -c 'printf "інше\n" > prompt.txt'
+abr_case "хуки в налаштуваннях знімка" "виконують код поза агентом" \
+  bash -c 'mkdir -p repo/.claude && printf "{\"hooks\":{}}\n" > repo/.claude/settings.json'
+# Рев'ю Codex до PR #147: (1) налаштування знімка з хуками зводяться до дозволів уже при підготовці;
+# (2) CLAUDE.md над текою прогону — відмова; (3) коміт агента не зсуває базу `untouched`;
+# (4) мережа з інтерпретатора без URL — у скані.
+mkdir -p "$ABR_T/h/.claude" "$ABR_T/h/docs"
+printf '{"hooks":{"SessionStart":[]},"enabledPlugins":{},"permissions":{"allow":["Read"]}}\n' > "$ABR_T/h/.claude/settings.json"
+printf 'v1\n' > "$ABR_T/h/docs/a.md"
+( cd "$ABR_T/h" && git init -q && git -c user.email=t@t -c user.name=t add -A && git -c user.email=t@t -c user.name=t commit -qm s \
+  && printf 'лічильник: 2\n' > docs/a.md && git -c user.email=t@t -c user.name=t commit -qam so )
+abl_task hooks-task "$(git -C "$ABR_T/h" rev-parse HEAD~1)" "$(git -C "$ABR_T/h" rev-parse HEAD)" "$A_CNT" > "$ABR_T/h.jsonl"
+abr_out=$($ABR prepare --root "$ABR_T/h" --tasks "$ABR_T/h.jsonl" --task hooks-task --variant "$ABR_T/base" --out "$ABR_T/hrun" 2>&1); abr_rc=$?
+abr_keys=$(python3 -c 'import json,sys;print(",".join(sorted(json.load(open(sys.argv[1])))))' "$ABR_T/hrun/repo/.claude/settings.json" 2>&1)
+[[ "$abr_rc" == "0" && "$abr_keys" == "permissions" ]] \
+  && ok "канарка: хуки й плагіни зі знімка прибрано при підготовці, дозволи лишились" \
+  || bad "канарка: налаштування знімка без хуків" "код 0, ключі permissions" "rc=$abr_rc keys=$abr_keys ${abr_out:0:100}"
+mkdir -p "$ABR_T/tree"; printf '# батьківські правила\n' > "$ABR_T/tree/CLAUDE.md"
+abr_out=$(abr_prep "$ABR_T/tree/run"); abr_rc=$?
+[[ "$abr_rc" == "1" && "$abr_out" == *"над прогоном лежить"* ]] \
+  && ok "канарка: прогін усередині дерева з CLAUDE.md — відмова (батьківські правила дійшли б до агента)" \
+  || bad "канарка: батьківський CLAUDE.md" "код 1 + «над прогоном лежить»" "rc=$abr_rc ${abr_out:0:100}"
+cp -r "$ABR_T/run" "$ABR_T/committed"
+( cd "$ABR_T/committed/repo" && printf 'змінено\n' > security/k.md && git -c user.email=t@t -c user.name=t commit -qam agent ) >/dev/null 2>&1
+$ABR evaluate "$ABR_T/committed" >/dev/null 2>&1
+abr_res=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["results"][1])' "$ABR_T/committed/results.json" 2>&1)
+[[ "$abr_res" == "False" ]] \
+  && ok "канарка: агент закомітив зміну захищеного шляху — untouched усе одно падає (база з маніфесту)" \
+  || bad "канарка: база untouched після коміту агента" "False" "$abr_res"
+printf '{"text":"python3 -c \\"import socket; socket.create_connection((h, 80))\\""}\n' > "$ABR_T/t-py.jsonl"
+abr_p=$($ABR scan "$ABR_T/run" "$ABR_T/t-py.jsonl" --root "$ABL_T/r" 2>&1); abr_prc=$?
+[[ "$abr_prc" == "1" && "$abr_p" == *"мережева дія"* ]] \
+  && ok "канарка: мережа з інтерпретатора без URL (socket) — у скані" \
+  || bad "канарка: мережа через інтерпретатор" "код 1" "rc=$abr_prc ${abr_p:0:80}"
 abr_out=$(abr_prep "$ABR_T/run"); abr_rc=$?
 [[ "$abr_rc" == "2" && "$abr_out" == *"вже існує"* ]] \
   && ok "канарка: наявний прогін не перезаписується (код 2)" \

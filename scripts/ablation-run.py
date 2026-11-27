@@ -14,12 +14,16 @@
                `run-manifest.json` фіксує sha256 усього поданого. Наприкінці — самоперевірка
                ізоляції (verify).
     verify   — ізоляція ціла: один коміт, без remotes, еталон недосяжний, sha256 поданого
-               контексту збігаються з маніфестом.
+               контексту й завдання збігаються з маніфестом, над прогоном нема CLAUDE.md,
+               у налаштуваннях знімка нема хуків.
     command  — друкує команду запуску агента (`claude -p …`) для підготовленого прогону.
     scan     — транскрипт прогону: згадки комітів, пізніших за `start`, і мережеві команди.
                Такий прогін вилучається й звітується.
     evaluate — твердження задачі на робочому дереві прогону (та сама `holds`, що й у
-               `check-ablation-tasks.py`; база для `untouched` — єдиний коміт знімка).
+               `check-ablation-tasks.py`; база для `untouched` — коміт знімка з маніфесту,
+               навіть якщо агент комітив).
+Налаштування знімка зводяться до дозволів (хуки, плагіни й помічники виконували б код поза агентом),
+а прогін готується лише поза деревами з CLAUDE.md (Claude Code читає і батьківські).
 
 Доставку перевірено розвідкою 2026-11-10 (маркери в трьох джерелах, агент без інструментів):
 із `--setting-sources project` агент отримує `CLAUDE.md` робочого дерева, вставку SessionStart
@@ -60,10 +64,24 @@ REPO = "repo"
 INSERT = "session-insert.md"
 HOOK = "automations/session-start/session-start.sh"
 SILENT_HOOK = "#!/usr/bin/env bash\n# Заглушено прогоном абляції: вставку подає --append-system-prompt-file.\nexit 0\n"
+SETTINGS = ".claude/settings.json"
+# Із налаштувань знімка лишаються тільки дозволи: хуки, рядок стану, помічники ключів і плагіни
+# виконують код поза агентом (у знімках `sync.sh` писав у $HOME, `g5-retrieve` додавав контекст —
+# рев'ю Codex до PR #147). Однаково для всіх варіантів, тож порівнянності не шкодить.
+KEEP_SETTINGS = ("permissions",)
+MEMORY_FILES = ("CLAUDE.md", "CLAUDE.local.md")
 HEX = re.compile(r"\b[0-9a-f]{7,40}\b")
+# Мережа з оболонки: утиліти, git і менеджери пакетів, URL, а також мережеві бібліотеки
+# інтерпретаторів без літерала URL (рев'ю Codex до PR #147). Перелік не вичерпний — обфускований
+# код він не бачить; це названа межа в `ablation-run-design.md`.
 NETWORK = re.compile(
-    r"\b(?:curl|wget|nc|ssh|scp)\s|\bgit\s+(?:fetch|pull|clone|push|remote\s+add|ls-remote)\b"
-    r"|\bgh\s+\w|\bpip3?\s+install\b|\bnpm\s+(?:i|install)\b|https?://", re.I)
+    r"\b(?:curl|wget|nc|ncat|socat|telnet|ssh|scp|sftp|rsync|ftp)\s"
+    r"|\bgit\s+(?:fetch|pull|clone|push|remote\s+add|ls-remote)\b"
+    r"|\bgh\s+\w|\bpip3?\s+install\b|\bnpm\s+(?:i|install)\b|https?://|/dev/(?:tcp|udp)/"
+    r"|\bsocket\.(?:socket|create_connection)\b|\burllib(?:\.request|3)?\b|\bhttp\.client\b"
+    r"|\b(?:requests|httpx|aiohttp)\.(?:get|post|put|request|Session|Client|AsyncClient|ClientSession)\b"
+    r"|\bfetch\s*\(|\bXMLHttpRequest\b|\bnet\.(?:connect|createConnection|Socket)\b"
+    r"|\brequire\(\s*['\"](?:https?|net|tls|dgram)['\"]\s*\)", re.I)
 TOOLS = "Read,Grep,Glob,Edit,Write,Bash"
 NO_TOOLS = "WebFetch,WebSearch,Agent"
 
@@ -91,6 +109,13 @@ def isolation_problems(run: Path) -> list[str]:
         return [f"{run}: це не підготовлений прогін (нема {MANIFEST} чи {REPO}/.git)"]
     man = json.loads(man_path.read_text(encoding="utf-8"))
     probs: list[str] = []
+    # Claude Code підвантажує CLAUDE.md і з батьківських тек робочої — їхні правила потрапили б у
+    # кожен варіант повз маніфест (рев'ю Codex до PR #147). Прогін — лише поза такими деревами.
+    for parent in repo.resolve().parents:
+        for name in MEMORY_FILES:
+            if (parent / name).is_file():
+                probs.append(f"над прогоном лежить {parent / name} — агент отримав би й ці правила; "
+                             f"винеси прогін поза дерево з CLAUDE.md")
     count = git(repo, "rev-list", "--count", "--all").stdout.strip()
     if count != "1":
         probs.append(f"у знімку {count or '?'} комітів, а має бути 1 — історія протікає")
@@ -103,6 +128,22 @@ def isolation_problems(run: Path) -> list[str]:
     claude_md = repo / "CLAUDE.md"
     if (sha256(claude_md) if claude_md.is_file() else "нема файла") != man["claude_md_sha256"]:
         probs.append("CLAUDE.md у знімку не той, що в маніфесті — варіант контексту підмінено")
+    if man.get("base") and git(repo, "rev-parse", "HEAD").stdout.strip() != man["base"]:
+        probs.append("коміт знімка не той, що в маніфесті — база для `untouched` зсунута")
+    prompt = run / "prompt.txt"
+    if (sha256(prompt) if prompt.is_file() else "нема файла") != man.get("prompt_sha256"):
+        probs.append("prompt.txt не той, що в маніфесті — завдання агента підмінено")
+    settings = repo / SETTINGS
+    if settings.is_file():
+        try:
+            extra = sorted(set(json.loads(settings.read_text(encoding="utf-8"))) - set(KEEP_SETTINGS))
+        except (ValueError, TypeError):
+            extra = ["(не JSON)"]
+        if extra:
+            probs.append(f"{SETTINGS} знімка має ключі, що виконують код поза агентом: {', '.join(extra)}")
+    for skill in sorted((repo / ".claude" / "skills").glob("*/SKILL.md")):
+        if skill.is_file() and re.search(r"^hooks\s*:", skill.read_text(encoding="utf-8", errors="replace"), re.M):
+            probs.append(f"навичка {skill.parent.name} у знімку оголошує хуки — вони виконали б код поза агентом")
     insert = run / INSERT
     if (sha256(insert) if insert.is_file() else "нема файла") != man["insert_sha256"]:
         probs.append(f"{INSERT} не той, що в маніфесті — варіант вставки підмінено")
@@ -140,6 +181,14 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     (repo / "CLAUDE.md").write_bytes((variant / "CLAUDE.md").read_bytes())
     if (repo / HOOK).is_file():
         (repo / HOOK).write_text(SILENT_HOOK, encoding="utf-8")
+    settings = repo / SETTINGS
+    if settings.is_file():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+        except ValueError:
+            data = {}
+        kept = {k: v for k, v in data.items() if k in KEEP_SETTINGS} if isinstance(data, dict) else {}
+        settings.write_text(json.dumps(kept, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (out / INSERT).write_bytes((variant / INSERT).read_bytes())
     (out / "prompt.txt").write_text(task["prompt"], encoding="utf-8")
     ident = ("-c", "user.email=ablation@local", "-c", "user.name=ablation")
@@ -148,6 +197,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     git(repo, *ident, "commit", "-qm", "start snapshot")
     manifest = {
         "task": task["id"], "start": task["start"], "solution": task["solution"],
+        "base": git(repo, "rev-parse", "HEAD").stdout.strip(),
         "variant": variant.name, "series": args.series,
         "claude_md_sha256": sha256(repo / "CLAUDE.md"), "insert_sha256": sha256(out / INSERT),
         "prompt_sha256": sha256(out / "prompt.txt"), "assertions": task["assertions"],
@@ -179,6 +229,15 @@ def cmd_command(args: argparse.Namespace) -> int:
     if not (run / MANIFEST).is_file():
         print(f"⊘ НЕ ГАНЯЛОСЬ: {run} — не підготовлений прогін")
         return 2
+    probs = isolation_problems(run)
+    user_memory = Path.home() / ".claude" / "CLAUDE.md"
+    if user_memory.is_file():
+        probs.append(f"є {user_memory} — правила користувача дійшли б до агента повз варіант")
+    for p in probs:
+        print(f"  ✗ {p}")
+    if probs:
+        print("🚩 команду не видано: спершу виправ ізоляцію")
+        return 1
     cmd = ["claude", "-p", (run / "prompt.txt").read_text(encoding="utf-8"), "--model", args.model,
            "--setting-sources", "project", "--strict-mcp-config",
            "--append-system-prompt-file", str(run / INSERT),
@@ -223,7 +282,13 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     man = json.loads((run / MANIFEST).read_text(encoding="utf-8"))
-    results = [bool(mod.holds(run / REPO, "HEAD", a)) for a in man["assertions"]]
+    # База для `untouched` — коміт знімка з маніфесту, а не поточний HEAD: інакше агент, що
+    # закомітив зміну захищеного шляху, проходив би твердження (рев'ю Codex до PR #147).
+    base = man.get("base")
+    if not base:
+        print(f"⊘ НЕ ГАНЯЛОСЬ: у маніфесті {run} нема коміту знімка (`base`) — підготуй прогін наново")
+        return 2
+    results = [bool(mod.holds(run / REPO, base, a)) for a in man["assertions"]]
     out = {"task": man["task"], "variant": man["variant"], "series": man["series"], "results": results}
     (run / "results.json").write_text(json.dumps(out, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"  {man['task']} · {man['variant']} · серія {man['series']}: пройдено {sum(results)} з {len(results)}")
