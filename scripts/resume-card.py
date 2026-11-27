@@ -33,7 +33,7 @@ def count(repo: Path, rng: str) -> str:
 
 def repo_line(repo: Path) -> str:
     branch = git(repo, "branch", "--show-current") or f"(detached @ {git(repo, 'rev-parse', '--short', 'HEAD')})"
-    dirty = len([l for l in git(repo, "status", "--porcelain").splitlines() if l])
+    dirty = len([l for l in git(repo, "status", "--porcelain", "--untracked-files=all").splitlines() if l])
     parts = [f"`{repo.name}` · {branch}"]
     if dirty:
         parts.append(f"незбережених файлів: {dirty}")
@@ -75,7 +75,10 @@ def docs_lines(repo: Path) -> list[str]:
         m = re.search(r"ВІДКРИТИХ ВІКОН:\s*(\d+)", win.read_text(encoding="utf-8"))
         if m:
             out.append(f"- відкритих вікон боргу: {m.group(1)} (`docs/WINDOWS.md`)")
-    cont = list((repo / "docs" / "continuation").glob("*.md"))
+    # Лише звичайні файли всередині репо: симлінк міг би втягти в контекст чужий локальний файл.
+    root = repo.resolve()
+    cont = [p for p in (repo / "docs" / "continuation").glob("*.md")
+            if not p.is_symlink() and p.is_file() and p.resolve().is_relative_to(root)]
     if cont:
         latest = max(cont, key=lambda p: pack_key(repo, p))
         out.append(f"- пакет продовження: `{latest.relative_to(repo)}`")
@@ -105,7 +108,7 @@ def scan_untrusted(text: str) -> str:
     WebSearch), тому скануємо тут тим самим сканером. Повертає '' або позначку знахідки."""
     scanner = Path(__file__).resolve().parent / "scan-external-input.py"
     if not scanner.is_file():
-        return ""
+        return "сканер недоступний"  # fail-closed: без тріажу цитату не показуємо
     try:
         r = subprocess.run([sys.executable, "-I", str(scanner), "-"], input=text,
                            capture_output=True, text=True, timeout=10)

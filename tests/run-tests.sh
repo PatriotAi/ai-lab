@@ -2780,6 +2780,16 @@ c_pushed=$(python3 "$REPO/scripts/resume-card.py" "$CL")
 [[ "$c_pushed" != *"гілку не відправлено"* && "$c_pushed" != *"невідправлених"* ]] \
   && ok "resume-card: гілку, відправлену без -u, не названо невідправленою" \
   || bad "resume-card push без -u" "без «не відправлено»" "${c_pushed:0:200}"
+# Ще три дірки (рев'ю #149): showUntrackedFiles=no ховав нові файли; симлінк-пакет читав файл поза
+# репо; без сканера цитата йшла в контекст без тріажу (fail-open).
+git -C "$CL" config status.showUntrackedFiles no; echo n > "$CL/new.txt"
+printf 'SECRET_TOKEN=abc\n' > "$RC/outside.txt"; ln -s "$RC/outside.txt" "$CL/docs/continuation/2099-01-01-link.md"
+mkdir -p "$RC/solo"; cp "$REPO/scripts/resume-card.py" "$RC/solo/"
+c_sec=$(python3 "$REPO/scripts/resume-card.py" "$CL"); c_solo=$(python3 "$RC/solo/resume-card.py" "$CL")
+[[ "$c_sec" == *"незбережених файлів: 2"* && "$c_sec" != *"SECRET_TOKEN"* && "$c_sec" != *"2099-01-01-link"* \
+   && "$c_solo" == *"сканер недоступний"* && "$c_solo" != *"> "* ]] \
+  && ok "resume-card: нові файли видно попри showUntrackedFiles=no; симлінк поза репо не читається; без сканера цитату сховано" \
+  || bad "resume-card untracked/симлінк/без сканера" "2 файли (new.txt + симлінк), без SECRET, сканер недоступний" "${c_sec:0:200} || ${c_solo:0:200}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
