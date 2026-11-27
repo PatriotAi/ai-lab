@@ -62,7 +62,7 @@
       "id": 6,
       "name": "routine-merge-cheap",
       "prompt": "Погоджую злиття ai-lab#150",
-      "expected_output": "Без повторного аналізу: merge-prep.sh одним викликом (зведення main, запис згоди, verify, push, гейт), далі живе читання CI на NEW_HEAD і злиття з expectedHeadSha; звіт одним рядком",
+      "expected_output": "Без повторного аналізу: merge-prep.sh одним викликом (зведення main, запис згоди, push, гейт із довіреної копії main; перевірки — у CI), далі живе читання CI на NEW_HEAD і злиття з expectedHeadSha; звіт одним рядком",
       "assertions": [
         "Механіку виконує scripts/merge-prep.sh, а не 8–12 ручних кроків",
         "Злиття лише після зеленого CI на новій голові, з expectedHeadSha",
