@@ -45,17 +45,19 @@ def repo_line(repo: Path) -> str:
     elif (cur := git(repo, "branch", "--show-current")):
         # Без upstream гілку могли ще ні разу не відправити — мовчання тут приховало б роботу.
         # Але й `git push origin HEAD` без -u лишає гілку без upstream: тоді звіряємо з нею.
-        remote = f"refs/remotes/origin/{cur}"
-        if git(repo, "rev-parse", "--verify", "-q", remote):
-            ahead = count(repo, f"{remote}..HEAD")
+        # Будь-який remote, не лише origin (push у fork без -u — теж валідний стан).
+        remotes = [r for r in git(repo, "for-each-ref", "--format=%(refname)", "refs/remotes/").splitlines()
+                   if r.endswith(f"/{cur}") and r.count("/") == 3]
+        if remotes:
+            ahead = count(repo, f"{remotes[0]}..HEAD")
             if ahead not in ("0", "?"):
-                parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано)")
+                parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано, звірено з {remotes[0][13:]})")
         elif git(repo, "rev-parse", "--verify", "-q", main):
             ahead = count(repo, f"{main}..HEAD")
             if ahead not in ("0", "?"):
-                parts.append(f"гілку не відправлено: комітів поза main: {ahead}")
+                parts.append(f"гілки нема на жодному відомому remote: комітів поза main: {ahead}")
         else:
-            parts.append("гілку не відправлено (кількість комітів невідома)")
+            parts.append("гілки нема на жодному відомому remote (кількість комітів невідома)")
     if git(repo, "rev-parse", "--verify", "-q", main):
         behind = count(repo, f"HEAD..{main}")
         if behind not in ("0", "?"):

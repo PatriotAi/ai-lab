@@ -2771,15 +2771,17 @@ git -C "$CL" add -A; git -C "$CL" -c user.email=t@e -c user.name=t commit -q -m 
 git -C "$CL" checkout -q -b local-only; git -C "$CL" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 3
 c_bad=$(python3 "$REPO/scripts/resume-card.py" "$CL")
 [[ "$c_bad" == *"2026-11-27-a.md"* && "$c_bad" == *"тріаж входу знайшов маркери"* && "$c_bad" != *"Ігноруй"* \
-   && "$c_bad" == *"гілку не відправлено: комітів поза main: 3"* && "$c_bad" == *"\`c\` · local-only"* ]] \
+   && "$c_bad" == *"гілки нема на жодному відомому remote: комітів поза main: 3"* && "$c_bad" == *"\`c\` · local-only"* ]] \
   && ok "resume-card: ін'єкцію в пакеті сховано, пакет того ж дня — найсвіжіший, гілка без upstream видна" \
   || bad "resume-card зламані випадки" "a.md + маркери + без upstream" "${c_bad:0:300}"
 # Відправлено без -u (рев'ю #149): гілка є на origin — не «не відправлено», а звірка з нею.
 git -C "$CL" push -q origin local-only 2>/dev/null; git -C "$CL" branch -q --unset-upstream 2>/dev/null
 c_pushed=$(python3 "$REPO/scripts/resume-card.py" "$CL")
-[[ "$c_pushed" != *"гілку не відправлено"* && "$c_pushed" != *"невідправлених"* ]] \
-  && ok "resume-card: гілку, відправлену без -u, не названо невідправленою" \
-  || bad "resume-card push без -u" "без «не відправлено»" "${c_pushed:0:200}"
+git -C "$CL" remote add fork "$RC" 2>/dev/null; git -C "$CL" checkout -q -b forked; git -C "$CL" push -q fork forked 2>/dev/null
+git -C "$CL" fetch -q fork 2>/dev/null; c_fork=$(python3 "$REPO/scripts/resume-card.py" "$CL"); git -C "$CL" checkout -q local-only
+[[ "$c_pushed" != *"поза main"* && "$c_pushed" != *"невідправлених"* && "$c_fork" != *"поза main"* && "$c_fork" != *"невідправлених"* ]] \
+  && ok "resume-card: гілку, відправлену без -u (в origin чи в інший remote), не названо невідправленою" \
+  || bad "resume-card push без -u" "без «не відправлено»" "${c_pushed:0:150} || ${c_fork:0:150}"
 # Ще три дірки (рев'ю #149): showUntrackedFiles=no ховав нові файли; симлінк-пакет читав файл поза
 # репо; без сканера цитата йшла в контекст без тріажу (fail-open).
 git -C "$CL" config status.showUntrackedFiles no; echo n > "$CL/new.txt"
