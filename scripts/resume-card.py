@@ -46,8 +46,9 @@ def repo_line(repo: Path) -> str:
         # Без upstream гілку могли ще ні разу не відправити — мовчання тут приховало б роботу.
         # Але й `git push origin HEAD` без -u лишає гілку без upstream: тоді звіряємо з нею.
         # Будь-який remote, не лише origin (push у fork без -u — теж валідний стан).
-        remotes = [r for r in git(repo, "for-each-ref", "--format=%(refname)", "refs/remotes/").splitlines()
-                   if r.endswith(f"/{cur}") and r.count("/") == 3]
+        # Точна пара «remote + повна назва гілки»: назви з «/» (claude/…) — норма.
+        remotes = [f"refs/remotes/{r}/{cur}" for r in git(repo, "remote").splitlines()
+                   if git(repo, "rev-parse", "--verify", "-q", f"refs/remotes/{r}/{cur}")]
         if remotes:
             ahead = count(repo, f"{remotes[0]}..HEAD")
             if ahead not in ("0", "?"):

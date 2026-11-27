@@ -2777,10 +2777,10 @@ c_bad=$(python3 "$REPO/scripts/resume-card.py" "$CL")
 # Відправлено без -u (рев'ю #149): гілка є на origin — не «не відправлено», а звірка з нею.
 git -C "$CL" push -q origin local-only 2>/dev/null; git -C "$CL" branch -q --unset-upstream 2>/dev/null
 c_pushed=$(python3 "$REPO/scripts/resume-card.py" "$CL")
-git -C "$CL" remote add fork "$RC" 2>/dev/null; git -C "$CL" checkout -q -b forked; git -C "$CL" push -q fork forked 2>/dev/null
+git -C "$CL" remote add fork "$RC" 2>/dev/null; git -C "$CL" checkout -q -b feat/forked; git -C "$CL" push -q fork feat/forked 2>/dev/null
 git -C "$CL" fetch -q fork 2>/dev/null; c_fork=$(python3 "$REPO/scripts/resume-card.py" "$CL"); git -C "$CL" checkout -q local-only
 [[ "$c_pushed" != *"поза main"* && "$c_pushed" != *"невідправлених"* && "$c_fork" != *"поза main"* && "$c_fork" != *"невідправлених"* ]] \
-  && ok "resume-card: гілку, відправлену без -u (в origin чи в інший remote), не названо невідправленою" \
+  && ok "resume-card: гілку, відправлену без -u (в origin чи в інший remote, назва з «/»), не названо невідправленою" \
   || bad "resume-card push без -u" "без «не відправлено»" "${c_pushed:0:150} || ${c_fork:0:150}"
 # Ще три дірки (рев'ю #149): showUntrackedFiles=no ховав нові файли; симлінк-пакет читав файл поза
 # репо; без сканера цитата йшла в контекст без тріажу (fail-open).
