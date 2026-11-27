@@ -160,7 +160,7 @@
    "eval_cases": 6,
    "sha256_16": {
     "SKILL.md": "aa430a0cc1bd6afa",
-    "evals/evals.json": "03d9779523862cd8"
+    "evals/evals.json": "77855e0b19a55045"
    },
    "files": [
     "SKILL.md",
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "9c4035e3c10a10fe"
+ "built_fingerprint": "6cae06a7e27c7181"
 }
