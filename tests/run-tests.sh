@@ -799,6 +799,87 @@ $ABL "$ABL_T/r" --tasks "$ABL_T/ghost.jsonl" --limits 1:10 >/dev/null 2>&1; abl_
 [[ "$abl_rc" == "2" ]] \
   && ok "канарка: коміту задачі немає в історії — «не ганялось» (код 2), а не «чисто»" \
   || bad "канарка: відсутній коміт задачі" "код 2" "rc=$abl_rc"
+
+# ── Ізольований прогін абляції (Фаза 13, Ф0.10) ──
+# Агент не має бачити еталон і мусить отримати саме досліджуваний варіант правил. Обидві вади
+# невидимі в результатах, тож кожну ловить перевірка — на чистому й на зламаних станах.
+ABR="python3 $REPO/scripts/ablation-run.py"
+ABR_T="$TMPROOT/ablation-run"; mkdir -p "$ABR_T/base"
+printf '# Варіант правил\n' > "$ABR_T/base/CLAUDE.md"; printf 'Стартова вставка.\n' > "$ABR_T/base/session-insert.md"
+abr_prep() { $ABR prepare --root "$ABL_T/r" --tasks "$ABL_T/good.jsonl" --task good-task --variant "$ABR_T/base" --out "$1" 2>&1; }
+abr_out=$(abr_prep "$ABR_T/run"); abr_rc=$?
+abr_commits=$(git -C "$ABR_T/run/repo" rev-list --count --all 2>/dev/null)
+[[ "$abr_rc" == "0" && "$abr_commits" == "1" ]] && ! git -C "$ABR_T/run/repo" cat-file -e "$abl_so^{commit}" 2>/dev/null \
+  && $ABR verify "$ABR_T/run" >/dev/null 2>&1 \
+  && ok "прогін абляції: знімок з одного коміту, еталон недосяжний, verify чистий" \
+  || bad "прогін абляції готується ізольовано" "код 0, 1 коміт, еталону нема" "rc=$abr_rc commits=$abr_commits ${abr_out:0:100}"
+[[ "$(cat "$ABR_T/run/repo/CLAUDE.md")" == "# Варіант правил" ]] \
+  && ok "прогін абляції: у знімку лежить варіант CLAUDE.md, а не файл коміту start" \
+  || bad "прогін абляції: доставка варіанта" "варіант у знімку" "$(head -1 "$ABR_T/run/repo/CLAUDE.md")"
+$ABR evaluate "$ABR_T/run" >/dev/null 2>&1; abr_rc=$?
+[[ "$abr_rc" == "1" ]] \
+  && ok "прогін абляції: на старті твердження задачі падають (evaluate код 1)" \
+  || bad "прогін абляції: evaluate на старті" "код 1" "rc=$abr_rc"
+abr_case() { # abr_case <назва> <фрагмент-причини> <команда-поломки…>: копія чистого прогону, поломка, verify має дати 1
+  local name="$1" why="$2"; shift 2
+  local dir="$ABR_T/bad-$(printf '%s' "$name" | md5sum | cut -c1-8)"
+  cp -r "$ABR_T/run" "$dir"; ( cd "$dir" && "$@" ) >/dev/null 2>&1
+  local out rc; out=$($ABR verify "$dir" 2>&1); rc=$?
+  [[ "$rc" == "1" && "$out" == *"$why"* ]] && ok "канарка: $name — спіймано" \
+    || bad "канарка: $name" "код 1 + «$why»" "rc=$rc ${out:0:100}"
+}
+abr_case "remote у знімку (еталон можна стягнути)" "є remote" git -C repo remote add origin "$ABL_T/r"
+abr_case "другий коміт у знімку (історія протікає)" "має бути 1" \
+  git -C repo -c user.email=t@t -c user.name=t commit -q --allow-empty -m x
+abr_case "підмінений CLAUDE.md (не той варіант)" "варіант контексту підмінено" bash -c 'printf "інше\n" > repo/CLAUDE.md'
+abr_case "підмінена стартова вставка" "варіант вставки підмінено" bash -c 'printf "інше\n" > session-insert.md'
+abr_case "підмінене завдання (prompt.txt)" "завдання агента підмінено" bash -c 'printf "інше\n" > prompt.txt'
+abr_case "хуки в налаштуваннях знімка" "виконують код поза агентом" \
+  bash -c 'mkdir -p repo/.claude && printf "{\"hooks\":{}}\n" > repo/.claude/settings.json'
+# Рев'ю Codex до PR #147: (1) налаштування знімка з хуками зводяться до дозволів уже при підготовці;
+# (2) CLAUDE.md над текою прогону — відмова; (3) коміт агента не зсуває базу `untouched`;
+# (4) мережа з інтерпретатора без URL — у скані.
+mkdir -p "$ABR_T/h/.claude" "$ABR_T/h/docs"
+printf '{"hooks":{"SessionStart":[]},"enabledPlugins":{},"permissions":{"allow":["Read"]}}\n' > "$ABR_T/h/.claude/settings.json"
+printf 'v1\n' > "$ABR_T/h/docs/a.md"
+( cd "$ABR_T/h" && git init -q && git -c user.email=t@t -c user.name=t add -A && git -c user.email=t@t -c user.name=t commit -qm s \
+  && printf 'лічильник: 2\n' > docs/a.md && git -c user.email=t@t -c user.name=t commit -qam so )
+abl_task hooks-task "$(git -C "$ABR_T/h" rev-parse HEAD~1)" "$(git -C "$ABR_T/h" rev-parse HEAD)" "$A_CNT" > "$ABR_T/h.jsonl"
+abr_out=$($ABR prepare --root "$ABR_T/h" --tasks "$ABR_T/h.jsonl" --task hooks-task --variant "$ABR_T/base" --out "$ABR_T/hrun" 2>&1); abr_rc=$?
+abr_keys=$(python3 -c 'import json,sys;print(",".join(sorted(json.load(open(sys.argv[1])))))' "$ABR_T/hrun/repo/.claude/settings.json" 2>&1)
+[[ "$abr_rc" == "0" && "$abr_keys" == "permissions" ]] \
+  && ok "канарка: хуки й плагіни зі знімка прибрано при підготовці, дозволи лишились" \
+  || bad "канарка: налаштування знімка без хуків" "код 0, ключі permissions" "rc=$abr_rc keys=$abr_keys ${abr_out:0:100}"
+mkdir -p "$ABR_T/tree"; printf '# батьківські правила\n' > "$ABR_T/tree/CLAUDE.md"
+abr_out=$(abr_prep "$ABR_T/tree/run"); abr_rc=$?
+[[ "$abr_rc" == "1" && "$abr_out" == *"над прогоном лежить"* ]] \
+  && ok "канарка: прогін усередині дерева з CLAUDE.md — відмова (батьківські правила дійшли б до агента)" \
+  || bad "канарка: батьківський CLAUDE.md" "код 1 + «над прогоном лежить»" "rc=$abr_rc ${abr_out:0:100}"
+cp -r "$ABR_T/run" "$ABR_T/committed"
+( cd "$ABR_T/committed/repo" && printf 'змінено\n' > security/k.md && git -c user.email=t@t -c user.name=t commit -qam agent ) >/dev/null 2>&1
+$ABR evaluate "$ABR_T/committed" >/dev/null 2>&1
+abr_res=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["results"][1])' "$ABR_T/committed/results.json" 2>&1)
+[[ "$abr_res" == "False" ]] \
+  && ok "канарка: агент закомітив зміну захищеного шляху — untouched усе одно падає (база з маніфесту)" \
+  || bad "канарка: база untouched після коміту агента" "False" "$abr_res"
+printf '{"text":"python3 -c \\"import socket; socket.create_connection((h, 80))\\""}\n' > "$ABR_T/t-py.jsonl"
+abr_p=$($ABR scan "$ABR_T/run" "$ABR_T/t-py.jsonl" --root "$ABL_T/r" 2>&1); abr_prc=$?
+[[ "$abr_prc" == "1" && "$abr_p" == *"мережева дія"* ]] \
+  && ok "канарка: мережа з інтерпретатора без URL (socket) — у скані" \
+  || bad "канарка: мережа через інтерпретатор" "код 1" "rc=$abr_prc ${abr_p:0:80}"
+abr_out=$(abr_prep "$ABR_T/run"); abr_rc=$?
+[[ "$abr_rc" == "2" && "$abr_out" == *"вже існує"* ]] \
+  && ok "канарка: наявний прогін не перезаписується (код 2)" \
+  || bad "канарка: прогони не перезаписуються" "код 2" "rc=$abr_rc ${abr_out:0:80}"
+printf '{"text":"git show %s"}\n' "${abl_so:0:12}" > "$ABR_T/t-future.jsonl"
+printf '{"text":"%s -s example.org"}\n' "curl" > "$ABR_T/t-net.jsonl"
+printf '{"text":"оновив лічильник"}\n' > "$ABR_T/t-ok.jsonl"
+abr_f=$($ABR scan "$ABR_T/run" "$ABR_T/t-future.jsonl" --root "$ABL_T/r" 2>&1); abr_frc=$?
+abr_n=$($ABR scan "$ABR_T/run" "$ABR_T/t-net.jsonl" --root "$ABL_T/r" 2>&1); abr_nrc=$?
+$ABR scan "$ABR_T/run" "$ABR_T/t-ok.jsonl" --root "$ABL_T/r" >/dev/null 2>&1; abr_orc=$?
+[[ "$abr_frc" == "1" && "$abr_f" == *"ще не було"* && "$abr_nrc" == "1" && "$abr_n" == *"мережева дія"* && "$abr_orc" == "0" ]] \
+  && ok "канарка: транскрипт із комітом із майбутнього чи мережевою дією — вилучити; чистий — ні" \
+  || bad "канарка: скан транскрипту прогону" "1 / 1 / 0" "future=$abr_frc net=$abr_nrc ok=$abr_orc"
 # Обрізаний клон, де ОБИДВА коміти є, але межа історії рве зв'язок між ними: до 2026-11-07
 # перевірка давала хибну знахідку «не є предком» (виявлено ревізією 2026-11-06 у контейнері
 # сесії). Тепер — «не ганялось» (код 2). Справжній «не предок» у повному клоні ловить канарка `rev` вище.
