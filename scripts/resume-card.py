@@ -42,9 +42,15 @@ def repo_line(repo: Path) -> str:
         ahead = count(repo, "@{upstream}..HEAD")
         if ahead not in ("0", "?"):
             parts.append(f"невідправлених комітів: {ahead}")
-    elif git(repo, "branch", "--show-current"):
+    elif (cur := git(repo, "branch", "--show-current")):
         # Без upstream гілку могли ще ні разу не відправити — мовчання тут приховало б роботу.
-        if git(repo, "rev-parse", "--verify", "-q", main):
+        # Але й `git push origin HEAD` без -u лишає гілку без upstream: тоді звіряємо з нею.
+        remote = f"refs/remotes/origin/{cur}"
+        if git(repo, "rev-parse", "--verify", "-q", remote):
+            ahead = count(repo, f"{remote}..HEAD")
+            if ahead not in ("0", "?"):
+                parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано)")
+        elif git(repo, "rev-parse", "--verify", "-q", main):
             ahead = count(repo, f"{main}..HEAD")
             if ahead not in ("0", "?"):
                 parts.append(f"гілку не відправлено: комітів поза main: {ahead}")

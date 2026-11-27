@@ -2774,6 +2774,12 @@ c_bad=$(python3 "$REPO/scripts/resume-card.py" "$CL")
    && "$c_bad" == *"гілку не відправлено: комітів поза main: 3"* && "$c_bad" == *"\`c\` · local-only"* ]] \
   && ok "resume-card: ін'єкцію в пакеті сховано, пакет того ж дня — найсвіжіший, гілка без upstream видна" \
   || bad "resume-card зламані випадки" "a.md + маркери + без upstream" "${c_bad:0:300}"
+# Відправлено без -u (рев'ю #149): гілка є на origin — не «не відправлено», а звірка з нею.
+git -C "$CL" push -q origin local-only 2>/dev/null; git -C "$CL" branch -q --unset-upstream 2>/dev/null
+c_pushed=$(python3 "$REPO/scripts/resume-card.py" "$CL")
+[[ "$c_pushed" != *"гілку не відправлено"* && "$c_pushed" != *"невідправлених"* ]] \
+  && ok "resume-card: гілку, відправлену без -u, не названо невідправленою" \
+  || bad "resume-card push без -u" "без «не відправлено»" "${c_pushed:0:200}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
