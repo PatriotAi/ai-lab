@@ -159,7 +159,7 @@
    "version": "1.8.0",
    "eval_cases": 6,
    "sha256_16": {
-    "SKILL.md": "b372418da71e4f21",
+    "SKILL.md": "aa430a0cc1bd6afa",
     "evals/evals.json": "03d9779523862cd8"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "d5dac977593a1ac3"
+ "built_fingerprint": "9c4035e3c10a10fe"
 }
