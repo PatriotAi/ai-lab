@@ -38,7 +38,7 @@ UNION_OK="security/consent.md docs/learnings.md"
 
 cd "$DIR"
 git fetch -q origin main "$BRANCH"
-WT="$(mktemp -d)"; trap 'git -C "$DIR" worktree remove --force "$WT" >/dev/null 2>&1 || true; rm -rf "$WT"' EXIT
+WT="$(mktemp -d)"; trap 'cd "$DIR"; git -C "$DIR" worktree remove --force "$WT" >/dev/null 2>&1 || true; rm -rf "$WT"' EXIT
 # Відокремлена голова + явний push HEAD:гілка — без локальної гілки, чий upstream міг
 # вказувати на main (пастка 2026-11-27).
 git worktree add -q --detach "$WT" "origin/$BRANCH"
@@ -90,7 +90,7 @@ GATE="нема гейта в репо"
 if [ -f security/spine/pretooluse.py ]; then
   owner="${REPO%%/*}"; name="${REPO#*/}"
   out="$(printf '{"tool_name":"mcp__github__merge_pull_request","tool_input":{"owner":"%s","repo":"%s","pullNumber":%s},"cwd":"%s"}' \
-        "$owner" "$name" "$PR" "$WT" | CLAUDE_PROJECT_DIR="$WT" python3 -I security/spine/pretooluse.py 2>/dev/null || true)"
+        "$owner" "$name" "$PR" "$WT" | CLAUDE_PROJECT_DIR="$WT" python3 -I security/spine/pretooluse.py 2>&1 || true)"
   case "$out" in *'"deny"'*) GATE="ВІДМОВА";; *"записана згода"*) GATE="дозволено записаною згодою";; *) GATE="без рішення: ${out:0:80}";; esac
 fi
 echo "NEW_HEAD=$NEW"

@@ -2774,7 +2774,8 @@ lc_ok=$(grep -c '^✅' <<<"$lc_out")
 # НІЧОГО не відправлено; повторний виклик не дублює запис згоди.
 MP="$(mktemp -d)"; g(){ git -c user.email=t@e -c user.name=t "$@"; }
 git init -q --bare -b main "$MP/o.git"; g clone -q "$MP/o.git" "$MP/w" 2>/dev/null
-( cd "$MP/w" && mkdir -p security && printf '| правило | до | причина |\n' > security/consent.md && echo a > f.txt \
+( cd "$MP/w" && mkdir -p security/spine && printf '| правило | до | причина |\n' > security/consent.md && echo a > f.txt \
+  && printf 'import sys\nsys.stderr.write("🔓 записана згода (тест)\\n")\n' > security/spine/pretooluse.py \
   && g add -A && g commit -q -m 0 && g push -q origin HEAD:main \
   && g switch -q -c pr1 && echo pr >> security/consent.md && g commit -qam pr1 && g push -q origin pr1 \
   && g switch -q -c pr2 main && echo b > f.txt && g commit -qam pr2 && g push -q origin pr2 \
@@ -2785,7 +2786,7 @@ g -C "$MP/w" fetch -q origin; mp1c=$(git -C "$MP/w" show origin/pr1:security/con
 pr2_before=$(git -C "$MP/w" rev-parse origin/pr2)
 mp2=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr2 --pr 8 --repo T/r --quote "Погоджую злиття r#8" 2>&1); mp2rc=$?
 g -C "$MP/w" fetch -q origin
-[[ $mp1rc -eq 0 && "$mp1" == *"NEW_HEAD="* && "$mp1c" == *"main-row"* && "$mp1c" == *"pr"* && "$mp1c" != *"<<<<<<<"* \
+[[ $mp1rc -eq 0 && "$mp1" == *"NEW_HEAD="* && "$mp1" == *"GATE=дозволено записаною згодою"* && "$mp1c" == *"main-row"* && "$mp1c" == *"pr"* && "$mp1c" != *"<<<<<<<"* \
    && $(grep -c "mcp-merge_pull_request@t/r#7" <<<"$mp1c") -eq 1 && "$mp1b" == *"NEW_HEAD="* \
    && $mp2rc -eq 3 && "$mp2" == *"f.txt"* && "$(git -C "$MP/w" rev-parse origin/pr2)" == "$pr2_before" ]] \
   && ok "merge-prep: append-only конфлікт об'єднано й згоду записано один раз; чужий конфлікт — вихід 3, нічого не відправлено" \
