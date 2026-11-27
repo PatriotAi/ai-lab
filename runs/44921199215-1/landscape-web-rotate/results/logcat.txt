@@ -1,0 +1,17 @@
+--------- beginning of main
+11-21 15:51:21.904 I/resolv  (  337): res_nmkquery: (QUERY, IN, A)
+11-21 15:51:21.904 I/resolv  (  337): res_nmkquery: (QUERY, IN, AAAA)
+11-21 15:51:21.911 D/BoundBrokerSvc( 1543): onBind: Intent { act=com.google.android.gms.languageprofile.service.START pkg=com.google.android.gms }
+11-21 15:51:21.911 D/BoundBrokerSvc( 1543): Loading bound service for intent: Intent { act=com.google.android.gms.languageprofile.service.START pkg=com.google.android.gms }
+11-21 15:51:21.915 W/ConfigFileUtils( 1543): Failed to read asset ChimeraModuleSetList.pb: java.io.FileNotFoundException: ChimeraModuleSetList.pb
+11-21 15:51:21.921 D/CarrierSvcBindHelper( 1120): onPackageModified: com.android.carrierdefaultapp
+11-21 15:51:21.924 D/ImsResolver( 1120): maybeAddedImsService, packageName: com.google.android.partnersetup
+11-21 15:51:21.928 D/CarrierSvcBindHelper( 1120): No carrier app for: 0
+11-21 15:51:21.929 I/resolv  (  337): res_nsend: used send_dg 58 terrno: 0
+11-21 15:51:21.929 I/resolv  (  337): doQuery: rcode=0, ancount=1, return value=58
+11-21 15:51:21.930 I/resolv  (  337): res_nsend: used send_dg 99 terrno: 0
+11-21 15:51:21.930 I/resolv  (  337): doQuery: rcode=0, ancount=0, return value=99
+11-21 15:51:21.931 D/TrafficStats( 1845): tagSocket(136) with statsTag=0xffffffff, statsUid=-1
+--------- beginning of kernel
+11-21 15:51:22.121 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3543 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-21 15:51:21.945 I/adbd    (  420): adbd restarting as root

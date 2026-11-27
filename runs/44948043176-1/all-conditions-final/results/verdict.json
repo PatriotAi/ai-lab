@@ -1,0 +1,54 @@
+{
+  "conditions": [
+    {
+      "name": "dark",
+      "ok": true,
+      "detail": "Night mode: yes"
+    },
+    {
+      "name": "big-font",
+      "ok": true,
+      "detail": "масштаб шрифту 1.3"
+    },
+    {
+      "name": "locale-uk",
+      "ok": true,
+      "detail": "мова uk-UA для org.fdroid.fdroid"
+    },
+    {
+      "name": "low-battery",
+      "ok": true,
+      "detail": "заряд 5%, без зарядки"
+    },
+    {
+      "name": "landscape",
+      "ok": true,
+      "detail": "екран 2400x1080"
+    }
+  ],
+  "target": "fdroid:org.fdroid.fdroid",
+  "package": "org.fdroid.fdroid",
+  "app_label": "F-Droid",
+  "app_version": "2.0.3",
+  "native_abis": "arm64-v8a armeabi-v7a x86 x86_64",
+  "prepare_error": "",
+  "installed": true,
+  "launched": true,
+  "alive": "1",
+  "install_error": "",
+  "flow_rc": "",
+  "browser": "",
+  "foreign_anr": "",
+  "hide_error_dialogs": true,
+  "device": {
+    "model": "sdk_gphone64_x86_64",
+    "android": "14",
+    "api": "34",
+    "abi": "x86_64,arm64-v8a",
+    "screen": "1080x2400",
+    "density": "420"
+  },
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

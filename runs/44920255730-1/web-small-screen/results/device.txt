@@ -1,0 +1,6 @@
+model=sdk_gphone64_x86_64
+android=13
+api=33
+abi=x86_64
+screen=720x1280
+density=320

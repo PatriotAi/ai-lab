@@ -1,0 +1,5 @@
+dark|ok|Night mode: yes
+big-font|ok|масштаб шрифту 1.3
+locale-uk|ok|мова uk-UA для org.fdroid.fdroid
+low-battery|ok|заряд 5%, без зарядки
+landscape|ok|екран 2400x1080

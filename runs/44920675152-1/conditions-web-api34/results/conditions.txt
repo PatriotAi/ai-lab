@@ -1,0 +1,4 @@
+dark|ok|Night mode: yes
+big-font|ok|масштаб шрифту 1.3
+locale-en|ok|мова en-US для com.android.chrome
+landscape|fail|екран 1080x2400 — ціль лишилась вертикальною (застосунок міг заблокувати поворот)

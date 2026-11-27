@@ -1,0 +1,5 @@
+offline|ok|режим польоту увімкнено
+slow-net|ok|швидкість GSM, затримка GPRS
+landscape|ok|альбомна орієнтація
+low-battery|ok|заряд 5%, без зарядки
+locale-uk|ok|мова uk-UA для org.fdroid.fdroid

@@ -1,0 +1,255 @@
+--------- beginning of main
+11-22 14:21:54.250 W/.gms.persistent( 1045): Long monitor contention with owner binder:1045_4 (1085) at android.os.BinderProxy android.os.BinderProxy.getInstance(long, long)(BinderProxy.java:464) waiters=2 in android.os.BinderProxy android.os.BinderProxy.getInstance(long, long) for 286ms
+11-22 14:21:54.250 I/FontLog ( 1045): Pulling font file for id = 2, cache size = 4 [CONTEXT service_id=132 ]
+11-22 14:21:54.250 W/.gms.persistent( 1045): Long monitor contention with owner binder:1045_4 (1085) at android.os.BinderProxy android.os.BinderProxy.getInstance(long, long)(BinderProxy.java:464) waiters=4 in android.os.BinderProxy android.os.BinderProxy.getInstance(long, long) for 256ms
+11-22 14:21:54.250 I/FontLog ( 1045): Pulling font file for id = 3, cache size = 4 [CONTEXT service_id=132 ]
+11-22 14:21:54.251 W/.gms.persistent( 1045): Long monitor contention with owner binder:1045_4 (1085) at android.os.BinderProxy android.os.BinderProxy.getInstance(long, long)(BinderProxy.java:464) waiters=7 in android.os.BinderProxy android.os.BinderProxy.getInstance(long, long) for 164ms
+11-22 14:21:54.254 W/.gms.persistent( 1045): Long monitor contention with owner binder:1045_4 (1085) at android.os.BinderProxy android.os.BinderProxy.getInstance(long, long)(BinderProxy.java:464) waiters=3 in android.os.BinderProxy android.os.BinderProxy.getInstance(long, long) for 279ms
+11-22 14:21:54.256 I/FontLog ( 1045): Received query Google Sans, URI content://com.google.android.gms.fonts [CONTEXT service_id=132 ]
+11-22 14:21:54.256 I/FontLog ( 1045): Query [Google Sans] resolved to {Google Sans, wdth 100.0, wght 400, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.259 I/FontLog ( 1045): Font PFD returned from cache for {Google Sans, wdth 100.0, wght 400, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.259 I/FontLog ( 1045): Fetch {Google Sans, wdth 100.0, wght 400, ital 0.0, bestEffort false} end status Status{statusCode=SUCCESS, resolution=null} [CONTEXT service_id=132 ]
+11-22 14:21:54.260 D/BoundBrokerSvc( 1045): onBind: Intent { act=com.google.android.gms.herrevad.services.LightweightNetworkQualityAndroidService.START pkg=com.google.android.gms }
+11-22 14:21:54.260 D/BoundBrokerSvc( 1045): Loading bound service for intent: Intent { act=com.google.android.gms.herrevad.services.LightweightNetworkQualityAndroidService.START pkg=com.google.android.gms }
+11-22 14:21:54.289 I/system_server(  482): Explicit concurrent copying GC freed 40248(2247KB) AllocSpace objects, 0(0B) LOS objects, 49% free, 16MB/33MB, paused 32us,37us total 79.409ms
+11-22 14:21:54.291 W/Role    (  753): Default holder doesn't have required signing certificate: com.google.android.apps.work.clouddpc:23962F4B43B9857638EA66F4D419518EAE282491ACDA4B94707BD59003C45E58
+11-22 14:21:54.292 I/Herrevad( 1045): [2] aqwl.a: updateListenState
+11-22 14:21:54.296 I/ImsCallbackAM [0](  978): Local callback removed: android.telephony.ims.ImsMmTelManager$CapabilityCallback$CapabilityBinder@5f5bb4f
+11-22 14:21:54.298 I/A       ( 1683): StreamFragmentPeer#onPending
+11-22 14:21:54.299 I/A       ( 1683): #fetchAndStoreData() on surface MinusOne.
+11-22 14:21:54.301 W/A       ( 1683): Fetch failed. Renderable stream failure reason: USER_SIGNED_OUT
+11-22 14:21:54.301 W/A       ( 1683): DiscoverPrecheckException(precheckFailureReason=com.google.android.apps.search.googleapp.discover.w.a.c@5876b55)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.bb.d(PG:16)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.ax.invokeSuspend(PG:5)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.ax.invoke(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at kotlinx.coroutines.f.b.a(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at kotlinx.coroutines.m.a(PG:11)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.bb.c(PG:2)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.am.invokeSuspend(PG:5)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.am.invoke(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at kotlinx.coroutines.f.b.a(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at kotlinx.coroutines.m.a(PG:11)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.al.invokeSuspend(PG:4)
+11-22 14:21:54.301 W/A       ( 1683): 	at i.c.b.a.a.resumeWith(PG:4)
+11-22 14:21:54.301 W/A       ( 1683): 	at kotlinx.coroutines.bk.run(PG:14)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.apps.tiktok.coroutines.f.run(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.libraries.i.ae.run(PG:1)
+11-22 14:21:54.301 W/A       ( 1683): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-22 14:21:54.301 W/A       ( 1683): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.libraries.i.k.run(PG:2)
+11-22 14:21:54.301 W/A       ( 1683): 	at com.google.android.libraries.i.p.run(PG:4)
+11-22 14:21:54.301 W/A       ( 1683): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.305 W/A       ( 1683): Failed RenderableStream callback; SubscriptionCallbacks#onError(Throwable) called.
+11-22 14:21:54.305 W/A       ( 1683): com.google.android.apps.search.googleapp.discover.v.i: DiscoverPrecheckException(precheckFailureReason=com.google.android.apps.search.googleapp.discover.w.a.c@5876b55)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.ak.a(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.am.invokeSuspend(PG:17)
+11-22 14:21:54.305 W/A       ( 1683): 	at i.c.b.a.a.resumeWith(PG:4)
+11-22 14:21:54.305 W/A       ( 1683): 	at kotlinx.coroutines.bk.run(PG:14)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.apps.tiktok.coroutines.f.run(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.libraries.i.ae.run(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-22 14:21:54.305 W/A       ( 1683): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.libraries.i.k.run(PG:2)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.libraries.i.p.run(PG:4)
+11-22 14:21:54.305 W/A       ( 1683): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.305 W/A       ( 1683): Caused by: DiscoverPrecheckException(precheckFailureReason=com.google.android.apps.search.googleapp.discover.w.a.c@5876b55)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.bb.d(PG:16)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.ax.invokeSuspend(PG:5)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.ax.invoke(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at kotlinx.coroutines.f.b.a(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at kotlinx.coroutines.m.a(PG:11)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.w.bb.c(PG:2)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.am.invokeSuspend(PG:5)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.am.invoke(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at kotlinx.coroutines.f.b.a(PG:1)
+11-22 14:21:54.305 W/A       ( 1683): 	at kotlinx.coroutines.m.a(PG:11)
+11-22 14:21:54.305 W/A       ( 1683): 	at com.google.android.apps.search.googleapp.discover.v.al.invokeSuspend(PG:4)
+11-22 14:21:54.305 W/A       ( 1683): 	... 9 more
+11-22 14:21:54.353 W/BestClock(  482): java.time.DateTimeException: Missing NTP fix
+11-22 14:21:54.359 I/ImsCallbackAM [0](  978): Local callback removed: android.telephony.ims.RegistrationManager$RegistrationCallback$RegistrationBinder@6cd02dc
+11-22 14:21:54.362 I/FontLog ( 1045): Pulling font file for id = 5, cache size = 5 [CONTEXT service_id=132 ]
+11-22 14:21:54.364 W/FontsContract( 1683): Platform version of downloadable fonts is deprecated. Please use androidx version instead.
+11-22 14:21:54.364 I/Auth    ( 1311): [WorkAccount] update authenticator enabled for boot or update
+11-22 14:21:54.365 I/Telephony(  978): TelecomAccountRegistry: setupAccounts: Found 1 phones.  Attempting to register.
+11-22 14:21:54.367 I/Telephony(  978): TelecomAccountRegistry: setupAccounts: Phone with subscription id 1
+11-22 14:21:54.368 D/CompatibilityChangeReporter( 3119): Compat change id reported: 183155436; UID 10083; state: ENABLED
+11-22 14:21:54.368 D/Telephony(  978): isEmergencyPreferredAccount: subId=1, activeData=1
+11-22 14:21:54.368 D/Telephony(  978): isEmergencyPreferredAccount: Device does not require preference.
+11-22 14:21:54.369 I/Telephony(  978): isRttCurrentlySupported -- regular acct, hasVoiceAvailability: false
+11-22 14:21:54.369 I/Telephony(  978):  isRttSupported: false
+11-22 14:21:54.369 I/Telephony(  978):  alwaysAllowWhileRoaming: false
+11-22 14:21:54.369 I/Telephony(  978):  isRoaming: false
+11-22 14:21:54.369 I/Telephony(  978):  isOnWfc: false
+11-22 14:21:54.374 I/SQLiteConnectionPool( 1045): The connection pool for /data/user/0/com.google.android.gms/databases/metadata.db has been closed but there are still 1 connections in use.  They will be closed as they are released back to the pool.
+11-22 14:21:54.374 W/FontLog ( 1045): Error updating last accessed time for {Google Sans, wdth 100.0, wght 400, ital 0.0, bestEffort false}. [CONTEXT service_id=132 ]
+11-22 14:21:54.374 W/FontLog ( 1045): java.lang.IllegalStateException: Cannot perform this operation because the connection pool has been closed.
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteConnectionPool.throwIfClosedLocked(SQLiteConnectionPool.java:1078)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteConnectionPool.waitForConnection(SQLiteConnectionPool.java:771)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteConnectionPool.acquireConnection(SQLiteConnectionPool.java:387)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteSession.acquireConnection(SQLiteSession.java:896)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteSession.executeForChangedRowCount(SQLiteSession.java:754)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteStatement.executeUpdateDelete(SQLiteStatement.java:67)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteDatabase.executeSql(SQLiteDatabase.java:2087)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at android.database.sqlite.SQLiteDatabase.execSQL(SQLiteDatabase.java:2064)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at anyn.run(:com.google.android.gms@231818047@23.18.18 (190800-535401451):6)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at aced.c(:com.google.android.gms@231818047@23.18.18 (190800-535401451):6)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at aced.run(:com.google.android.gms@231818047@23.18.18 (190800-535401451):7)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at acjn.run(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.374 W/FontLog ( 1045): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.379 I/NearbySharing( 1045): Broadcasting NearbySharing state change. [CONTEXT service_id=194 ]
+11-22 14:21:54.380 I/resolv  (  284): GetAddrInfoHandler::run: {0 786432 0 983040 10120 0}
+11-22 14:21:54.384 W/FontLog ( 1045): Connection failure for https://fonts.gstatic.com/s/a/directory025.pb [CONTEXT service_id=132 ]
+--------- beginning of system
+11-22 14:21:54.399 W/ActivityThread(  482): getPackageInfo() called with an older ApplicationInfo than the cached version for package android
+11-22 14:21:54.407 W/AiAiEcho( 1583): SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-22 14:21:54.413 I/FontLog ( 1045): Received query Google Sans Text, URI content://com.google.android.gms.fonts [CONTEXT service_id=132 ]
+11-22 14:21:54.413 I/FontLog ( 1045): Query [Google Sans Text] resolved to {Google Sans Text, wdth 100.0, wght 400, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.415 I/FontLog ( 1045): Font PFD returned from cache for {Google Sans Text, wdth 100.0, wght 400, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.415 I/FontLog ( 1045): Fetch {Google Sans Text, wdth 100.0, wght 400, ital 0.0, bestEffort false} end status Status{statusCode=SUCCESS, resolution=null} [CONTEXT service_id=132 ]
+11-22 14:21:54.429 I/FontLog ( 1045): Received query Google Sans:500, URI content://com.google.android.gms.fonts [CONTEXT service_id=132 ]
+11-22 14:21:54.429 I/FontLog ( 1045): Query [Google Sans:500] resolved to {Google Sans, wdth 100.0, wght 500, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.430 I/FontLog ( 1045): Font PFD returned from cache for {Google Sans, wdth 100.0, wght 500, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.430 I/FontLog ( 1045): Fetch {Google Sans, wdth 100.0, wght 500, ital 0.0, bestEffort false} end status Status{statusCode=SUCCESS, resolution=null} [CONTEXT service_id=132 ]
+11-22 14:21:54.431 I/Icing   ( 1311): Storage manager: low false usage 0 Bytes avail 5.14GB capacity 5.80GB
+11-22 14:21:54.432 I/FontLog ( 1045): Pulling font file for id = 7, cache size = 7 [CONTEXT service_id=132 ]
+11-22 14:21:54.433 I/NearbySharing( 1045): A new client has bound to the NearbySharingService ClientBridge for calling package com.google.android.gms [CONTEXT service_id=194 ]
+--------- beginning of kernel
+11-22 14:21:54.610 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3161 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-22 14:21:54.443 W/View    ( 1683): requestLayout() improperly called by android.widget.FrameLayout{8b061dd V.E...... ......ID 0,0-720,400 #7f0b0fee app:id/googleapp_discover_header_container} during layout: running second layout pass
+11-22 14:21:54.444 W/FontLog ( 1045): No resolver, short-circuit {Noto Color Emoji Compat, wdth 100.0, wght 400, ital 0.0, bestEffort false} for com.google.android.youtube to failure [CONTEXT service_id=132 ]
+11-22 14:21:54.444 I/FontLog ( 1045): Fetch {Noto Color Emoji Compat, wdth 100.0, wght 400, ital 0.0, bestEffort false} end status Status{statusCode=Unavailable, resolution=null} [CONTEXT service_id=132 ]
+11-22 14:21:54.448 I/A       ( 1683): Successfully updated last shown time for signed out error.
+11-22 14:21:54.454 D/StrictMode( 1706): StrictMode policy violation; ~duration=1374 ms: android.os.strictmode.DiskReadViolation
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1658)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.ForwardingOs.access(ForwardingOs.java:128)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ActivityThread$AndroidOs.access(ActivityThread.java:7801)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:281)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.File.exists(File.java:813)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.getDataDir(ContextImpl.java:2962)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.getFilesDir(ContextImpl.java:793)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aoao.i(:com.google.android.gms@231818047@23.18.18 (190800-535401451):5)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.gms.fonts.service.FontsChimeraProvider.onCreate(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.chimera.ContentProvider.attachInfo(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.a(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProvider$Transport.query(ContentProvider.java:285)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransactInternal(Binder.java:1280)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransact(Binder.java:1244)
+11-22 14:21:54.454 D/StrictMode( 1706): # via Binder call with stack:
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2496)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Parcel.readExceptionCode(Parcel.java:2956)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderProxy.query(ContentProviderNative.java:481)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:196)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:178)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bbo.a(PG:273)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bkb.a(PG:14)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aqy.run(PG:173)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.handleCallback(Handler.java:942)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loopOnce(Looper.java:201)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loop(Looper.java:288)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgi.run(PG:13)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgg.run(PG:604)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qig.run(PG:64)
+11-22 14:21:54.454 D/StrictMode( 1706): StrictMode policy violation; ~duration=1373 ms: android.os.strictmode.DiskReadViolation
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1658)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.ForwardingOs.access(ForwardingOs.java:128)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ActivityThread$AndroidOs.access(ActivityThread.java:7801)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:281)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.File.exists(File.java:813)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:759)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:750)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.getFilesDir(ContextImpl.java:795)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getFilesDir(ContextWrapper.java:282)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aoao.i(:com.google.android.gms@231818047@23.18.18 (190800-535401451):5)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.gms.fonts.service.FontsChimeraProvider.onCreate(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.chimera.ContentProvider.attachInfo(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.a(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProvider$Transport.query(ContentProvider.java:285)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransactInternal(Binder.java:1280)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransact(Binder.java:1244)
+11-22 14:21:54.454 D/StrictMode( 1706): # via Binder call with stack:
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2496)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Parcel.readExceptionCode(Parcel.java:2956)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderProxy.query(ContentProviderNative.java:481)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:196)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:178)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bbo.a(PG:273)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bkb.a(PG:14)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aqy.run(PG:173)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.handleCallback(Handler.java:942)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loopOnce(Looper.java:201)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loop(Looper.java:288)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgi.run(PG:13)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgg.run(PG:604)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qig.run(PG:64)
+11-22 14:21:54.454 D/StrictMode( 1706): StrictMode policy violation; ~duration=1330 ms: android.os.strictmode.DiskReadViolation
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1658)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at libcore.io.ForwardingOs.access(ForwardingOs.java:128)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ActivityThread$AndroidOs.access(ActivityThread.java:7801)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:281)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.io.File.exists(File.java:813)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.getDataDir(ContextImpl.java:2962)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.app.ContextImpl.getCacheDir(ContextImpl.java:864)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getCacheDir(ContextWrapper.java:322)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getCacheDir(ContextWrapper.java:322)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContextWrapper.getCacheDir(ContextWrapper.java:322)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at anyw.<init>(:com.google.android.gms@231818047@23.18.18 (190800-535401451):3)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aoao.i(:com.google.android.gms@231818047@23.18.18 (190800-535401451):5)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.gms.fonts.service.FontsChimeraProvider.onCreate(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at com.google.android.chimera.ContentProvider.attachInfo(:com.google.android.gms@231818047@23.18.18 (190800-535401451):0)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.a(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at hfr.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProvider$Transport.query(ContentProvider.java:285)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransactInternal(Binder.java:1280)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Binder.execTransact(Binder.java:1244)
+11-22 14:21:54.454 D/StrictMode( 1706): # via Binder call with stack:
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2496)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Parcel.readExceptionCode(Parcel.java:2956)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderProxy.query(ContentProviderNative.java:481)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:196)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.content.ContentProviderClient.query(ContentProviderClient.java:178)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bbo.a(PG:273)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at bkb.a(PG:14)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at aqy.run(PG:173)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.handleCallback(Handler.java:942)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loopOnce(Looper.java:201)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at android.os.Looper.loop(Looper.java:288)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgi.run(PG:13)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qgg.run(PG:604)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at java.lang.Thread.run(Thread.java:1012)
+11-22 14:21:54.454 D/StrictMode( 1706): 	at qig.run(PG:64)
+11-22 14:21:54.456 I/FontLog ( 1045): Received query Noto Color Emoji Compat, URI content://com.google.android.gms.fonts [CONTEXT service_id=132 ]
+11-22 14:21:54.456 I/FontLog ( 1045): Query [Noto Color Emoji Compat] resolved to {Noto Color Emoji Compat, wdth 100.0, wght 400, ital 0.0, bestEffort false} [CONTEXT service_id=132 ]
+11-22 14:21:54.458 I/Telecom (  482): PhoneAccountRegistrar: Modify account: [ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0}]: TSI.rPA@AMA
+11-22 14:21:54.458 I/Telecom (  482): CallsManager: handlePhoneAccountChanged: phoneAccount=[[X] PhoneAccount: ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0} Capabilities: CallProvider MultiUser PlaceEmerg SimSub  Audio Routes: BESW Schemes: tel voicemail  Extras: Bundle[{android.telecom.extra.SUPPORTS_VIDEO_CALLING_FALLBACK=true}] GroupId: ***]: TSI.rPA@AMA
+11-22 14:21:54.459 I/adbd    (  383): adbd restarting as root
+11-22 14:21:54.459 W/WearableService( 1045): onGetService: Wear is not available on this device.
+11-22 14:21:54.461 I/Telecom (  482): PhoneAccountRegistrar: getSimCallManager: SimCallManager for subId 1 queried, returning: null: TSI.rPA@AMA
+11-22 14:21:54.463 I/Telecom (  482): PhoneAccountRegistrar: Notifying telephony of voice service override change for 1 SIMs, hasService = false: TSI.rPA@AMA
+11-22 14:21:54.465 I/Telephony(  978): AccountEntry: Registered phoneAccount: [[ ] PhoneAccount: ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0} Capabilities: CallProvider MultiUser PlaceEmerg SimSub  Audio Routes: BESW Schemes: tel voicemail  Extras: Bundle[{android.telecom.extra.SUPPORTS_VIDEO_CALLING_FALLBACK=true}] GroupId: ***] with handle: ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0}
+11-22 14:21:54.465 I/Telephony(  978): PstnIncomingCallNotifier: Registering: [0]
+11-22 14:21:54.465 D/Telephony(  978): Registering: Handler (com.android.internal.telephony.GsmCdmaPhone) {d5dbec7}
+11-22 14:21:54.467 W/FontLog ( 1045): Connection failure for https://fonts.gstatic.com/s/a/directory025.pb [CONTEXT service_id=132 ]
+11-22 14:21:54.467 W/FontLog ( 1045): No resolver, short-circuit {Noto Color Emoji Compat, wdth 100.0, wght 400, ital 0.0, bestEffort false} for com.google.android.youtube to failure [CONTEXT service_id=132 ]

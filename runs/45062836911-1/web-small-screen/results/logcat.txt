@@ -1,0 +1,11 @@
+--------- beginning of main
+11-22 19:50:49.012 I/A       ( 1801): loading data on surface MinusOne.
+11-22 19:50:49.017 I/A       ( 1801): onApplyWindowInsets: systemWindowInsets=Insets{left=0, top=63, right=0, bottom=63}
+11-22 19:50:49.017 I/A       ( 1801): onApplyWindowInsets: Adjusting for display cutouts. Safe insets: left=0, top=128, right=0, bottom=0
+11-22 19:50:49.017 I/A       ( 1801): onApplyWindowInsets: systemWindowInsets=Insets{left=0, top=63, right=0, bottom=63}
+11-22 19:50:49.053 I/Icing   ( 1307): IndexChimeraService.getServiceInterface callingPackage=com.google.android.googlequicksearchbox componentName=null serviceId=36
+11-22 19:50:49.057 D/CarrierSvcBindHelper(  994): onPackageModified: com.google.android.apps.wellbeing
+11-22 19:50:49.057 D/CarrierSvcBindHelper(  994): No carrier app for: 0
+--------- beginning of kernel
+11-22 19:50:49.267 I/logd    (    0): logdr: UID=2000 GID=2000 PID=3339 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-22 19:50:49.064 I/adbd    (  376): adbd restarting as root

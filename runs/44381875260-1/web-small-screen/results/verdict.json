@@ -1,0 +1,25 @@
+{
+  "target": "https://f-droid.org/uk/",
+  "package": "com.android.chrome",
+  "app_label": "",
+  "app_version": "",
+  "native_abis": "",
+  "prepare_error": "",
+  "installed": true,
+  "launched": true,
+  "alive": "",
+  "install_error": "",
+  "flow_rc": "",
+  "browser": "Chrome 109.0.5414.123",
+  "device": {
+    "model": "sdk_gphone64_x86_64",
+    "android": "13",
+    "api": "33",
+    "abi": "x86_64",
+    "screen": "720x1280",
+    "density": "320"
+  },
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

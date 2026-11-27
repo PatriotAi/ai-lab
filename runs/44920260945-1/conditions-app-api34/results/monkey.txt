@@ -1,0 +1,83 @@
+  bash arg: -p
+  bash arg: org.fdroid.fdroid
+  bash arg: -s
+  bash arg: 42
+  bash arg: --throttle
+  bash arg: 250
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --pct-anyevent
+  bash arg: 0
+  bash arg: --ignore-security-exceptions
+  bash arg: -v
+  bash arg: 100
+args: [-p, org.fdroid.fdroid, -s, 42, --throttle, 250, --pct-syskeys, 0, --pct-anyevent, 0, --ignore-security-exceptions, -v, 100]
+ arg: "-p"
+ arg: "org.fdroid.fdroid"
+ arg: "-s"
+ arg: "42"
+ arg: "--throttle"
+ arg: "250"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--pct-anyevent"
+ arg: "0"
+ arg: "--ignore-security-exceptions"
+ arg: "-v"
+ arg: "100"
+data="org.fdroid.fdroid"
+data="42"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="250"
+data="250"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=7 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--pct-anyevent" mCurArgData="null" mNextArg=9 argwas="--pct-anyevent" nextarg="0"
+data="0"
+arg="--ignore-security-exceptions" mCurArgData="null" mNextArg=11 argwas="--ignore-security-exceptions" nextarg="-v"
+:Monkey: seed=42 count=100
+:AllowPackage: org.fdroid.fdroid
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 17.64706%
+//   1: 11.764707%
+//   2: 2.3529413%
+//   3: 17.64706%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 29.411766%
+//   7: 17.64706%
+//   8: -0.0%
+//   9: 2.3529413%
+//   10: 1.1764706%
+//   11: -0.0%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=org.fdroid.fdroid/org.fdroid.IconActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=org.fdroid.fdroid/org.fdroid.IconActivity } in package org.fdroid.fdroid
+:Sending Touch (ACTION_DOWN): 0:(1008.0,648.0)
+:Sending Touch (ACTION_UP): 0:(1005.3496,663.6426)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(493.0,1501.0)
+:Sending Touch (ACTION_UP): 0:(485.73242,1508.1748)
+:Sending Touch (ACTION_DOWN): 0:(815.0,1483.0)
+:Sending Touch (ACTION_UP): 0:(815.3965,1487.7266)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,3.0)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(303.0,218.0)
+:Sending Touch (ACTION_UP): 0:(298.04688,216.06152)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(323.0,1092.0)
+:Sending Touch (ACTION_UP): 0:(322.28027,1091.4707)
+:Sending Touch (ACTION_DOWN): 0:(1030.0,304.0)
+:Sending Touch (ACTION_UP): 0:(1069.5049,278.23242)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-5.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(54.0,674.0)
+:Sending Touch (ACTION_UP): 0:(56.094727,691.6123)
+:Sending Touch (ACTION_DOWN): 0:(1018.0,944.0)
+:Sending Touch (ACTION_UP): 0:(1011.3076,931.0332)
+:Sending Touch (ACTION_DOWN): 0:(129.0,2204.0)
+Events injected: 100
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=4867ms (0ms mobile, 0ms wifi, 4867ms not connected)
+// Monkey finished

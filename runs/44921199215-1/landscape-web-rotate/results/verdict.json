@@ -1,0 +1,32 @@
+{
+  "conditions": [
+    {
+      "name": "landscape",
+      "ok": true,
+      "detail": "екран 2400x1080"
+    }
+  ],
+  "target": "https://f-droid.org/uk/",
+  "package": "com.android.chrome",
+  "app_label": "",
+  "app_version": "",
+  "native_abis": "",
+  "prepare_error": "",
+  "installed": true,
+  "launched": true,
+  "alive": "",
+  "install_error": "",
+  "flow_rc": "",
+  "browser": "Chrome 113.0.5672.136",
+  "device": {
+    "model": "sdk_gphone64_x86_64",
+    "android": "14",
+    "api": "34",
+    "abi": "x86_64,arm64-v8a",
+    "screen": "1080x2400",
+    "density": "420"
+  },
+  "crashes": 0,
+  "anrs": 0,
+  "first_crash": ""
+}

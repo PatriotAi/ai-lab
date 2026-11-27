@@ -1,0 +1,87 @@
+--------- beginning of main
+11-22 14:04:38.600 I/ImsCallbackAM [0](  970): Local callback removed: android.telephony.ims.ImsMmTelManager$CapabilityCallback$CapabilityBinder@d7007de
+11-22 14:04:38.608 I/OpaEligibilityChecker( 1651): send OpaEligibilityChange broadcast to CommonBroadcastReceiver
+11-22 14:04:38.612 I/Launcher.IconCache(  993): Database bulk icon loading failed, using fallback bulk icon loading for: ComponentInfo{com.google.android.apps.docs/com.google.android.apps.docs.app.NewMainProxyActivity}
+11-22 14:04:38.614 D/CompatibilityChangeReporter( 1652): Compat change id reported: 183155436; UID 10138; state: ENABLED
+11-22 14:04:38.624 I/Launcher.IconCache(  993): Database bulk icon loading failed, using fallback bulk icon loading for: ComponentInfo{com.android.camera2/com.android.camera.CameraLauncher}
+11-22 14:04:38.643 I/Launcher.IconCache(  993): Database bulk icon loading failed, using fallback bulk icon loading for: ComponentInfo{com.android.settings/com.android.settings.Settings}
+11-22 14:04:38.650 I/Launcher.IconCache(  993): Database bulk icon loading failed, using fallback bulk icon loading for: ComponentInfo{com.android.chrome/com.google.android.apps.chrome.Main}
+11-22 14:04:38.652 I/ImsCallbackAM [0](  970): Local callback removed: android.telephony.ims.RegistrationManager$RegistrationCallback$RegistrationBinder@ecd2dbf
+11-22 14:04:38.655 I/Telephony(  970): TelecomAccountRegistry: setupAccounts: Found 1 phones.  Attempting to register.
+11-22 14:04:38.655 I/Telephony(  970): TelecomAccountRegistry: setupAccounts: Phone with subscription id 1
+11-22 14:04:38.656 D/LoaderTask(  993): loadAllApps
+11-22 14:04:38.659 D/LoaderTask(  993): bindAllApps
+11-22 14:04:38.669 D/LoaderTask(  993): update icon cache
+11-22 14:04:38.669 D/LoaderTask(  993): save shortcuts in icon cache
+11-22 14:04:38.669 D/LoaderTask(  993): step 2 complete
+11-22 14:04:38.679 E/KeyguardClockSwitch(  750): No clock being shown
+11-22 14:04:38.680 W/MediaProvider( 2195): No column annotation provided; not creating views
+11-22 14:04:38.681 W/MediaProvider( 2195): No column annotation provided; not creating views
+11-22 14:04:38.683 D/Telephony(  970): isEmergencyPreferredAccount: subId=1, activeData=1
+11-22 14:04:38.683 D/Telephony(  970): isEmergencyPreferredAccount: Device does not require preference.
+11-22 14:04:38.684 D/EGL_emulation(  993): app_time_stats: avg=352.83ms min=7.64ms max=1540.63ms count=5
+11-22 14:04:38.684 D/LoaderTask(  993): loadDeepShortcuts
+11-22 14:04:38.684 D/LoaderTask(  993): bindDeepShortcuts
+11-22 14:04:38.684 D/LoaderTask(  993): save deep shortcuts in icon cache
+11-22 14:04:38.685 I/GoogleInputMethodService( 1482): GoogleInputMethodService.onFinishInput():3227 
+11-22 14:04:38.687 D/LoaderTask(  993): step 3 complete
+11-22 14:04:38.687 I/GoogleInputMethodService( 1482): GoogleInputMethodService.updateDeviceLockedStatus():2087 repeatCheckTimes = 0, unlocked = true
+11-22 14:04:38.687 I/GoogleInputMethodService( 1482): GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0x0(NULL) imeOptions=0x0 privateImeOptions=null actionName=UNSPECIFIED actionLabel=null actionId=0 initialSelStart=-1 initialSelEnd=-1 initialCapsMode=0x0 hintText=null label=null packageName=android fieldId=-1 fieldName=null extras=null}, false)
+11-22 14:04:38.687 I/SP.AiAi ( 1625): Scheduling: download registered, 0 started, 0 paused, 6 scheduled, 6 pending: manifests:webref-2-en-us-19071200 * {m:b:u:l, bg}, manifests:kg_collections_table-21051103 * {W:b:u:l, bg}, manifests:actions-ranking-table-211005 * {W:b:u:l, bg}, manifests:text-classifier-annotator-1687347939 * {W:b:u:l, bg}, manifests:text-classifier-actions-1140547708 * {W:b:u:l, bg}, manifests:text-classifier-langid-1941001461 * {W:b:u:l, bg}
+11-22 14:04:38.687 I/GoogleInputMethodService( 1482): GoogleInputMethodService.shouldHideHeaderOnInitialState():4008 ShouldHideHeaderOnInitialState = false
+11-22 14:04:38.688 I/GoogleInputMethodService( 1482): GoogleInputMethodService.updateDeviceLockedStatus():2087 repeatCheckTimes = 2, unlocked = true
+11-22 14:04:38.691 I/Telephony(  970): isRttCurrentlySupported -- regular acct, hasVoiceAvailability: false
+11-22 14:04:38.691 I/Telephony(  970):  isRttSupported: false
+11-22 14:04:38.691 I/Telephony(  970):  alwaysAllowWhileRoaming: false
+11-22 14:04:38.691 I/Telephony(  970):  isRoaming: false
+11-22 14:04:38.691 I/Telephony(  970):  isOnWfc: false
+11-22 14:04:38.717 I/earchbox:search( 1651): JIT allocated 71KB for compiled code of java.lang.Object com.google.android.apps.gsa.binaries.velvet.app.amm.a()
+11-22 14:04:38.725 D/OtaspSimStateReceiver(  970): otasp activation not needed: no supported carrier
+--------- beginning of system
+11-22 14:04:38.726 D/PackageManager(  481): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+11-22 14:04:38.726 D/PackageManager(  481): Clear ephemeral installer activity
+11-22 14:04:38.734 D/PackageManager(  481): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+11-22 14:04:38.734 D/PackageManager(  481): Clear ephemeral installer activity
+11-22 14:04:38.735 D/PackageManager(  481): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+11-22 14:04:38.735 D/PackageManager(  481): Clear ephemeral installer activity
+11-22 14:04:38.746 I/AiAiEcho( 1625): EchoSearch: AppFetcherImpl is initialized with [18] apps [time=327, reason=module is initialized.]
+11-22 14:04:38.747 I/AiAiEcho( 1625): Predicting[0]: 
+11-22 14:04:38.747 I/AiAiEcho( 1625): Ranked targets strategy: SORT, count: 0, ranking metadata: 
+11-22 14:04:38.747 I/AiAiEcho( 1625): #postPredictionTargets: Sending updates to UISurface home with targets# 0
+11-22 14:04:38.752 I/Telecom (  481): PhoneAccountRegistrar: Modify account: [ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0}]: TSI.rPA@AHw
+11-22 14:04:38.752 I/Telecom (  481): CallsManager: handlePhoneAccountChanged: phoneAccount=[[X] PhoneAccount: ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, 1, UserHandle{0} Capabilities: CallProvider MultiUser PlaceEmerg SimSub  Audio Routes: BESW Schemes: tel voicemail  Extras: Bundle[{android.telecom.extra.SUPPORTS_VIDEO_CALLING_FALLBACK=true}] GroupId: ***]: TSI.rPA@AHw
+11-22 14:04:38.789 D/CompatibilityChangeReporter(  481): Compat change id reported: 168419799; UID 10137; state: DISABLED
+11-22 14:04:38.789 D/CompatibilityChangeReporter(  481): Compat change id reported: 273564678; UID 10137; state: DISABLED
+11-22 14:04:38.792 D/OomAdjuster(  481): Not killing cached processes
+11-22 14:04:38.792 W/JobScheduler(  481): Job didn't exist in JobStore: 783ff40 #u0a117/3 com.google.android.as/androidx.work.impl.background.systemjob.SystemJobService
+11-22 14:04:38.797 D/SharedPreferencesImpl( 1649): Time required to fsync /data/user/0/com.google.android.apps.youtube.music/shared_prefs/FirebaseHeartBeatW0RFRkFVTFRd+MTo1NTEwMTE5NTQ4NDk6YW5kcm9pZDpjOTI3YjZlZDMwYmEwMTIz.xml: [<1: 0, <2: 0, <4: 0, <8: 0, <16: 1, <32: 0, <64: 0, <128: 0, <256: 0, <512: 1, <1024: 0, <2048: 0, <4096: 0, <8192: 0, <16384: 0, >=16384: 0]
+11-22 14:04:38.797 D/BackupTransportManager(  481): Transport com.android.localtransport/.LocalTransportService registered
+11-22 14:04:38.804 I/adbd    (  376): jdwp connection from 2535
+11-22 14:04:38.816 I/AiAiEcho( 1625): SearchContextManagerImpl::setSearchContext resultTypes=[141151] extras=[Bundle[mParcelledData.dataSize=608]] sessionId=[com.google.android.apps.nexuslauncher:13c05ca0-6664-43ec-96fa-46b6d1d70b23,0]
+11-22 14:04:38.820 W/MediaSessionCompat( 1651): Couldn't find a unique registered media button receiver in the given context.
+11-22 14:04:38.820 I/MediaSessionStack(  481): addSession to bottom of stack | record: com.google.android.googlequicksearchbox/PodcastPlayer (userId=0)
+11-22 14:04:38.826 D/CompatibilityChangeReporter( 2535): Compat change id reported: 171979766; UID 10137; state: ENABLED
+11-22 14:04:38.829 I/A       ( 1651): Sets the media session token.
+11-22 14:04:38.830 V/MediaPlayerList(  943): onActiveSessionsChanged: number of controllers: 0
+11-22 14:04:38.830 V/MediaPlayerList(  943): onActiveSessionsChanged: number of controllers: 1
+--------- beginning of kernel
+11-22 14:04:39.030 I/logd    (    0): logdr: UID=2000 GID=2000 PID=2648 b tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+11-22 14:04:38.832 D/MediaPlayerList(  943): onActiveSessionsChanged: controller: com.google.android.googlequicksearchbox
+11-22 14:04:38.836 D/nativeloader( 2535): Configuring classloader-namespace for other apk /system/framework/org.apache.http.legacy.jar. target_sdk_version=33, uses_libraries=ALL, library_path=/product/app/PrebuiltDeskClockGoogle/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.deskclock
+11-22 14:04:38.836 D/nativeloader( 2535): Configuring classloader-namespace for other apk /system_ext/framework/androidx.window.extensions.jar. target_sdk_version=33, uses_libraries=ALL, library_path=/product/app/PrebuiltDeskClockGoogle/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.deskclock
+11-22 14:04:38.836 D/nativeloader( 2535): Configuring classloader-namespace for other apk /system_ext/framework/androidx.window.sidecar.jar. target_sdk_version=33, uses_libraries=ALL, library_path=/product/app/PrebuiltDeskClockGoogle/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.deskclock
+11-22 14:04:38.840 I/MediaPlayerList(  943): Adding wrapped media player: com.google.android.googlequicksearchbox at key: 1
+11-22 14:04:38.841 I/DynamiteModule( 1489): Considering local module com.google.android.gms.googlecertificates:0 and remote module com.google.android.gms.googlecertificates:7
+11-22 14:04:38.841 I/DynamiteModule( 1489): Selected remote version of com.google.android.gms.googlecertificates, version >= 7
+11-22 14:04:38.842 D/nativeloader( 2535): Configuring vendor-classloader-namespace for unbundled product apk /product/app/PrebuiltDeskClockGoogle/PrebuiltDeskClockGoogle.apk. target_sdk_version=33, uses_libraries=, library_path=/product/app/PrebuiltDeskClockGoogle/lib/x86_64:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.deskclock:/product/lib64:/system/product/lib64
+11-22 14:04:38.843 V/MediaProvider( 2195): onOpen() for external.db
+11-22 14:04:38.843 D/MediaProvider( 2195): Skipping row id recovery as backup is not enabled.
+11-22 14:04:38.844 V/MediaProvider( 2195): onOpen() finished for external.db
+11-22 14:04:38.848 W/ProcessCpuTracker(  481): Failed to stat(/proc/2593): android.system.ErrnoException: stat failed: ENOENT (No such file or directory)
+11-22 14:04:38.849 W/ProcessCpuTracker(  481): Skipping unknown process pid 2593
+11-22 14:04:38.849 W/ProcessCpuTracker(  481): Failed to stat(/proc/2613): android.system.ErrnoException: stat failed: ENOENT (No such file or directory)
+11-22 14:04:38.849 W/ProcessCpuTracker(  481): Skipping unknown process pid 2613
+11-22 14:04:38.851 D/BackupManagerService(  481): [UserID:0] Transport com.android.localtransport/.LocalTransport registered 5442ms after first request (delay = 3000ms)
+11-22 14:04:38.852 D/MediaProvider( 1608): Finished migration from legacy provider
+11-22 14:04:38.857 I/resolv  (  283): GetAddrInfoHandler::run: {100 100 100 983140 10134 0}
+11-22 14:04:38.858 I/adbd    (  376): adbd restarting as root
