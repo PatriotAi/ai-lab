@@ -2769,6 +2769,28 @@ lc_out=$(python3 "$REPO/tests/local-continuity-canary.py" 2>&1); lc_rc=$?
 lc_ok=$(grep -c '^✅' <<<"$lc_out")
 [[ $lc_rc -eq 0 && $lc_ok -eq 7 && "$lc_out" == *"усе гаразд"* ]] && ok "local-continuity: 7 канарок (відновлення, пошкодження, неповна історія, зниклий файл, неглибокий клон)" \
   || bad "local-continuity канарки" "код 0, 7 ✅" "код $lc_rc, $lc_ok ✅"
+# scripts/merge-prep.sh (github-collab § «Рутина за згодою»): append-only конфлікт у consent.md
+# об'єднується, згода записується, гілку відправлено; конфлікт в іншому файлі — вихід 3 і
+# НІЧОГО не відправлено; повторний виклик не дублює запис згоди.
+MP="$(mktemp -d)"; g(){ git -c user.email=t@e -c user.name=t "$@"; }
+git init -q --bare -b main "$MP/o.git"; g clone -q "$MP/o.git" "$MP/w" 2>/dev/null
+( cd "$MP/w" && mkdir -p security && printf '| правило | до | причина |\n' > security/consent.md && echo a > f.txt \
+  && g add -A && g commit -q -m 0 && g push -q origin HEAD:main \
+  && g switch -q -c pr1 && echo pr >> security/consent.md && g commit -qam pr1 && g push -q origin pr1 \
+  && g switch -q -c pr2 main && echo b > f.txt && g commit -qam pr2 && g push -q origin pr2 \
+  && g switch -q main && echo main-row >> security/consent.md && echo c > f.txt && g commit -qam m && g push -q origin main ) 2>/dev/null
+mp1=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr1 --pr 7 --repo T/r --quote "Погоджую злиття r#7" 2>&1); mp1rc=$?
+mp1b=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr1 --pr 7 --repo T/r --quote "Погоджую злиття r#7" 2>&1)
+g -C "$MP/w" fetch -q origin; mp1c=$(git -C "$MP/w" show origin/pr1:security/consent.md)
+pr2_before=$(git -C "$MP/w" rev-parse origin/pr2)
+mp2=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr2 --pr 8 --repo T/r --quote "Погоджую злиття r#8" 2>&1); mp2rc=$?
+g -C "$MP/w" fetch -q origin
+[[ $mp1rc -eq 0 && "$mp1" == *"NEW_HEAD="* && "$mp1c" == *"main-row"* && "$mp1c" == *"pr"* && "$mp1c" != *"<<<<<<<"* \
+   && $(grep -c "mcp-merge_pull_request@t/r#7" <<<"$mp1c") -eq 1 && "$mp1b" == *"NEW_HEAD="* \
+   && $mp2rc -eq 3 && "$mp2" == *"f.txt"* && "$(git -C "$MP/w" rev-parse origin/pr2)" == "$pr2_before" ]] \
+  && ok "merge-prep: append-only конфлікт об'єднано й згоду записано один раз; чужий конфлікт — вихід 3, нічого не відправлено" \
+  || bad "merge-prep" "union+згода×1; конфлікт f.txt → 3 без push" "rc1=$mp1rc rc2=$mp2rc | ${mp1:0:120} | ${mp2:0:120}"
+rm -rf "$MP"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
 [[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
