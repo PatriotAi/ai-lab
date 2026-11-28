@@ -3098,6 +3098,10 @@ rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
 [[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
   || bad "run-ledger канарки" "код 0, 15 ✅" "код $rl_rc, $rl_ok ✅"
+ar_out=$(python3 "$REPO/tests/archive-ready-canary.py" 2>&1); ar_rc=$?
+[[ $ar_rc -eq 0 && "$ar_out" == *"archive-ready: 15/15"* ]] \
+  && ok "check-archive-ready: чистий пакет — ГОТОВА; кожна з умов A1–A9 (+4 форми) на зламаному — НЕ ГОТОВА; поганий вхід — 2" \
+  || bad "check-archive-ready канарки" "код 0, 15/15" "код $ar_rc · ${ar_out:0:300}"
 # RH05: у .gitignore лише `.env` — `.env.local` відкритий; `.env.*` закриває (рев'ю Codex ai-lab#108)
 for v in only star; do G="$RHT/env-$v"; rh_init "$G"; echo r > "$G/README.md"
   if [[ $v == only ]]; then printf '.env\n' > "$G/.gitignore"; else printf '.env\n.env.*\n' > "$G/.gitignore"; fi; rh_commit "$G"; done
