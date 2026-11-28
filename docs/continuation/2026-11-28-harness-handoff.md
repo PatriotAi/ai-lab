@@ -10,9 +10,9 @@
 - ai-lab#145 — `surgical-code-refactoring` 1.7.0: драбина мінімального рішення + пре-реєстрація `experiments/minimal-code-ab/`.
 
 ## Відкриті PR (мої; чекають згоди власника; рев'ю Codex розібрано, усі знахідки виправлено й відповіді дано [C: звірено в сесії через `get_review_comments`, артефакту в репо немає])
-- ai-lab#146 — `multi-provider-ai-orchestration` 1.8.0, Pattern 2c; голова `aaf31c5`, CI зелений.
-- ai-lab#149 — `continuation-memory` 1.13.0 + `scripts/resume-card.py` (картка відновлення без моделі); голова `d9699f9`.
-- ai-lab#150 — `github-collab` 1.3.0 + `scripts/merge-prep.sh` (рутина злиття одним викликом; коду гілки не виконує, гейт із довіреної main, `consent.md` без авто-union — W-14); голова `f9c86e6`.
+- ai-lab#146 — `multi-provider-ai-orchestration` 1.8.0, Pattern 2c; голова `aaf31c5`, CI зелений [C: стан на 2026-11-28, звірено в сесії].
+- ai-lab#149 — `continuation-memory` 1.13.0 + `scripts/resume-card.py` (картка відновлення без моделі); голова `d9699f9` [C: стан на 2026-11-28].
+- ai-lab#150 — `github-collab` 1.3.0 + `scripts/merge-prep.sh` (рутина злиття одним викликом; коду гілки не виконує, гейт із довіреної main, `consent.md` без авто-union — W-14); голова `f9c86e6` [C: стан на 2026-11-28].
 Готова фраза власнику: «Погоджую злиття ai-lab#146, ai-lab#149 і ai-lab#150». Злиття — через `scripts/merge-prep.sh` (після злиття #150) або вручну тим самим порядком: зведення main → запис згоди → зелений CI на новій голові → `merge_pull_request` з `expectedHeadSha`.
 
 ## Завдання власника 2026-11-28 (перше в черзі)
