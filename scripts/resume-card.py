@@ -81,7 +81,7 @@ def docs_lines(repo: Path) -> list[str]:
     # Лише звичайні файли всередині репо: симлінк міг би втягти в контекст чужий локальний файл.
     root = repo.resolve()
     cont = [p for p in (repo / "docs" / "continuation").glob("*.md")
-            if not p.is_symlink() and p.is_file() and p.resolve().is_relative_to(root)]
+            if p.name != "README.md" and not p.is_symlink() and p.is_file() and p.resolve().is_relative_to(root)]
     if cont:
         latest = max(cont, key=lambda p: pack_key(repo, p))
         out.append(f"- пакет продовження: `{latest.relative_to(repo)}`")

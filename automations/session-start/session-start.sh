@@ -10,6 +10,14 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 0
 
+# Вхід хука (JSON у stdin: source, transcript_path…). Читаємо лише не з термінала й з лімітом,
+# щоб ручний запуск чи тест без stdin не завис.
+HOOK_INPUT=""
+if [ ! -t 0 ]; then
+  if command -v timeout >/dev/null 2>&1; then HOOK_INPUT="$(timeout 2 cat 2>/dev/null || true)"
+  else HOOK_INPUT="$(cat 2>/dev/null || true)"; fi
+fi
+
 # --- Зібрати дайджест контексту ---
 build_digest() {
   printf '## Контекст лабораторії ai-lab — SessionStart\n\n'
@@ -92,6 +100,20 @@ build_digest() {
     if [ -n "${card:-}" ]; then
       printf '%s\n\n' "$card"
     fi
+  fi
+
+  # Автоперехід у нову сесію (continuation-memory § «Автоперехід»): після стиснення контексту —
+  # явна вказівка записати пакет; на resume — попередження, якщо розмова вже за порогом.
+  # Розмір контексту — з журналу розмови (жоден хук не отримує його напряму). Збій мовчить.
+  if command -v python3 >/dev/null 2>&1 && [ -f scripts/session-handoff.py ]; then
+    src="$(printf '%s' "$HOOK_INPUT" | python3 -c 'import sys,json
+try: print(json.load(sys.stdin).get("source",""))
+except Exception: print("")' 2>/dev/null || true)"
+    if [ "$src" = "compact" ]; then
+      printf '⚠️ **Щойно стиснуто контекст** — подробиці розмови частково втрачено. Перш ніж продовжувати: `python3 scripts/session-handoff.py pack --trigger compact --topic <тема>` → дописати рішення/наміри → `validate` → коміт і пуш → нова сесія з пакетом (стару не видаляти).\n\n'
+    fi
+    warn="$(printf '%s' "$HOOK_INPUT" | python3 scripts/session-handoff.py check --hook-input - 2>/dev/null || true)"
+    if [ -n "${warn:-}" ]; then printf '%s\n\n' "$warn"; fi
   fi
 
   if ! command -v pre-commit >/dev/null 2>&1; then
