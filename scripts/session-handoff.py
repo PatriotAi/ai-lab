@@ -144,7 +144,7 @@ def already_warned(hin: dict, n: int) -> bool:
         last = int(json.loads(f.read_text(encoding="utf-8")).get("n", 0))
     except (OSError, ValueError, AttributeError, TypeError):
         last = 0
-    if last and n - last < NOTIFY_STEP:
+    if last and 0 <= n - last < NOTIFY_STEP:  # n < last — контекст стиснули: новий відлік (рев'ю)
         return True
     try:
         tmp = f.with_name(f.name + ".tmp")
@@ -159,6 +159,8 @@ def cmd_check(a, hin) -> int:
     t = find_transcript(a.transcript, hin)
     n = measure(t) if t else None
     if n is None or n < a.threshold:
+        if n is not None and (f := notified_file(hin)) is not None:
+            f.unlink(missing_ok=True)  # нижче порогу — наступне перевищення знову попередить (рев'ю)
         return 0  # нижче порогу або невідомо — мовчимо (хук не має шуміти)
     if already_warned(hin, n):
         return 3 if a.strict else 0

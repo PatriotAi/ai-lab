@@ -70,7 +70,10 @@ def git_raw(repo: Path, *args: str, timeout: int = 10) -> tuple[int, bytes]:
             os.killpg(pr.pid, signal.SIGKILL)
         except OSError:
             pass
-        pr.communicate()
+        try:
+            pr.communicate(timeout=2)  # нащадок міг вийти з групи (setsid) і тримати pipe
+        except subprocess.TimeoutExpired:
+            pass
         return 124, b""
     return pr.returncode, out
 
@@ -233,8 +236,8 @@ def cmd_check(repo: Path, a, hin: dict) -> int:
     if a.fetch and fetch_due(repo, a.fetch_every):
         git(repo, "fetch", "-q", "origin", "main", timeout=8)
     f = snap_file(repo, hin)
-    loaded = read_json(f) if f.is_file() else {
-        rel: at_ref(repo, "HEAD", rel) for rel in rule_paths(repo, "HEAD")}
+    # Битий/порожній знімок = знімка нема → звірка від HEAD (не «усе змінилось»).
+    loaded = read_json(f) or {rel: at_ref(repo, "HEAD", rel) for rel in rule_paths(repo, "HEAD")}
     # Лише зміни, що є в ref і ще не дійшли сюди (від спільного предка): власні правки гілки,
     # новіші за main, — не дрейф (живий прогін 2026-11-28 показав хибне спрацювання при порівнянні вмісту).
     need_merge: list[str] = []
@@ -264,7 +267,8 @@ def cmd_check(repo: Path, a, hin: dict) -> int:
     lines.append("_Налаштування акаунта claude.ai скрипт не бачить: якщо їх змінено — діють лише в новій сесії (рівень 3)._")
     # Щоходовий хук повідомляє лише ЗМІНУ стану (рев'ю P1: ≈150 токенів щоходу). Ключ — склад
     # дрейфу, не текст (число токенів у рівні 3 росте щоходу). SessionStart друкує завжди.
-    key = digest(json.dumps([need_merge, read_diff, level3]).encode())
+    # + вершина ref: нова зміна тих самих файлів у main — теж новина (рев'ю).
+    key = digest(json.dumps([need_merge, read_diff, level3, git(repo, "rev-parse", "-q", "--verify", a.ref)[1].strip()]).encode())
     nf = state_file(repo, hin, "notified")
     if hin.get("hook_event_name") == "UserPromptSubmit" and read_json(nf).get("key") == key:
         return 3 if a.strict else 0

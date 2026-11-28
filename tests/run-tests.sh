@@ -2971,7 +2971,8 @@ sf=$(ls "$RD_/s/.git"/ai-lab-rules-snapshot*.json | head -1); printf '{bad' > "$
 rp_bad=$(HOME="$RD_" $RDP check --repo "$RD_/s" 2>&1); rp_bad_rc=$?
 printf '{"source":"startup"}' | HOME="$RD_" $RDP snapshot --repo "$RD_/s" --hook-input - 2>&1; rp_snap_rc=$?
 ls "$RD_/s/.git"/*.tmp >/dev/null 2>&1 && rp_tmp=1 || rp_tmp=0
-[[ $rp_bad_rc -eq 0 && "$rp_bad" != *Traceback* && $rp_snap_rc -eq 0 && $rp_tmp -eq 0 && "$(cat "$sf")" == "{"* ]] \
+python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$sf" 2>/dev/null && rp_json=1 || rp_json=0
+[[ $rp_bad_rc -eq 0 && "$rp_bad" != *Traceback* && "$rp_bad" != *"пропущено"* && $rp_snap_rc -eq 0 && $rp_tmp -eq 0 && $rp_json -eq 1 ]] \
   && ok "rules-drift: битий знімок — без traceback, exit 0; знімок переписано цілим, без тимчасових решток" \
   || bad "rules-drift битий знімок" "exit 0, без traceback" "rc=$rp_bad_rc snap=$rp_snap_rc tmp=$rp_tmp ${rp_bad:0:120}"
 # Повтор: UserPromptSubmit повідомляє лише зміну; SessionStart — завжди.
@@ -2982,7 +2983,9 @@ rp_u2=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --tr
 rp_ss=$(echo '{"hook_event_name":"SessionStart","session_id":"sx"}' | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
 echo "правило 9" > "$RD_/up/CLAUDE.md"; $G -C "$RD_/up" commit -q -am r9; git -C "$RD_/s" fetch -q origin
 rp_u3=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
-[[ "$rp_u1" == *"Рівень 1"* && -z "$rp_u2" && "$rp_ss" == *"Рівень 1"* && "$rp_u3" == *"Рівень 2"* ]] \
+echo "правило 10" > "$RD_/up/CLAUDE.md"; $G -C "$RD_/up" commit -q -am r10; git -C "$RD_/s" fetch -q origin
+rp_u4=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
+[[ "$rp_u1" == *"Рівень 1"* && -z "$rp_u2" && "$rp_ss" == *"Рівень 1"* && "$rp_u3" == *"Рівень 2"* && "$rp_u4" == *"Рівень 2"* ]] \
   && ok "rules-drift: щоходовий хук повторює повідомлення лише при зміні дрейфу; SessionStart — завжди" \
   || bad "rules-drift повтор" "1 / тиша / 1 / 2" "${rp_u1:0:40} || ${rp_u2:0:40} || ${rp_ss:0:40} || ${rp_u3:0:40}"
 SHP="python3 $REPO/scripts/session-handoff.py"
@@ -2996,10 +2999,17 @@ rp_h1=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --ho
 rp_h2=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t1.jsonl" --threshold 300000)
 rp_h3=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" --threshold 300000)
 rp_h4=$(cd "$RD_/s" && echo '{"session_id":"sy"}' | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" --threshold 300000)
+# Після стиснення (контекст нижче порогу) — новий відлік: наступне перевищення знову попереджає.
+python3 - "$RP_/t0.jsonl" <<'PY2'
+import json,sys
+open(sys.argv[1],"w").write(json.dumps({"type":"assistant","message":{"usage":{"input_tokens":90000}}})+"\n")
+PY2
+(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t0.jsonl" --threshold 300000 >/dev/null)
+rp_h6=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t1.jsonl" --threshold 300000)
 rp_h5=$(cd "$RD_/s" && echo '{bad' | AI_LAB_HANDOFF_THRESHOLD=abc CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" 2>&1); rp_h5rc=$?
-[[ "$rp_h1" == *"≈320 тис."* && -z "$rp_h2" && "$rp_h3" == *"≈380 тис."* && "$rp_h4" == *"≈380 тис."* && $rp_h5rc -eq 0 && "$rp_h5" != *Traceback* ]] \
+[[ "$rp_h1" == *"≈320 тис."* && -z "$rp_h2" && "$rp_h3" == *"≈380 тис."* && "$rp_h4" == *"≈380 тис."* && $rp_h5rc -eq 0 && "$rp_h5" != *Traceback* && "$rp_h6" == *"≈320 тис."* ]] \
   && ok "session-handoff: попередження порогу щоходу лише раз і знову після +50 тис.; SessionStart — завжди; битий env/вхід — без traceback" \
-  || bad "session-handoff повтор" "320 / тиша / 380 / 380 / rc0" "${rp_h1:0:30} || ${rp_h2:0:30} || ${rp_h3:0:30} || ${rp_h4:0:30} || rc=$rp_h5rc ${rp_h5:0:60}"
+  || bad "session-handoff повтор" "320 / тиша / 380 / 380 / rc0" "${rp_h1:0:30} || ${rp_h2:0:30} || ${rp_h3:0:30} || ${rp_h4:0:30} || rc=$rp_h5rc ${rp_h5:0:60} || h6=${rp_h6:0:30}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
