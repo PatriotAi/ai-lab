@@ -18,8 +18,14 @@ context-window) [C]: текст навичок, суб-агенти, хуки й
   rules-drift.py snapshot [--hook-input -]           # знімок правил, які сесія завантажила на старті
   rules-drift.py check [--ref origin/main] [--fetch] [--threshold N] [--transcript F] [--hook-input -]
 
-Знімок — у git-теці checkout (не в дереві репо). Без знімка check порівнює з HEAD. Тиша, якщо
-дрейфу нема. Лише stdlib + git.
+Знімок — у git-теці checkout (не в дереві репо), окремо на кожну сесію (`session_id` із входу
+хука; рев'ю #154: дві сесії в одному checkout інакше перезаписували б знімок одна одній). Без
+знімка check порівнює з HEAD. Тиша, якщо дрейфу нема. Лише stdlib + git.
+
+Код хуків (рев'ю #154) — теж рівень 1: файли, на які вказують команди хуків у налаштуваннях
+агента (HEAD і ref), а для хука у власній теці (`automations/<хук>/`, `security/hooks/`) — уся
+тека. Межа: скрипти, які хук викликає транзитивно з теки першого рівня (напр. `scripts/*.py`
+із `session-start.sh`), не відстежуються.
 """
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -47,8 +54,31 @@ def git(repo: Path, *args: str, timeout: int = 10) -> tuple[int, str]:
     return r.returncode, r.stdout
 
 
-def is_rule(rel: str) -> bool:
-    """Точний збіг з шаблоном (`*` не перетинає `/`): `docs/CLAUDE.md` — не правило."""
+HOOK_CMD = re.compile(r'\$\{?CLAUDE_PROJECT_DIR\}?/([^\s"\'\\]+)')
+
+
+def hook_targets(repo: Path, refs: list[str]) -> tuple[set[str], set[str]]:
+    """Файли й теки коду хуків із налаштувань агента (PATTERNS[1]) у кожному з refs."""
+    files: set[str] = set()
+    dirs: set[str] = set()
+    for ref in refs:
+        r = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:{PATTERNS[1]}"],
+                           capture_output=True, text=True, timeout=10)
+        for rel in HOOK_CMD.findall(r.stdout if r.returncode == 0 else ""):
+            rel = rel.strip("/")
+            if ".." in rel.split("/"):
+                continue
+            files.add(rel)
+            if rel.count("/") >= 2:  # власна тека хука — разом із допоміжними файлами
+                dirs.add(rel.rsplit("/", 1)[0])
+    return files, dirs
+
+
+def is_rule(rel: str, hooks: tuple[set[str], set[str]] = (set(), set())) -> bool:
+    """Точний збіг з шаблоном (`*` не перетинає `/`): `docs/CLAUDE.md` — не правило.
+    Плюс код хуків (`hook_targets`), якщо його передано."""
+    if rel in hooks[0] or any(rel.startswith(d + "/") for d in hooks[1]):
+        return True
     parts = rel.split("/")
     return any(len(parts) == len(pat.split("/")) and
                all(fnmatch.fnmatchcase(a, b) for a, b in zip(parts, pat.split("/"))) for pat in PATTERNS)
@@ -78,9 +108,11 @@ def at_ref(repo: Path, ref: str, rel: str) -> str | None:
     return digest(r.stdout) if r.returncode == 0 else None
 
 
-def snap_file(repo: Path) -> Path:
+def snap_file(repo: Path, hin: dict) -> Path:
     _, gd = git(repo, "rev-parse", "--absolute-git-dir")
-    return Path(gd.strip() or repo / ".git") / "ai-lab-rules-snapshot.json"
+    sid = str(hin.get("session_id", ""))
+    suffix = f"-{sid}" if re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sid) else ""
+    return Path(gd.strip() or repo / ".git") / f"ai-lab-rules-snapshot{suffix}.json"
 
 
 def hook_input(flag: str | None) -> dict:
@@ -95,7 +127,7 @@ def hook_input(flag: str | None) -> dict:
 
 def cmd_snapshot(repo: Path, hin: dict) -> int:
     src = hin.get("source", "startup")
-    f = snap_file(repo)
+    f = snap_file(repo, hin)
     old = json.loads(f.read_text()) if f.is_file() else {}
     now = {rel: disk(repo, rel) for rel in rule_paths(repo, None)}
     if src == "compact" and old:
@@ -122,7 +154,7 @@ def context_tokens(transcript: str | None, hin: dict) -> int | None:
 def cmd_check(repo: Path, a, hin: dict) -> int:
     if a.fetch:
         git(repo, "fetch", "-q", "origin", "main", timeout=8)
-    f = snap_file(repo)
+    f = snap_file(repo, hin)
     loaded = json.loads(f.read_text()) if f.is_file() else {
         rel: at_ref(repo, "HEAD", rel) for rel in rule_paths(repo, "HEAD")}
     # Лише зміни, що є в ref і ще не дійшли сюди (від спільного предка): власні правки гілки,
@@ -130,7 +162,8 @@ def cmd_check(repo: Path, a, hin: dict) -> int:
     need_merge: list[str] = []
     if git(repo, "rev-parse", "--verify", "-q", a.ref)[0] == 0:
         _, names = git(repo, "diff", "--name-only", f"HEAD...{a.ref}")
-        need_merge = sorted(n for n in names.splitlines() if is_rule(n))
+        hooks = hook_targets(repo, ["HEAD", a.ref])
+        need_merge = sorted(n for n in names.splitlines() if is_rule(n, hooks))
     read_diff = sorted(rel for rel in LEVEL2 if rel in need_merge or loaded.get(rel) != disk(repo, rel))
     if not need_merge and not read_diff:
         return 0

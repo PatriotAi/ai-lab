@@ -2929,6 +2929,30 @@ $RDP snapshot --repo "$RD_/s" --hook-input - < "$RD_/in-start.json"
 d_own=$(HOME="$RD_" $RDP check --repo "$RD_/s")
 [[ -z "$d_own" ]] && ok "rules-drift: власна правка гілки, новіша за main, — не дрейф" \
   || bad "rules-drift власна правка" "тиша" "${d_own:0:120}"
+# Рев'ю #154: код хука (файл із команди в налаштуваннях агента + його власна тека) — рівень 1;
+# скрипт поза хуками — тиша. Знімки двох сесій в одному checkout не перезаписують один одного.
+RH_="$(mktemp -d "$TMPROOT/rdh-XXXXXX")"; git init -q -b main "$RH_/up"
+mkdir -p "$RH_/up/.claude" "$RH_/up/automations/h" "$RH_/up/scripts"
+printf '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"$CLAUDE_PROJECT_DIR/automations/h/run.sh"}]}]}}\n' > "$RH_/up/.claude/settings.json"
+echo v1 > "$RH_/up/automations/h/run.sh"; echo v1 > "$RH_/up/automations/h/helper.sh"; echo v1 > "$RH_/up/scripts/other.py"
+echo "правило" > "$RH_/up/CLAUDE.md"; $G -C "$RH_/up" add -A; $G -C "$RH_/up" commit -q -m 0
+git clone -q "$RH_/up" "$RH_/s" 2>/dev/null; git -C "$RH_/s" checkout -q -b work
+echo v2 > "$RH_/up/scripts/other.py"; $G -C "$RH_/up" commit -q -am other; git -C "$RH_/s" fetch -q origin
+d_hother=$(HOME="$RH_" $RDP check --repo "$RH_/s")
+echo v2 > "$RH_/up/automations/h/helper.sh"; $G -C "$RH_/up" commit -q -am helper; git -C "$RH_/s" fetch -q origin
+d_hook=$(HOME="$RH_" $RDP check --repo "$RH_/s")
+[[ -z "$d_hother" && "$d_hook" == *"Рівень 1"* && "$d_hook" == *"automations/h/helper.sh"* && "$d_hook" != *"other.py"* ]] \
+  && ok "rules-drift: зміна коду хука (тека хука) — рівень 1; скрипт поза хуками — тиша" \
+  || bad "rules-drift код хуків" "тиша / рівень 1 з helper.sh" "${d_hother:0:100} || ${d_hook:0:150}"
+git -C "$RH_/s" merge -q --ff-only origin/main
+echo '{"source":"startup","session_id":"sess-A"}' | $RDP snapshot --repo "$RH_/s" --hook-input -
+echo "правило 2 (локально)" > "$RH_/s/CLAUDE.md"
+echo '{"source":"startup","session_id":"sess-B"}' | $RDP snapshot --repo "$RH_/s" --hook-input -
+d_sa=$(echo '{"session_id":"sess-A"}' | HOME="$RH_" $RDP check --repo "$RH_/s" --hook-input - --transcript /nonexistent)
+d_sb=$(echo '{"session_id":"sess-B"}' | HOME="$RH_" $RDP check --repo "$RH_/s" --hook-input - --transcript /nonexistent)
+[[ "$d_sa" == *"Рівень 2"* && -z "$d_sb" ]] \
+  && ok "rules-drift: знімок окремо на сесію — стара сесія бачить рівень 2, нова — тиша" \
+  || bad "rules-drift знімок на сесію" "рівень 2 / тиша" "${d_sa:0:120} || ${d_sb:0:120}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")

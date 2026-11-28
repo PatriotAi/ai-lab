@@ -27,7 +27,7 @@
   { "hooks": [ { "type": "command",
     "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/session-handoff.py\" check --hook-input -" },
     { "type": "command",
-    "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/rules-drift.py\" check --hook-input -" } ] }
+    "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/rules-drift.py\" check --fetch --hook-input -" } ] }
 ],
 "PreCompact": [
   { "hooks": [ { "type": "command",
