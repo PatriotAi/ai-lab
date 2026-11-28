@@ -9,7 +9,7 @@
   session-handoff.py measure [--transcript F]            # розмір контексту зараз, токенів
   session-handoff.py check   [--transcript F] [--threshold N] [--hook-input -]
                                                           # мовчить нижче порогу; вище — попередження
-  session-handoff.py pack    --trigger context|compact|wave [--topic T] [--repo D] [--hook-input -]
+  session-handoff.py pack    --trigger context|compact|wave|rules [--topic T] [--repo D] [--hook-input -]
                                                           # пише скелет пакета з живого стану git
   session-handoff.py validate FILE                       # exit 1, якщо пакет неповний
 
@@ -137,7 +137,8 @@ def cmd_pack(a, hin) -> int:
     used = measure(t) if t else None
     trig = {"context": f"поріг контексту (≈{(used or 0) // 1000} тис. токенів)",
             "compact": f"стиснення контексту ({hin.get('trigger', 'auto')})",
-            "wave": "завершена хвиля робіт"}[a.trigger]
+            "wave": "завершена хвиля робіт",
+            "rules": "нові правила, що не діють у цій сесії (rules-drift, рівень 3)"}[a.trigger]
     body = f"""# Продовження: {a.topic or 'передача'} — перехід у нову сесію {today}
 
 Ціль: {PLACEHOLDER}: одне речення — заради чого вся лінія роботи -->
@@ -206,7 +207,7 @@ def main(argv: list[str]) -> int:
                                       default=int(os.environ.get("AI_LAB_HANDOFF_THRESHOLD", DEFAULT_THRESHOLD)))
     sub.choices["check"].add_argument("--strict", action="store_true")
     pk = sub.choices["pack"]
-    pk.add_argument("--trigger", required=True, choices=["context", "compact", "wave"])
+    pk.add_argument("--trigger", required=True, choices=["context", "compact", "wave", "rules"])
     pk.add_argument("--topic")
     pk.add_argument("--repo")
     pk.add_argument("--force", action="store_true")

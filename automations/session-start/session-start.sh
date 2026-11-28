@@ -116,6 +116,16 @@ except Exception: print("")' 2>/dev/null || true)"
     if [ -n "${warn:-}" ]; then printf '%s\n\n' "$warn"; fi
   fi
 
+  # Дрейф правил (рішення власника 2026-11-28): чи діють тут правила, що вже змінились у main.
+  # Спершу знімок того, що сесія щойно завантажила (startup — усе, compact — CLAUDE.md, resume —
+  # без змін), потім звірка з origin/main і рівень дії 1–3. Збій чи відсутність мережі — тиша.
+  if command -v python3 >/dev/null 2>&1 && [ -f scripts/rules-drift.py ]; then
+    tmo=""; command -v timeout >/dev/null 2>&1 && tmo="timeout 15"
+    printf '%s' "$HOOK_INPUT" | python3 scripts/rules-drift.py snapshot --hook-input - >/dev/null 2>&1 || true
+    drift="$(printf '%s' "$HOOK_INPUT" | $tmo python3 scripts/rules-drift.py check --fetch --hook-input - 2>/dev/null || true)"
+    if [ -n "${drift:-}" ]; then printf '%s\n\n' "$drift"; fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi

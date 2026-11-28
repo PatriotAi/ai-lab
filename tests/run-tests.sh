@@ -2883,6 +2883,52 @@ sh_hs=$(cd "$REPO" && AI_LAB_HANDOFF_THRESHOLD=900000 CLAUDE_PROJECT_DIR="$REPO"
 [[ "$sh_hc" == *"Щойно стиснуто контекст"* && "$sh_hc" == *"≈250 тис."* && "$sh_hs" != *"стиснуто"* && "$sh_hs" != *"Контекст розмови ≈"* ]] \
   && ok "session-start: після стиснення — вказівка записати пакет і попередження порогу; звичайний старт — тиша" \
   || bad "session-start автоперехід" "compact → вказівка; startup → тиша" "${sh_hc:0:80} || ${sh_hs:0:80}"
+# scripts/rules-drift.py (continuation-memory § «Нові правила в запущеній сесії»; рішення власника
+# 2026-11-28): драбина 1–3 на симуляції main ↔ сесія; власна правка гілки — не дрейф.
+RD_="$(mktemp -d "$TMPROOT/rd-XXXXXX")"; G="git -c user.email=t@e -c user.name=t"
+git init -q -b main "$RD_/up"; mkdir -p "$RD_/up/melania-skills-ecosystem/skills/a" "$RD_/up/docs"
+echo "правило 1" > "$RD_/up/CLAUDE.md"; echo "навичка v1" > "$RD_/up/melania-skills-ecosystem/skills/a/SKILL.md"
+echo "не правило" > "$RD_/up/docs/CLAUDE.md"
+$G -C "$RD_/up" add -A; $G -C "$RD_/up" commit -q -m 0
+git clone -q "$RD_/up" "$RD_/s" 2>/dev/null; git -C "$RD_/s" checkout -q -b work
+RDP="python3 $REPO/scripts/rules-drift.py"
+echo '{"source":"startup"}' > "$RD_/in-start.json"; echo '{"source":"compact"}' > "$RD_/in-compact.json"
+$RDP snapshot --repo "$RD_/s" --hook-input - < "$RD_/in-start.json"
+d_clean=$(HOME="$RD_" $RDP check --repo "$RD_/s")
+# main: змінено лише не-правило → тиша; потім змінено навичку → рівень 1
+echo "інше" > "$RD_/up/docs/CLAUDE.md"; $G -C "$RD_/up" commit -q -am docs; git -C "$RD_/s" fetch -q origin
+d_docs=$(HOME="$RD_" $RDP check --repo "$RD_/s")
+echo "навичка v2" > "$RD_/up/melania-skills-ecosystem/skills/a/SKILL.md"; $G -C "$RD_/up" commit -q -am skill; git -C "$RD_/s" fetch -q origin
+d_l1=$(HOME="$RD_" $RDP check --repo "$RD_/s")
+# main: змінено CLAUDE.md → рівні 1+2; з розмовою за порогом → ще й рівень 3
+echo "правило 2" > "$RD_/up/CLAUDE.md"; $G -C "$RD_/up" commit -q -am rules; git -C "$RD_/s" fetch -q origin
+d_l2=$(HOME="$RD_" $RDP check --repo "$RD_/s" --transcript /nonexistent)
+python3 - "$RD_/t.jsonl" <<'PY'
+import json,sys
+open(sys.argv[1],"w").write(json.dumps({"type":"assistant","message":{"usage":{"input_tokens":1,"cache_read_input_tokens":400000}}})+"\n")
+PY
+d_l3=$($RDP check --repo "$RD_/s" --transcript "$RD_/t.jsonl" --threshold 300000)
+# зведено main: рівень 1 зник, CLAUDE.md у контексті ще старий → рівень 2; після стиснення — тиша
+$G -C "$RD_/s" merge -q --no-edit origin/main
+d_merged=$(HOME="$RD_" $RDP check --repo "$RD_/s" --transcript /nonexistent)
+$RDP snapshot --repo "$RD_/s" --hook-input - < "$RD_/in-compact.json"
+d_compacted=$(HOME="$RD_" $RDP check --repo "$RD_/s")
+[[ -z "$d_clean" && -z "$d_docs" ]] \
+  && ok "rules-drift: без змін і при зміні не-правила (docs/CLAUDE.md) — тиша" \
+  || bad "rules-drift тиша" "порожньо двічі" "${d_clean:0:80} || ${d_docs:0:80}"
+[[ "$d_l1" == *"Рівень 1"* && "$d_l1" == *"skills/a/SKILL.md"* && "$d_l1" != *"Рівень 2"* \
+   && "$d_l2" == *"Рівень 1"* && "$d_l2" == *"Рівень 2"* && "$d_l2" != *"Рівень 3"* && "$d_l3" == *"Рівень 3"* ]] \
+  && ok "rules-drift: навичка → рівень 1; CLAUDE.md → рівень 2; CLAUDE.md за порогом контексту → рівень 3" \
+  || bad "rules-drift рівні" "1 / 1+2 / 3" "${d_l1:0:80} || ${d_l2:0:80} || ${d_l3:0:80}"
+[[ "$d_merged" != *"Рівень 1"* && "$d_merged" == *"Рівень 2"* && -z "$d_compacted" ]] \
+  && ok "rules-drift: після зведення main — лише рівень 2 (CLAUDE.md у контексті старий); після стиснення — тиша" \
+  || bad "rules-drift зведення/стиснення" "лише 2, потім тиша" "${d_merged:0:120} || ${d_compacted:0:80}"
+# Власна правка гілки, новіша за main (живий прогін 2026-11-28: хибне «main новіший») — не дрейф.
+echo "навичка v3 (гілка)" > "$RD_/s/melania-skills-ecosystem/skills/a/SKILL.md"; $G -C "$RD_/s" commit -q -am own
+$RDP snapshot --repo "$RD_/s" --hook-input - < "$RD_/in-start.json"
+d_own=$(HOME="$RD_" $RDP check --repo "$RD_/s")
+[[ -z "$d_own" ]] && ok "rules-drift: власна правка гілки, новіша за main, — не дрейф" \
+  || bad "rules-drift власна правка" "тиша" "${d_own:0:120}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
