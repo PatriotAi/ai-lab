@@ -2850,14 +2850,14 @@ python3 "$REPO/scripts/session-handoff.py" check --transcript "$SH/t.jsonl" --th
   && ok "session-handoff: контекст з журналу (суб-агент не рахується), нижче порогу — тиша, вище — попередження" \
   || bad "session-handoff check" "250105, тиша, попередження, strict=3" "m=$sh_m lo=${sh_lo:0:40} hi=${sh_hi:0:60} strict=$sh_strict"
 git -C "$SH" init -q -b main 2>/dev/null; git -C "$SH" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 0
-python3 "$REPO/scripts/session-handoff.py" pack --trigger wave --topic Тест-t --repo "$SH" >/dev/null
+CLAUDE_CODE_REMOTE_SESSION_ID=cse_TESTsession0001 python3 "$REPO/scripts/session-handoff.py" pack --trigger wave --topic Тест-t --repo "$SH" >/dev/null
 sh_pack=$(ls "$SH"/docs/continuation/*.md 2>/dev/null | head -1)
 python3 "$REPO/scripts/session-handoff.py" validate "$sh_pack" >/dev/null; sh_v_skel=$?
 sed 's/<!-- ДОПИСУЄ МОДЕЛЬ[^>]*-->/заповнено/' "$sh_pack" > "$SH/full.md"
 python3 "$REPO/scripts/session-handoff.py" validate "$SH/full.md" >/dev/null; sh_v_full=$?
 grep -v '^Попередня сесія:' "$SH/full.md" > "$SH/noid.md"
 sh_noid=$(python3 "$REPO/scripts/session-handoff.py" validate "$SH/noid.md"); sh_v_noid=$?
-python3 "$REPO/scripts/session-handoff.py" pack --trigger wave --topic Тест-t --repo "$SH" >/dev/null; sh_same=$(cat "$sh_pack" | grep -c 'ДОПИСУЄ МОДЕЛЬ')
+CLAUDE_CODE_REMOTE_SESSION_ID=cse_TESTsession0001 python3 "$REPO/scripts/session-handoff.py" pack --trigger wave --topic Тест-t --repo "$SH" >/dev/null; sh_same=$(cat "$sh_pack" | grep -c 'ДОПИСУЄ МОДЕЛЬ')
 python3 "$REPO/scripts/session-handoff.py" validate "$REPO/docs/continuation/2026-11-28-harness-handoff.md" >/dev/null; sh_v_real=$?
 [[ $sh_v_skel -eq 1 && $sh_v_full -eq 0 && $sh_v_noid -eq 1 && "$sh_noid" == *"id попередньої сесії"* && $sh_v_real -eq 0 && "$sh_same" -ge 1 ]] \
   && ok "session-handoff: недописаний скелет і пакет без id старої сесії — провал; повний і реальний пакет — проходять" \
