@@ -2820,7 +2820,8 @@ mp5=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr5 --pr 9 --rep
 mp9=$(mp pr9 9); mp9rc=$?
 EMP="$(mktemp -d)"; git init -q --bare -b main "$EMP/o.git"; g clone -q "$EMP/o.git" "$EMP/w" 2>/dev/null
 ( cd "$EMP/w" && echo a > a && g add -A && g commit -qm 0 && g push -q origin HEAD:main && g switch -q -c b && echo b > b && g add -A && g commit -qm b && g push -q origin b ) >/dev/null 2>&1
-mpe=$(cd "$EMP/w" && bash "$REPO/scripts/merge-prep.sh" --branch b --pr 1 --repo T/e --quote "Погоджую злиття e#1" 2>&1); mperc=$?
+# Відносний --dir (рев'ю #150): запуск із батьківської теки з --dir w.
+mpe=$(cd "$EMP" && bash "$REPO/scripts/merge-prep.sh" --dir w --branch b --pr 1 --repo T/e --quote "Погоджую злиття e#1" 2>&1); mperc=$?
 [[ $mp3rc -eq 0 && $(grep -c "mcp-merge_pull_request@t/r#3 " <<<"$mp3c") -eq 2 && $mp4rc -eq 2 && "$(cat "$MP/outside.txt")" == "keep" \
    && "$mp5" == *"GATE=без рішення"* && "$mp5" == *"rc=2"* && $mp9rc -eq 2 && "$mp9" == *"GATE=без рішення"* \
    && $mperc -eq 0 && "$mpe" == *"GATE=нема гейта в репо"* ]] \

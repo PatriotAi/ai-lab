@@ -42,6 +42,8 @@ case "$BRANCH" in main|master) echo "merge-prep: гілка PR не може б�
 # НІКОЛИ автоматично: union воскресив би відкликану згоду (W-14, рішення лабораторії).
 UNION_OK="docs/learnings.md"
 
+# Абсолютний шлях ДО переходу в worktree: відносний --dir далі розв'язувався б від $WT.
+DIR="$(cd "$DIR" && pwd -P)" || { echo "merge-prep: тека $DIR недоступна" >&2; exit 2; }
 cd "$DIR"
 git fetch -q origin main "$BRANCH"
 WT="$(mktemp -d)"; TR="$(mktemp -d)"
