@@ -380,6 +380,21 @@ COUNTER_REGISTRY = [
 ]
 
 
+def restamp_counts(txt: str, n_skills: int, total_evals: int) -> str:
+    """Переписує лічильники скілів і eval-кейсів тими самими шаблонами, якими їх звіряє verify
+    (той самий діапазон 10 < N < 1000, щоб не чіпати номери версій, дати й дрібні числа)."""
+    def fix(pattern: str, actual: int, t: str) -> str:
+        def sub(m):
+            out = m.group(0)
+            for g in m.groups():
+                if g and g.isdigit() and 10 < int(g) < 1000 and int(g) != actual:
+                    out = out.replace(g, str(actual), 1)
+            return out
+        return re.sub(pattern, sub, t)
+    txt = fix(r"(\d+)\s+(?:AI-)?(?:скіл|навич|skill)|[Сс]кілів:\s*(\d+)", n_skills, txt)
+    return fix(r"(\d+)\s+eval-кейс|[Ee]val-кейсів:\s*(\d+)|тест-кейси\s*\((\d+)", total_evals, txt)
+
+
 def counter_problems(name: str, txt: str, root: Path | None = None) -> list[str]:
     """Число, що описує інший файл, мусить збігатися з фактом у тому файлі.
 
@@ -678,14 +693,18 @@ def resync() -> int:
     if changed_manifest:
         MANIFEST.write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    # Лічильники у MELANIA-BOOTSTRAP.md (числа, не таблиця маршрутів)
+    # Лічильники в УСІХ документах, які звіряє verify (DOC_TARGETS), — тими самими шаблонами.
+    # До 2026-11-27 resync правив лише BOOTSTRAP, а verify звіряв ще й README-FOR-HUMANS:
+    # кожна хвиля з новим eval падала на verify і лічильник правили вручну (тричі поспіль).
     bootstrap_warn = []
+    for doc in DOC_TARGETS:
+        if doc.exists():
+            txt = doc.read_text(encoding="utf-8")
+            new_txt = restamp_counts(txt, len(dirs), total)
+            if new_txt != txt:
+                doc.write_text(new_txt, encoding="utf-8")
     if BOOTSTRAP.exists():
         txt = BOOTSTRAP.read_text(encoding="utf-8")
-        new_txt = re.sub(r"\d+ скіл(?:ів|и|)", f"{len(dirs)} скілів", txt)
-        new_txt = re.sub(r"\d+ eval-кейс(?:ів|и|)", f"{total} eval-кейсів", new_txt)
-        if new_txt != txt:
-            BOOTSTRAP.write_text(new_txt, encoding="utf-8")
         for name in dirs:
             if name not in txt:
                 bootstrap_warn.append(name)
