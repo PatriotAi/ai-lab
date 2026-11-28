@@ -82,6 +82,18 @@ build_digest() {
     fi
   fi
 
+  # Картка відновлення: «де ми зупинились» зібрано скриптом, без жодного токена моделі.
+  # Замінює перечитування файлів на старті/resume/compact (continuation-memory § «Дешеве
+  # відновлення»). Лише git і файли репо; збій мовчить.
+  if command -v python3 >/dev/null 2>&1 && [ -f scripts/resume-card.py ]; then
+    # Без GNU timeout (macOS без coreutils) — запуск без ліміту: скрипт локальний, ~0.1 с.
+    tmo=""; command -v timeout >/dev/null 2>&1 && tmo="timeout 10"
+    card="$($tmo python3 scripts/resume-card.py "$PROJECT_DIR" 2>/dev/null || true)"
+    if [ -n "${card:-}" ]; then
+      printf '%s\n\n' "$card"
+    fi
+  fi
+
   if ! command -v pre-commit >/dev/null 2>&1; then
     printf '⚠️ pre-commit не встановлено — для git-хуків запусти `scripts/setup.sh`.\n\n'
   fi
