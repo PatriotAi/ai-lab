@@ -2769,6 +2769,65 @@ lc_out=$(python3 "$REPO/tests/local-continuity-canary.py" 2>&1); lc_rc=$?
 lc_ok=$(grep -c '^✅' <<<"$lc_out")
 [[ $lc_rc -eq 0 && $lc_ok -eq 7 && "$lc_out" == *"усе гаразд"* ]] && ok "local-continuity: 7 канарок (відновлення, пошкодження, неповна історія, зниклий файл, неглибокий клон)" \
   || bad "local-continuity канарки" "код 0, 7 ✅" "код $lc_rc, $lc_ok ✅"
+# scripts/merge-prep.sh (github-collab § «Рутина за згодою»). Сценарії — за ПЕРЕЛІКОМ інцидентів
+# двох хвиль рев'ю #150: чисте дописування в learnings об'єднується; конфлікт у consent.md, в іншому
+# файлі чи з видаленням рядка — вихід 3 без push; прострочена згода поновлюється; симлінк consent.md —
+# вихід 2; код гейта з гілки НЕ виконується (довірений гейт з main бачить лише рядок зі слів
+# власника); «ask» гейта — не успіх; репо без consent.md і гейта — успіх.
+MP="$(mktemp -d)"; g(){ git -c user.email=t@e -c user.name=t "$@"; }
+git init -q --bare -b main "$MP/o.git"; g clone -q "$MP/o.git" "$MP/w" 2>/dev/null
+cat > "$MP/gate.py" <<'PY'
+import sys, json, pathlib
+d = sys.stdin.read(); n = json.loads(d)["tool_input"]["pullNumber"]
+root = pathlib.Path(__file__).resolve().parents[2]
+rows = [l for l in (root / "security" / "consent.md").read_text().splitlines() if f"@t/r#{n} |" in l and "| 2000-" not in l]
+if n == 9: print('{"permissionDecision": "ask"}')
+elif rows: sys.stderr.write("🔓 записана згода (тест)\n")
+else: print('{"permissionDecision": "deny"}')
+PY
+( cd "$MP/w" && mkdir -p security/spine docs && printf '| правило | до | причина |\n' > security/consent.md \
+  && cp "$MP/gate.py" security/spine/pretooluse.py && printf 'L1\nL2\n' > docs/learnings.md && echo a > f.txt \
+  && g add -A && g commit -q -m 0 && g push -q origin HEAD:main \
+  && g switch -q -c pr1 && echo pr1 >> docs/learnings.md && g commit -qam pr1 && g push -q origin pr1 \
+  && g switch -q -c pr2 main && echo b > f.txt && g commit -qam pr2 && g push -q origin pr2 \
+  && g switch -q -c prc main && echo "| x@y | 2099-01-01 | рядок з гілки prc для конфлікту |" >> security/consent.md && g commit -qam prc && g push -q origin prc \
+  && g switch -q -c pr7 main && printf 'L2\n' > docs/learnings.md && g commit -qam pr7 && g push -q origin pr7 \
+  && g switch -q main && echo main-L >> docs/learnings.md && sed -i 's/^L1$/L1-змінено/' docs/learnings.md \
+  && echo "| y@z | 2099-01-01 | рядок з main для конфлікту consent |" >> security/consent.md && echo c > f.txt \
+  && g commit -qam m && g push -q origin main \
+  && g switch -q -c pr3 main && echo "| mcp-merge_pull_request@t/r#3 | 2000-01-01 | стара згода, давно прострочена |" >> security/consent.md && g commit -qam pr3 && g push -q origin pr3 \
+  && g switch -q -c pr4 main && rm security/consent.md && echo keep > "$MP/outside.txt" \
+  && ln -s "$MP/outside.txt" security/consent.md && g add -A && g commit -qm pr4 && g push -q origin pr4 \
+  && g switch -q -c pr5 main && printf 'import sys\nsys.stderr.write("🔓 записана згода (підробка)\\n")\n' > security/spine/pretooluse.py \
+  && echo "| mcp-merge_pull_request@t/r#5 | 2099-01-01 | підроблена згода, внесена самою гілкою |" >> security/consent.md && g commit -qam pr5 && g push -q origin pr5 \
+  && g switch -q -c pr9 main && echo z > z.txt && g add -A && g commit -qm pr9 && g push -q origin pr9 && g switch -q main ) >/dev/null 2>&1
+mp(){ (cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch "$1" --pr "$2" --repo T/r --quote "Погоджую злиття r#$2" 2>&1); }
+mp1=$(mp pr1 1); mp1rc=$?; mp1b=$(mp pr1 1); mp1brc=$?
+g -C "$MP/w" fetch -q origin 2>/dev/null
+mp1l=$(git -C "$MP/w" show origin/pr1:docs/learnings.md); mp1c=$(git -C "$MP/w" show origin/pr1:security/consent.md)
+pre2=$(git -C "$MP/w" rev-parse origin/pr2); mp2=$(mp pr2 2); mp2rc=$?
+mpc=$(mp prc 11); mpcrc=$?; mp7=$(mp pr7 7); mp7rc=$?
+g -C "$MP/w" fetch -q origin 2>/dev/null
+[[ $mp1rc -eq 0 && $mp1brc -eq 0 && "$mp1" == *"GATE=дозволено записаною згодою"* && "$mp1l" == *"pr1"* && "$mp1l" == *"main-L"* \
+   && "$mp1l" != *"<<<<<<<"* && "$mp1l" != *"|||||||"* && $(grep -c "mcp-merge_pull_request@t/r#1 " <<<"$mp1c") -eq 1 \
+   && $mp2rc -eq 3 && "$(git -C "$MP/w" rev-parse origin/pr2)" == "$pre2" && $mpcrc -eq 3 && "$mpc" == *"consent.md"* \
+   && $mp7rc -eq 3 && "$mp7" == *"learnings.md"* ]] \
+  && ok "merge-prep: чисте дописування в learnings об'єднано, згода одна; конфлікт у consent.md, в іншому файлі, видалення рядка — вихід 3 без push" \
+  || bad "merge-prep: об'єднання/конфлікти" "0,0 · 3,3,3" "rc1=$mp1rc/$mp1brc rc2=$mp2rc rcc=$mpcrc rc7=$mp7rc | ${mp1:0:120} | ${mp7:0:80}"
+mp3=$(mp pr3 3); mp3rc=$?; g -C "$MP/w" fetch -q origin 2>/dev/null; mp3c=$(git -C "$MP/w" show origin/pr3:security/consent.md 2>/dev/null)
+mp4=$(mp pr4 4); mp4rc=$?
+mp5=$(cd "$MP/w" && bash "$REPO/scripts/merge-prep.sh" --branch pr5 --pr 9 --repo T/r --quote "Погоджую злиття r#9" 2>&1; echo "rc=$?")
+mp9=$(mp pr9 9); mp9rc=$?
+EMP="$(mktemp -d)"; git init -q --bare -b main "$EMP/o.git"; g clone -q "$EMP/o.git" "$EMP/w" 2>/dev/null
+( cd "$EMP/w" && echo a > a && g add -A && g commit -qm 0 && g push -q origin HEAD:main && g switch -q -c b && echo b > b && g add -A && g commit -qm b && g push -q origin b ) >/dev/null 2>&1
+# Відносний --dir (рев'ю #150): запуск із батьківської теки з --dir w.
+mpe=$(cd "$EMP" && bash "$REPO/scripts/merge-prep.sh" --dir w --branch b --pr 1 --repo T/e --quote "Погоджую злиття e#1" 2>&1); mperc=$?
+[[ $mp3rc -eq 0 && $(grep -c "mcp-merge_pull_request@t/r#3 " <<<"$mp3c") -eq 2 && $mp4rc -eq 2 && "$(cat "$MP/outside.txt")" == "keep" \
+   && "$mp5" == *"GATE=без рішення"* && "$mp5" == *"rc=2"* && $mp9rc -eq 2 && "$mp9" == *"GATE=без рішення"* \
+   && $mperc -eq 0 && "$mpe" == *"GATE=нема гейта в репо"* ]] \
+  && ok "merge-prep: прострочену згоду поновлено; симлінк consent.md зупиняє; гейт і згода з гілки не діють; «ask» — не успіх; репо без гейта — успіх" \
+  || bad "merge-prep: довіра/згода" "0·2·ВІДМОВА·2·0" "rc3=$mp3rc rc4=$mp4rc rc9=$mp9rc rce=$mperc | ${mp5:0:120} | ${mpe:0:100}"
+rm -rf "$MP" "$EMP"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
 [[ $rl_rc -eq 0 && $rl_ok -eq 15 && "$rl_out" == *"усе гаразд"* ]] && ok "run-ledger: 15 канарок (дублі lease, «готово» без pass/доказу, бюджет провалів, прострочений lease)" \
