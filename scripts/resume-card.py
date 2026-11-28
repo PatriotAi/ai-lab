@@ -45,7 +45,10 @@ def repo_line(repo: Path) -> str:
         parts.append(f"незбережених файлів: {dirty}")
     main = "refs/remotes/origin/main"
     if git(repo, "rev-parse", "--abbrev-ref", "@{upstream}"):
-        ahead = count(repo, "@{upstream}..HEAD")
+        # Відправлене рахуємо від push-цілі, якщо вона є (рев'ю #149: upstream може бути
+        # origin/main, а push — fork/topic); інакше — від upstream.
+        tgt = "@{push}" if git(repo, "rev-parse", "--verify", "-q", "@{push}") else "@{upstream}"
+        ahead = count(repo, f"{tgt}..HEAD")
         if ahead not in ("0", "?"):
             parts.append(f"невідправлених комітів: {ahead}")
     elif (cur := git(repo, "branch", "--show-current")):
@@ -85,7 +88,8 @@ def repo_line(repo: Path) -> str:
 def docs_lines(repo: Path) -> list[str]:
     out = []
     learn = repo / "docs" / "learnings.md"
-    if learn.is_file():
+    # Як і для пакетів: лише звичайний файл усередині репо (рев'ю #149 — симлінк назовні).
+    if learn.is_file() and not learn.is_symlink() and learn.resolve().is_relative_to(repo.resolve()):
         heads = re.findall(r"^## (\d{4}-\d{2}-\d{2} .+)$", learn.read_text(encoding="utf-8"), re.M)
         if heads:
             out.append(f"- останній висновок: {heads[-1][:140]}")

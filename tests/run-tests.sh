@@ -2845,6 +2845,15 @@ c_ln=$(python3 "$REPO/scripts/resume-card.py" "$RM/c")
 [[ "$c_ln" != *"previous"* && "$c_ln" == *"рядок приховано"* && "$c_ln" == *"claude/ok-name"* ]] \
   && ok "resume-card: заголовок висновку-ін'єкцію сховано, решту картки показано" \
   || bad "resume-card заголовок висновку" "приховано + claude/ok-name" "${c_ln:0:200}"
+# Рев'ю #149: learnings.md-симлінк назовні не читається; відправлене — від push-цілі, не від upstream.
+printf '## 2026-11-28 API_KEY: secret123\n' > "$RM/private.md"; mv "$RM/c/docs/learnings.md" "$RM/learn.bak"; ln -s "$RM/private.md" "$RM/c/docs/learnings.md"
+c_sl=$(python3 "$REPO/scripts/resume-card.py" "$RM/c"); unlink "$RM/c/docs/learnings.md"
+git -C "$RM/c" checkout -q -b pt topic; git -C "$RM/c" branch -q --set-upstream-to=origin/main pt
+git -C "$RM/c" config remote.pushDefault zzz; git -C "$RM/c" config push.default current; git -C "$RM/c" update-ref refs/remotes/zzz/pt HEAD
+c_pr=$(python3 "$REPO/scripts/resume-card.py" "$RM/c")
+[[ "$c_sl" != *"secret123"* && "$c_pr" != *"невідправлених"* ]] \
+  && ok "resume-card: симлінк learnings.md назовні не читається; відправлене в push-ціль — не «невідправлене»" \
+  || bad "resume-card симлінк/push-ціль" "без secret123 / тиша" "${c_sl:0:150} || ${c_pr:0:150}"
 rm -rf "$RC"
 # scripts/merge-prep.sh (github-collab § «Рутина за згодою»). Сценарії — за ПЕРЕЛІКОМ інцидентів
 # двох хвиль рев'ю #150: чисте дописування в learnings об'єднується; конфлікт у consent.md, в іншому
