@@ -52,4 +52,4 @@
 1. Ponytail-ідеї → `surgical-code-refactoring` + A/B на 8–10 задачах (рядки diff, токени, приховані перевірки).
 2. OmniRoute-ідеї → `multi-provider-ai-orchestration` (лише текст патернів).
 3. Graphify → експеримент `experiments/code-graph-pilot/` (гіпотеза, 12 питань, метрики).
-4. agent-skills → 4 нові навички через `skill-new` з атрибуцією.
+4. agent-skills → 4 нові навички через `skill-new` з атрибуцією. Карта покриття — `2026-11-28-agent-skills-map.md`.
