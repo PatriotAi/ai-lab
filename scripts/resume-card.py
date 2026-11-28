@@ -34,12 +34,21 @@ def count(repo: Path, rng: str) -> str:
 def repo_line(repo: Path) -> str:
     branch = git(repo, "branch", "--show-current") or f"(detached @ {git(repo, 'rev-parse', '--short', 'HEAD')})"
     dirty = len([l for l in git(repo, "status", "--porcelain", "--untracked-files=all").splitlines() if l])
+    # Назва гілки — теж вхід ззовні (PR-гілку називає її автор; git приймає нерозривні
+    # пробіли), а в контекст вона йде в обхід хука input-scan — скануємо (рев'ю #149).
+    reason = scan_untrusted(branch)
+    hidden = bool(reason)
+    if hidden:
+        branch = f"⚠️ назву гілки приховано ({reason}; `git branch --show-current`)"
     parts = [f"`{repo.name}` · {branch}"]
     if dirty:
         parts.append(f"незбережених файлів: {dirty}")
     main = "refs/remotes/origin/main"
     if git(repo, "rev-parse", "--abbrev-ref", "@{upstream}"):
-        ahead = count(repo, "@{upstream}..HEAD")
+        # Відправлене рахуємо від push-цілі, якщо вона є (рев'ю #149: upstream може бути
+        # origin/main, а push — fork/topic); інакше — від upstream.
+        tgt = "@{push}" if git(repo, "rev-parse", "--verify", "-q", "@{push}") else "@{upstream}"
+        ahead = count(repo, f"{tgt}..HEAD")
         if ahead not in ("0", "?"):
             parts.append(f"невідправлених комітів: {ahead}")
     elif (cur := git(repo, "branch", "--show-current")):
@@ -54,7 +63,7 @@ def repo_line(repo: Path) -> str:
             # (рев'ю #149: перший remote міг відставати, а наступний — уже містити HEAD).
             ahead = git(repo, "rev-list", "--count", "HEAD", "--not", *remotes) or "?"
             if ahead not in ("0", "?"):
-                names = ", ".join(r[13:] for r in remotes)
+                names = ", ".join(r[13:] for r in remotes) if not hidden else "remote-гілкою з тією ж назвою"
                 parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано, звірено з {names})")
         elif git(repo, "rev-parse", "--verify", "-q", main):
             ahead = count(repo, f"{main}..HEAD")
@@ -79,7 +88,8 @@ def repo_line(repo: Path) -> str:
 def docs_lines(repo: Path) -> list[str]:
     out = []
     learn = repo / "docs" / "learnings.md"
-    if learn.is_file():
+    # Як і для пакетів: лише звичайний файл усередині репо (рев'ю #149 — симлінк назовні).
+    if learn.is_file() and not learn.is_symlink() and learn.resolve().is_relative_to(repo.resolve()):
         heads = re.findall(r"^## (\d{4}-\d{2}-\d{2} .+)$", learn.read_text(encoding="utf-8"), re.M)
         if heads:
             out.append(f"- останній висновок: {heads[-1][:140]}")
@@ -132,6 +142,21 @@ def scan_untrusted(text: str) -> str:
     return {0: "", 1: "є підозрілі фрагменти"}.get(r.returncode, "сканер не відпрацював")
 
 
+def guard_lines(lines: list[str]) -> list[str]:
+    """Сітка на весь вивід (рев'ю #149: поля з репо — назва гілки, заголовок висновку, назва
+    теки — по одному пропускали тріаж). Чисте ціле — один виклик сканера; якщо в цілому є
+    маркери — сканується кожен рядок, а підозрілі замінюються позначкою. Без сканера —
+    fail-closed: поля з репо приховано цілком (рев'ю #149), лишається заголовок і причина."""
+    reason = scan_untrusted("\n".join(lines))
+    if not reason:
+        return lines
+    if reason != "є підозрілі фрагменти":
+        return lines[:1] + [f"- ⚠️ поля картки приховано: {reason} (без тріажу текст із репо в контекст не йде); "
+                            "стан — `git status -sb` і Read пакета в `docs/continuation/`"]
+    return [l if not scan_untrusted(l) else "- ⚠️ рядок приховано: тріаж входу знайшов маркери (подивись джерело інструментом Read)"
+            for l in lines]
+
+
 def main(argv: list[str]) -> int:
     repos = [Path(a).resolve() for a in argv] or [Path(git(Path.cwd(), "rev-parse", "--show-toplevel") or ".").resolve()]
     lines = ["## Картка відновлення (зібрано скриптом, без моделі)"]
@@ -140,6 +165,7 @@ def main(argv: list[str]) -> int:
             continue
         lines.append(repo_line(repo))
         lines += docs_lines(repo)
+    lines = guard_lines(lines)
     lines.append("_Протокол: спершу ця картка; дочитати більше — лише найдешевшим виконавцем-читачем "
                  "з підсумком ≤500 токенів; довга розмова → пакет продовження й нова сесія._")
     print("\n".join(lines))

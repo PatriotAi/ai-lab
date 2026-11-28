@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-17T22:38:22.103637+00:00",
-  "md5": "dbd2d6c6471dbf69d9b00abaf8fe1b9f",
-  "total_lines": 339,
+  "timestamp": "2026-11-28T09:01:37.712131+00:00",
+  "md5": "e8f3c8aa9afa312fce1179b9f82e99b1",
+  "total_lines": 380,
   "headings": [
     "## 🛡️ Протокол Збереження Перед Оновленням (ОБОВ'ЯЗКОВО)",
     "## Core Rule",
@@ -9,6 +9,7 @@
     "## Pattern 1 — Provider Chain з мульти-ключем",
     "## Pattern 2 — Failover з rate-limit детекцією",
     "## Pattern 2b — Резервний контур: черга + повтори + cooldown",
+    "## Pattern 2c — Три рівні збою, кінцеві стани, квота й приватність",
     "## Pattern 3 — Task-based routing",
     "## Pattern 4 — Group Orchestration (кілька моделей разом)",
     "## Pattern 5 — User-Extensible Providers (як \"знання\" в GPT)",
@@ -33,6 +34,7 @@
     "Pattern 1",
     "Pattern 2",
     "Pattern 2b",
+    "Pattern 2c",
     "Pattern 3",
     "Pattern 4",
     "Pattern 5",
