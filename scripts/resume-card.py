@@ -34,6 +34,11 @@ def count(repo: Path, rng: str) -> str:
 def repo_line(repo: Path) -> str:
     branch = git(repo, "branch", "--show-current") or f"(detached @ {git(repo, 'rev-parse', '--short', 'HEAD')})"
     dirty = len([l for l in git(repo, "status", "--porcelain", "--untracked-files=all").splitlines() if l])
+    # Назва гілки — теж вхід ззовні (PR-гілку називає її автор; git приймає нерозривні
+    # пробіли), а в контекст вона йде в обхід хука input-scan — скануємо (рев'ю #149).
+    hidden = bool(scan_untrusted(branch))
+    if hidden:
+        branch = "⚠️ назву гілки приховано (тріаж входу знайшов маркери; `git branch --show-current`)"
     parts = [f"`{repo.name}` · {branch}"]
     if dirty:
         parts.append(f"незбережених файлів: {dirty}")
@@ -54,7 +59,7 @@ def repo_line(repo: Path) -> str:
             # (рев'ю #149: перший remote міг відставати, а наступний — уже містити HEAD).
             ahead = git(repo, "rev-list", "--count", "HEAD", "--not", *remotes) or "?"
             if ahead not in ("0", "?"):
-                names = ", ".join(r[13:] for r in remotes)
+                names = ", ".join(r[13:] for r in remotes) if not hidden else "remote-гілкою з тією ж назвою"
                 parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано, звірено з {names})")
         elif git(repo, "rev-parse", "--verify", "-q", main):
             ahead = count(repo, f"{main}..HEAD")
