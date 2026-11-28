@@ -2805,7 +2805,8 @@ printf 'SECRET_TOKEN=abc\n' > "$RC/outside.txt"; ln -s "$RC/outside.txt" "$CL/do
 mkdir -p "$RC/solo"; cp "$REPO/scripts/resume-card.py" "$RC/solo/"
 c_sec=$(python3 "$REPO/scripts/resume-card.py" "$CL"); c_solo=$(python3 "$RC/solo/resume-card.py" "$CL")
 [[ "$c_sec" == *"незбережених файлів: 2"* && "$c_sec" != *"SECRET_TOKEN"* && "$c_sec" != *"2099-01-01-link"* \
-   && "$c_solo" == *"сканер недоступний"* && "$c_solo" != *"> "* ]] \
+   && "$c_solo" == *"сканер недоступний"* && "$c_solo" != *"> "* \
+   && "$c_solo" == *"поля картки приховано"* && "$c_solo" != *"останній висновок"* && "$c_solo" != *"незбережених"* ]] \
   && ok "resume-card: нові файли видно попри showUntrackedFiles=no; симлінк поза репо не читається; без сканера цитату сховано" \
   || bad "resume-card untracked/симлінк/без сканера" "2 файли (new.txt + симлінк), без SECRET, сканер недоступний" "${c_sec:0:200} || ${c_solo:0:200}"
 # Ще дві дірки (рев'ю #149, друга хвиля): відірвана голова ховала невідправлені коміти; назва
