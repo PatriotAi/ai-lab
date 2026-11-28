@@ -36,7 +36,10 @@ import importlib.util
 import json
 import os
 import re
+import signal
 import subprocess
+import tempfile
+import time
 import sys
 from pathlib import Path
 
@@ -46,12 +49,35 @@ PATTERNS = ["CLAUDE.md", ".claude/settings.json", ".claude/agents/*.md", "securi
             "melania-skills-ecosystem/skills/*/SKILL.md"]
 
 
-def git(repo: Path, *args: str, timeout: int = 10) -> tuple[int, str]:
+GIT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "true", "SSH_ASKPASS": "true",
+           "GIT_SSH_COMMAND": os.environ.get("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")}
+
+
+def git_raw(repo: Path, *args: str, timeout: int = 10) -> tuple[int, bytes]:
+    """git без шансу повиснути (рев'ю #153/#154, P1): власна група процесів — по тайм-ауту
+    вбиваємо всю групу (інакше дочірній `git-remote-https` тримає pipe і хук висить); stdin
+    закрито, запит пароля вимкнено."""
     try:
-        r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=timeout)
+        pr = subprocess.Popen(["git", "-C", str(repo), *args], stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=GIT_ENV,
+                              start_new_session=True)
+    except OSError:
+        return 127, b""
+    try:
+        out, _ = pr.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        return 124, ""
-    return r.returncode, r.stdout
+        try:
+            os.killpg(pr.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        pr.communicate()
+        return 124, b""
+    return pr.returncode, out
+
+
+def git(repo: Path, *args: str, timeout: int = 10) -> tuple[int, str]:
+    rc, out = git_raw(repo, *args, timeout=timeout)
+    return rc, out.decode("utf-8", "replace")
 
 
 HOOK_CMD = re.compile(r'\$\{?CLAUDE_PROJECT_DIR\}?/([^\s"\'\\]+)')
@@ -62,9 +88,8 @@ def hook_targets(repo: Path, refs: list[str]) -> tuple[set[str], set[str]]:
     files: set[str] = set()
     dirs: set[str] = set()
     for ref in refs:
-        r = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:{PATTERNS[1]}"],
-                           capture_output=True, text=True, timeout=10)
-        for rel in HOOK_CMD.findall(r.stdout if r.returncode == 0 else ""):
+        rc, out = git(repo, "show", f"{ref}:{PATTERNS[1]}")
+        for rel in HOOK_CMD.findall(out if rc == 0 else ""):
             rel = rel.strip("/")
             if ".." in rel.split("/"):
                 continue
@@ -104,15 +129,67 @@ def disk(repo: Path, rel: str) -> str | None:
 
 
 def at_ref(repo: Path, ref: str, rel: str) -> str | None:
-    r = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:{rel}"], capture_output=True, timeout=10)
-    return digest(r.stdout) if r.returncode == 0 else None
+    rc, out = git_raw(repo, "show", f"{ref}:{rel}")
+    return digest(out) if rc == 0 else None
 
 
-def snap_file(repo: Path, hin: dict) -> Path:
+def state_file(repo: Path, hin: dict, kind: str) -> Path:
+    """Стан скрипта — у git-теці checkout (не в дереві репо), окремо на сесію."""
     _, gd = git(repo, "rev-parse", "--absolute-git-dir")
     sid = str(hin.get("session_id", ""))
     suffix = f"-{sid}" if re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sid) else ""
-    return Path(gd.strip() or repo / ".git") / f"ai-lab-rules-snapshot{suffix}.json"
+    return Path(gd.strip() or repo / ".git") / f"ai-lab-rules-{kind}{suffix}.json"
+
+
+def snap_file(repo: Path, hin: dict) -> Path:
+    return state_file(repo, hin, "snapshot")
+
+
+def read_json(f: Path) -> dict:
+    """Битий чи порожній файл стану = його немає (рев'ю P1: traceback у хуку щоповідомлення)."""
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def write_json(f: Path, data: dict) -> None:
+    """Атомарно: tmp у тій самій теці + os.replace — обірваний запис не лишає битого знімка."""
+    fd, tmp = tempfile.mkstemp(dir=str(f.parent), prefix=f.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(data, ensure_ascii=False, sort_keys=True))
+        os.replace(tmp, f)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+def fetch_due(repo: Path, minutes: int) -> bool:
+    """`fetch` не частіше ніж раз на N хв на checkout (мітка в git-теці): щоходовий хук не має
+    ходити в мережу щоповідомлення (рев'ю P1)."""
+    stamp = state_file(repo, {}, "fetch-stamp")
+    try:
+        if time.time() - stamp.stat().st_mtime < minutes * 60:
+            return False
+    except OSError:
+        pass
+    try:
+        stamp.touch()
+    except OSError:
+        pass
+    return True
 
 
 def hook_input(flag: str | None) -> dict:
@@ -128,7 +205,7 @@ def hook_input(flag: str | None) -> dict:
 def cmd_snapshot(repo: Path, hin: dict) -> int:
     src = hin.get("source", "startup")
     f = snap_file(repo, hin)
-    old = json.loads(f.read_text()) if f.is_file() else {}
+    old = read_json(f)
     now = {rel: disk(repo, rel) for rel in rule_paths(repo, None)}
     if src == "compact" and old:
         # Стиснення перезавантажує з диска лише CLAUDE.md (і список навичок) — решту знімка не чіпаємо.
@@ -136,7 +213,8 @@ def cmd_snapshot(repo: Path, hin: dict) -> int:
         now = old
     elif src == "resume" and old:
         return 0  # resume нічого не перезавантажує — знімок старту лишається правдою
-    f.write_text(json.dumps(now, ensure_ascii=False, sort_keys=True))
+    write_json(f, now)
+    state_file(repo, hin, "notified").unlink(missing_ok=True)  # нове завантаження — повідомити знову
     return 0
 
 
@@ -152,10 +230,10 @@ def context_tokens(transcript: str | None, hin: dict) -> int | None:
 
 
 def cmd_check(repo: Path, a, hin: dict) -> int:
-    if a.fetch:
+    if a.fetch and fetch_due(repo, a.fetch_every):
         git(repo, "fetch", "-q", "origin", "main", timeout=8)
     f = snap_file(repo, hin)
-    loaded = json.loads(f.read_text()) if f.is_file() else {
+    loaded = read_json(f) if f.is_file() else {
         rel: at_ref(repo, "HEAD", rel) for rel in rule_paths(repo, "HEAD")}
     # Лише зміни, що є в ref і ще не дійшли сюди (від спільного предка): власні правки гілки,
     # новіші за main, — не дрейф (живий прогін 2026-11-28 показав хибне спрацювання при порівнянні вмісту).
@@ -184,7 +262,17 @@ def cmd_check(repo: Path, a, hin: dict) -> int:
                          "дешевше перейти в нову сесію з новими правилами: "
                          "`python3 scripts/session-handoff.py pack --trigger rules --topic <тема>`.")
     lines.append("_Налаштування акаунта claude.ai скрипт не бачить: якщо їх змінено — діють лише в новій сесії (рівень 3)._")
+    # Щоходовий хук повідомляє лише ЗМІНУ стану (рев'ю P1: ≈150 токенів щоходу). Ключ — склад
+    # дрейфу, не текст (число токенів у рівні 3 росте щоходу). SessionStart друкує завжди.
+    key = digest(json.dumps([need_merge, read_diff, level3]).encode())
+    nf = state_file(repo, hin, "notified")
+    if hin.get("hook_event_name") == "UserPromptSubmit" and read_json(nf).get("key") == key:
+        return 3 if a.strict else 0
     print("\n".join(lines))
+    try:
+        write_json(nf, {"key": key})
+    except OSError:
+        pass
     return 3 if (a.strict and (need_merge or read_diff)) else 0
 
 
@@ -200,11 +288,19 @@ def main(argv: list[str]) -> int:
     c.add_argument("--fetch", action="store_true")
     c.add_argument("--transcript")
     c.add_argument("--strict", action="store_true")
-    c.add_argument("--threshold", type=int, default=int(os.environ.get("AI_LAB_HANDOFF_THRESHOLD", 300_000)))
+    c.add_argument("--threshold", type=int, default=env_int("AI_LAB_HANDOFF_THRESHOLD", 300_000))
+    c.add_argument("--fetch-every", type=int, default=env_int("AI_LAB_DRIFT_FETCH_MIN", 10),
+                   help="хвилин між fetch (мітка в git-теці)")
     a = p.parse_args(argv)
-    repo = Path(a.repo or git(Path.cwd(), "rev-parse", "--show-toplevel")[1].strip() or ".").resolve()
     hin = hook_input(a.hook_input)
-    return cmd_snapshot(repo, hin) if a.cmd == "snapshot" else cmd_check(repo, a, hin)
+    try:
+        repo = Path(a.repo or git(Path.cwd(), "rev-parse", "--show-toplevel")[1].strip() or ".").resolve()
+        return cmd_snapshot(repo, hin) if a.cmd == "snapshot" else cmd_check(repo, a, hin)
+    except Exception as e:  # хук не має падати traceback'ом у розмову (рев'ю P1); слід — у stderr
+        if os.environ.get("AI_LAB_DEBUG"):
+            raise
+        print(f"rules-drift: пропущено ({type(e).__name__})", file=sys.stderr)
+        return 0
 
 
 if __name__ == "__main__":

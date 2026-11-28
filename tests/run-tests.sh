@@ -2953,6 +2953,53 @@ d_sb=$(echo '{"session_id":"sess-B"}' | HOME="$RH_" $RDP check --repo "$RH_/s" -
 [[ "$d_sa" == *"Рівень 2"* && -z "$d_sb" ]] \
   && ok "rules-drift: знімок окремо на сесію — стара сесія бачить рівень 2, нова — тиша" \
   || bad "rules-drift знімок на сесію" "рівень 2 / тиша" "${d_sa:0:120} || ${d_sb:0:120}"
+# Рев'ю #153/#154, P1: щоходовий хук не висне на мережі, не падає traceback'ом, не повторюється.
+RP_="$(mktemp -d "$TMPROOT/rp1-XXXXXX")"; mkdir -p "$RP_/bin"
+# Віддалений помічник, що висить і лишає дочірній процес із тим самим stdout (як git-remote-https).
+printf '#!/bin/sh\nsleep 40 &\nsleep 40\n' > "$RP_/bin/git-remote-hang"; chmod +x "$RP_/bin/git-remote-hang"
+git -C "$RD_/s" remote set-url origin "hang::x"
+t0=$(date +%s)
+PATH="$RP_/bin:$PATH" HOME="$RD_" $RDP check --repo "$RD_/s" --fetch --fetch-every 0 >/dev/null 2>&1; rp_rc=$?
+t1=$(date +%s)
+PATH="$RP_/bin:$PATH" HOME="$RD_" $RDP check --repo "$RD_/s" --fetch >/dev/null 2>&1
+t2=$(date +%s)
+git -C "$RD_/s" remote set-url origin "$RD_/up"
+[[ $rp_rc -eq 0 && $((t1-t0)) -le 12 && $((t2-t1)) -le 3 ]] \
+  && ok "rules-drift: завислий fetch (дочірній процес тримає pipe) обривається ≤12 с; повторний fetch у межах N хв не йде" \
+  || bad "rules-drift тайм-аут fetch" "rc=0, ≤12 с, повтор ≤3 с" "rc=$rp_rc fetch=$((t1-t0))с повтор=$((t2-t1))с"
+sf=$(ls "$RD_/s/.git"/ai-lab-rules-snapshot*.json | head -1); printf '{bad' > "$sf"
+rp_bad=$(HOME="$RD_" $RDP check --repo "$RD_/s" 2>&1); rp_bad_rc=$?
+printf '{"source":"startup"}' | HOME="$RD_" $RDP snapshot --repo "$RD_/s" --hook-input - 2>&1; rp_snap_rc=$?
+ls "$RD_/s/.git"/*.tmp >/dev/null 2>&1 && rp_tmp=1 || rp_tmp=0
+[[ $rp_bad_rc -eq 0 && "$rp_bad" != *Traceback* && $rp_snap_rc -eq 0 && $rp_tmp -eq 0 && "$(cat "$sf")" == "{"* ]] \
+  && ok "rules-drift: битий знімок — без traceback, exit 0; знімок переписано цілим, без тимчасових решток" \
+  || bad "rules-drift битий знімок" "exit 0, без traceback" "rc=$rp_bad_rc snap=$rp_snap_rc tmp=$rp_tmp ${rp_bad:0:120}"
+# Повтор: UserPromptSubmit повідомляє лише зміну; SessionStart — завжди.
+echo "навичка v9" > "$RD_/up/melania-skills-ecosystem/skills/a/SKILL.md"; $G -C "$RD_/up" commit -q -am v9; git -C "$RD_/s" fetch -q origin
+UPS='{"hook_event_name":"UserPromptSubmit","session_id":"sx"}'
+rp_u1=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
+rp_u2=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
+rp_ss=$(echo '{"hook_event_name":"SessionStart","session_id":"sx"}' | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
+echo "правило 9" > "$RD_/up/CLAUDE.md"; $G -C "$RD_/up" commit -q -am r9; git -C "$RD_/s" fetch -q origin
+rp_u3=$(echo "$UPS" | HOME="$RD_" $RDP check --repo "$RD_/s" --hook-input - --transcript /nonexistent)
+[[ "$rp_u1" == *"Рівень 1"* && -z "$rp_u2" && "$rp_ss" == *"Рівень 1"* && "$rp_u3" == *"Рівень 2"* ]] \
+  && ok "rules-drift: щоходовий хук повторює повідомлення лише при зміні дрейфу; SessionStart — завжди" \
+  || bad "rules-drift повтор" "1 / тиша / 1 / 2" "${rp_u1:0:40} || ${rp_u2:0:40} || ${rp_ss:0:40} || ${rp_u3:0:40}"
+SHP="python3 $REPO/scripts/session-handoff.py"
+python3 - "$RP_/t1.jsonl" "$RP_/t2.jsonl" <<'PY'
+import json,sys
+for f,n in zip(sys.argv[1:],(320000,380000)):
+    open(f,"w").write(json.dumps({"type":"assistant","message":{"usage":{"input_tokens":n}}})+"\n")
+PY
+HUP='{"hook_event_name":"UserPromptSubmit","session_id":"sy"}'
+rp_h1=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t1.jsonl" --threshold 300000)
+rp_h2=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t1.jsonl" --threshold 300000)
+rp_h3=$(cd "$RD_/s" && echo "$HUP" | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" --threshold 300000)
+rp_h4=$(cd "$RD_/s" && echo '{"session_id":"sy"}' | CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" --threshold 300000)
+rp_h5=$(cd "$RD_/s" && echo '{bad' | AI_LAB_HANDOFF_THRESHOLD=abc CLAUDE_PROJECT_DIR="$RD_/s" $SHP check --hook-input - --transcript "$RP_/t2.jsonl" 2>&1); rp_h5rc=$?
+[[ "$rp_h1" == *"≈320 тис."* && -z "$rp_h2" && "$rp_h3" == *"≈380 тис."* && "$rp_h4" == *"≈380 тис."* && $rp_h5rc -eq 0 && "$rp_h5" != *Traceback* ]] \
+  && ok "session-handoff: попередження порогу щоходу лише раз і знову після +50 тис.; SessionStart — завжди; битий env/вхід — без traceback" \
+  || bad "session-handoff повтор" "320 / тиша / 380 / 380 / rc0" "${rp_h1:0:30} || ${rp_h2:0:30} || ${rp_h3:0:30} || ${rp_h4:0:30} || rc=$rp_h5rc ${rp_h5:0:60}"
 rm -rf "$RC"
 rl_out=$(python3 "$REPO/tests/run-ledger-canary.py" 2>&1); rl_rc=$?
 rl_ok=$(grep -c '^✅' <<<"$rl_out")
