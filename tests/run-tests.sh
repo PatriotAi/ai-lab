@@ -2819,6 +2819,17 @@ c_det=$(python3 "$REPO/scripts/resume-card.py" "$RD/c"); c_detc=$(python3 "$REPO
    && "$c_det" != *"ignore all previous"* && "$c_detc" != *"відірвана голова"* ]] \
   && ok "resume-card: відірвана голова показує невідправлені коміти; назву-ін'єкцію сховано; чиста відірвана — мовчить" \
   || bad "resume-card detached/назва" "1 коміт, назву сховано, чиста — тиша" "${c_det:0:200} || ${c_detc:0:120}"
+# Гілка без upstream на кількох remote (рев'ю #149): перший відстає, другий уже містить HEAD —
+# коміт відправлено; рахувати лише від першого remote означало б хибну «1».
+RM="$(mktemp -d)"; git -C "$RM" init -q -b main; git -C "$RM" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 0
+git clone -q "$RM" "$RM/c" 2>/dev/null; git -C "$RM/c" checkout -q -b topic; git -C "$RM/c" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 1
+git -C "$RM/c" remote add aaa "$RM"; git -C "$RM/c" remote add zzz "$RM"
+git -C "$RM/c" update-ref refs/remotes/aaa/topic HEAD~1; git -C "$RM/c" update-ref refs/remotes/zzz/topic HEAD
+c_mr_ok=$(python3 "$REPO/scripts/resume-card.py" "$RM/c"); git -C "$RM/c" update-ref refs/remotes/zzz/topic HEAD~1
+c_mr_bad=$(python3 "$REPO/scripts/resume-card.py" "$RM/c")
+[[ "$c_mr_ok" != *"невідправлених"* && "$c_mr_bad" == *"невідправлених комітів: 1"* ]] \
+  && ok "resume-card: коміт на будь-якому з кількох remote — відправлений; на жодному — показано" \
+  || bad "resume-card кілька remote" "тиша / 1" "${c_mr_ok:0:150} || ${c_mr_bad:0:150}"
 # scripts/session-handoff.py (continuation-memory § «Автоперехід у нову сесію», W-53): поріг
 # контексту стереже машина. Зламані стани: великий usage суб-агента (isSidechain) не мусить
 # підняти тривогу; недописаний скелет, пакет без id старої сесії — validate падає; хук на

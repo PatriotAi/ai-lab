@@ -50,9 +50,12 @@ def repo_line(repo: Path) -> str:
         remotes = [f"refs/remotes/{r}/{cur}" for r in git(repo, "remote").splitlines()
                    if git(repo, "rev-parse", "--verify", "-q", f"refs/remotes/{r}/{cur}")]
         if remotes:
-            ahead = count(repo, f"{remotes[0]}..HEAD")
+            # Коміт уже відправлено, якщо він є хоч на одному з цих remote — рахуємо проти всіх
+            # (рев'ю #149: перший remote міг відставати, а наступний — уже містити HEAD).
+            ahead = git(repo, "rev-list", "--count", "HEAD", "--not", *remotes) or "?"
             if ahead not in ("0", "?"):
-                parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано, звірено з {remotes[0][13:]})")
+                names = ", ".join(r[13:] for r in remotes)
+                parts.append(f"невідправлених комітів: {ahead} (upstream не налаштовано, звірено з {names})")
         elif git(repo, "rev-parse", "--verify", "-q", main):
             ahead = count(repo, f"{main}..HEAD")
             if ahead not in ("0", "?"):
