@@ -86,7 +86,7 @@
    "version": "1.14.0",
    "eval_cases": 7,
    "sha256_16": {
-    "SKILL.md": "586c6d12b332909c",
+    "SKILL.md": "c1b4e11a2cae84f5",
     "evals/evals.json": "69bec29a6e7fcc5a"
    },
    "files": [
@@ -440,5 +440,5 @@
    ]
   }
  },
- "built_fingerprint": "deac729a2cc90e8c"
+ "built_fingerprint": "ed0367a4e52d0258"
 }

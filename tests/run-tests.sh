@@ -2862,6 +2862,20 @@ python3 "$REPO/scripts/session-handoff.py" validate "$REPO/docs/continuation/202
 [[ $sh_v_skel -eq 1 && $sh_v_full -eq 0 && $sh_v_noid -eq 1 && "$sh_noid" == *"id попередньої сесії"* && $sh_v_real -eq 0 && "$sh_same" -ge 1 ]] \
   && ok "session-handoff: недописаний скелет і пакет без id старої сесії — провал; повний і реальний пакет — проходять" \
   || bad "session-handoff validate" "skel=1 full=0 noid=1 real=0" "skel=$sh_v_skel full=$sh_v_full noid=$sh_v_noid real=$sh_v_real same=$sh_same"
+# Рев'ю #153: українські теми одного дня не зливаються в один файл; id-заглушка «невідомо» не
+# проходить validate; нові файли рахуються навіть за showUntrackedFiles=no; compact просить підсумок.
+SU="$(mktemp -d "$TMPROOT/su-XXXXXX")"; git -C "$SU" init -q -b main; git -C "$SU" -c user.email=t@e -c user.name=t commit -q --allow-empty -m 0
+git -C "$SU" config status.showUntrackedFiles no; echo n > "$SU/new.txt"
+env -u CLAUDE_CODE_REMOTE_SESSION_ID python3 "$REPO/scripts/session-handoff.py" pack --trigger wave --topic тема --repo "$SU" >/dev/null
+su_c=$(env -u CLAUDE_CODE_REMOTE_SESSION_ID python3 "$REPO/scripts/session-handoff.py" pack --trigger compact --topic інша --repo "$SU")
+su_n=$(ls "$SU/docs/continuation" | wc -l | tr -d ' ')
+su_p=$(ls "$SU"/docs/continuation/*тема*.md 2>/dev/null | head -1)
+su_dirty=$(grep -c 'незбережених файлів: 1' "$su_p" 2>/dev/null)
+sed 's/<!-- ДОПИСУЄ МОДЕЛЬ[^>]*-->/ok/' "$su_p" > "$SU/full.md"
+python3 "$REPO/scripts/session-handoff.py" validate "$SU/full.md" >/dev/null; su_v=$?
+[[ "$su_n" == 2 && "$su_dirty" == 1 && $su_v -eq 1 && "$su_c" == *"збережи в підсумку"* && "$su_c" == *"лише скелет"* ]] \
+  && ok "session-handoff: кирилична тема — окремий файл; новий файл видно; id-заглушка не проходить; compact просить підсумок" \
+  || bad "session-handoff тема/untracked/id/compact" "2 файли, 1 незбережений, validate=1, підсумок" "n=$su_n dirty=$su_dirty v=$su_v c=${su_c:0:60}"
 printf '{"source":"compact","transcript_path":"%s"}' "$SH/t.jsonl" > "$SH/in-c.json"
 printf '{"source":"startup","transcript_path":"%s"}' "$SH/t.jsonl" > "$SH/in-s.json"
 sh_hc=$(cd "$REPO" && AI_LAB_HANDOFF_THRESHOLD=200000 CLAUDE_PROJECT_DIR="$REPO" bash automations/session-start/session-start.sh < "$SH/in-c.json")

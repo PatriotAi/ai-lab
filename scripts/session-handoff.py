@@ -33,7 +33,9 @@ DEFAULT_THRESHOLD = 300_000
 PLACEHOLDER = "<!-- ДОПИСУЄ МОДЕЛЬ"
 # Обов'язкові ознаки пакета: без них нова сесія або не знайде стару, або «прибере» її.
 REQUIRED = {
-    "id попередньої сесії": re.compile(r"Попередня сесія:\s*`[^`]+`"),
+    # Справжній id: хмарний `session_…` або локальний UUID — заглушка «невідомо» не проходить.
+    "id попередньої сесії": re.compile(
+        r"Попередня сесія:\s*`(session_[A-Za-z0-9]{8,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})`"),
     "застереження «не видаляти»": re.compile(r"НЕ видал", re.I),
     "наступний крок": re.compile(r"^Далі:\s*\S", re.M),
     "ціль": re.compile(r"^Ціль:\s*\S", re.M),
@@ -116,7 +118,8 @@ def open_windows(repo: Path) -> str:
 def cmd_pack(a, hin) -> int:
     repo = Path(a.repo or git(Path.cwd(), "rev-parse", "--show-toplevel") or ".").resolve()
     today = dt.date.today().isoformat()
-    topic = re.sub(r"[^a-z0-9-]+", "-", (a.topic or "handoff").lower()).strip("-") or "handoff"
+    # \w — з кирилицею: українська тема не має схлопуватись у спільне «handoff» (рев'ю #153).
+    topic = re.sub(r"[^\w-]+", "-", (a.topic or "handoff").lower()).strip("-_") or "handoff"
     out = repo / "docs" / "continuation" / f"{today}-{topic}.md"
     if out.exists() and not a.force:
         print(f"пакет уже є: {out.relative_to(repo)} (не затираю; --force, щоб переписати)")
@@ -126,7 +129,8 @@ def cmd_pack(a, hin) -> int:
     branch = git(repo, "branch", "--show-current") or "(detached)"
     head = git(repo, "rev-parse", "--short", "HEAD")
     behind = git(repo, "rev-list", "--count", "HEAD..refs/remotes/origin/main") or "?"
-    dirty = len([l for l in git(repo, "status", "--porcelain").splitlines() if l])
+    # --untracked-files=all: інакше showUntrackedFiles=no ховає нові файли (рев'ю #153).
+    dirty = len([l for l in git(repo, "status", "--porcelain", "--untracked-files=all").splitlines() if l])
     branches = [b for b in git(repo, "branch", "-r", "--no-merged", "origin/main",
                                "--format=%(refname:short)").splitlines() if "/claude/" in b or b.startswith("origin/claude")]
     t = find_transcript(None, hin)
@@ -160,7 +164,16 @@ def cmd_pack(a, hin) -> int:
 """
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(body, encoding="utf-8")
-    print(f"скелет пакета: {out.relative_to(repo)} — допиши позначені місця, потім `validate`")
+    rel = out.relative_to(repo)
+    if a.trigger == "compact":
+        # Вивід PreCompact стає інструкцією для підсумку стиснення (не окремим ходом моделі), тож
+        # пакет тут лише скелет: просимо підсумок зберегти те, чого скелет не містить (рев'ю #153).
+        print(f"Під час стиснення збережи в підсумку дослівно: шлях пакета продовження `{rel}` "
+              "(записано лише скелет — живий стан git); усі ухвалені рішення з причинами; відкриті "
+              "наміри й наступний крок; номери PR і фрази згоди, що чекають власника. Першим кроком "
+              "після стиснення — дописати цей пакет і `validate`.")
+    else:
+        print(f"скелет пакета: {rel} — допиши позначені місця, потім `validate`")
     return 0
 
 
