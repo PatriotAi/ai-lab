@@ -14,6 +14,7 @@
 |---|---|
 | поріг контексту на старті / resume / після стиснення | ✅ чинний SessionStart-хук (`automations/session-start/session-start.sh`) |
 | вказівка після стиснення (`source=compact`) | ✅ той самий хук |
+| дрейф правил: рівень 1–3 (`scripts/rules-drift.py`) на старті / resume / після стиснення | ✅ той самий хук |
 | поріг **щоходу** (`UserPromptSubmit`) | ⏸ потребує зміни налаштувань агента — гейт R4, згода власника |
 | до стиснення (`PreCompact`): скелет пакета з живого стану + інструкція підсумку зберегти рішення, наміри й шлях пакета (дописує модель уже після) | ⏸ те саме |
 
@@ -24,7 +25,9 @@
 ```json
 "UserPromptSubmit": [
   { "hooks": [ { "type": "command",
-    "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/session-handoff.py\" check --hook-input -" } ] }
+    "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/session-handoff.py\" check --hook-input -" },
+    { "type": "command",
+    "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/rules-drift.py\" check --fetch --hook-input -" } ] }
 ],
 "PreCompact": [
   { "hooks": [ { "type": "command",
@@ -32,4 +35,4 @@
 ]
 ```
 
-Щоб увімкнути — рядок згоди в `security/consent.md` з ціллю, яку назве гейт, і окремий PR.
+Увімкнено за згодою власника 2026-11-28 (рядок `agent-settings@.claude/settings.json` у `security/consent.md`): фрагмент внесено в налаштування агента в PR #154, діє після злиття.
